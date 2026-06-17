@@ -54,6 +54,7 @@ class UserBase(BaseModel):
     date_of_birth: Optional[date] = None
     nationality: Optional[str] = None
     address: Optional[str] = None
+    user_type: Optional[str] = "Customer"
 
 
 class UserCreate(UserBase):
@@ -117,6 +118,34 @@ class CustomerResponse(CustomerBase):
     created_at: datetime
     updated_at: datetime
     
+    class Config:
+        from_attributes = True
+
+
+class TransactionResponse(BaseModel):
+    type: str
+    reference_id: int
+    amount: Optional[Decimal] = None
+    currency: Optional[str] = None
+    date: datetime
+    description: Optional[str] = None
+
+
+class CustomerProfileResponse(CustomerResponse):
+    num_restaurant_orders: int
+    num_accommodation_reservations: int
+    num_conference_reservations: int
+    recent_transactions: List[TransactionResponse] = []
+    reviews: Optional[List[str]] = []
+    customer_tier: Optional[str] = None
+
+
+class TopCustomerResponse(BaseModel):
+    customer_id: int
+    customer_code: str
+    full_name: str
+    total_spent: Decimal
+
     class Config:
         from_attributes = True
 
@@ -402,6 +431,7 @@ class ConferenceReservationResponse(BaseModel):
 
 class PaymentCreate(BaseModel):
     payment_type: str  # RestaurantOrder | AccommodationReservation | ConferenceReservation
+    reference_type: str  # RestaurantOrder | AccommodationReservation | ConferenceReservation
     reference_id: int
     payment_method: str  # MobileMoney | VISA | FlexPay | BankTransfer
     amount_paid: Decimal
@@ -413,6 +443,7 @@ class PaymentResponse(BaseModel):
     payment_id: int
     customer_id: Optional[int] = None
     payment_type: str
+    reference_type: str
     reference_id: int
     payment_method: str
     amount_paid: Decimal

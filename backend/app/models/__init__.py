@@ -2,6 +2,7 @@
 SQLAlchemy models for SEYEYA backend
 PostgreSQL database schema
 """
+from __future__ import annotations
 from sqlalchemy import (
     Column, Integer, String, Text, DateTime, Date, Time, Boolean, DECIMAL,
     ForeignKey, UniqueConstraint, CheckConstraint, Index, Sequence, Enum
@@ -20,38 +21,28 @@ Base = declarative_base()
 # =====================================================================
 
 class User(Base):
-    """User model"""
+    """Simplified User model"""
     __tablename__ = "users"
-    
+
     user_id = Column(Integer, primary_key=True)
+    branch_id = Column(Integer, ForeignKey("branches.branch_id"), nullable=True)
     full_name = Column(String(200), nullable=False)
     email = Column(String(150), unique=True)
     phone_number = Column(String(20))
     password_hash = Column(String(500), nullable=False)
-    gender = Column(String(10))
-    date_of_birth = Column(Date)
-    nationality = Column(String(100))
     nin = Column(String(20))
     passport_number = Column(String(30))
-    address = Column(String(300))
-    next_of_kin = Column(String(200))
-    next_of_kin_phone = Column(String(20))
-    avatar_url = Column(String(500))
     is_staff = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-    is_verified = Column(Boolean, default=False)
-    email_verified_at = Column(DateTime)
-    phone_verified_at = Column(DateTime)
     last_login_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
-    roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
+    roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan", foreign_keys=["UserRole.user_id"]) 
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
     password_resets = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
     device_tokens = relationship("DeviceToken", back_populates="user", cascade="all, delete-orphan")
-    
+    customer = relationship("Customer", back_populates="user", uselist=False)
+
     __table_args__ = (
         Index('ix_users_email', 'email'),
         Index('ix_users_phone_number', 'phone_number'),
@@ -119,11 +110,11 @@ class UserRole(Base):
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     role_id = Column(Integer, ForeignKey("roles.role_id", ondelete="CASCADE"), nullable=False)
     assigned_at = Column(DateTime, default=datetime.utcnow)
-    assigned_by = Column(Integer, ForeignKey("users.user_id"))
+    assigned_by = Column(Integer)
     expires_at = Column(DateTime)
     
     # Relationships
-    user = relationship("User", back_populates="roles")
+    user = relationship("User", back_populates="roles", foreign_keys=[user_id])
     role = relationship("Role", back_populates="users")
     
     __table_args__ = (
@@ -186,50 +177,40 @@ class DeviceToken(Base):
 
 
 # =====================================================================
-# SECTION 2: CRM - CUSTOMERS
+# SECTION 2: CUSTOMERS
 # =====================================================================
 
 class Customer(Base):
-    """Customer model"""
+    """Simplified Customer model"""
     __tablename__ = "customers"
-    
+
     customer_id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.user_id"))
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
     customer_code = Column(String(20), nullable=False, unique=True)
     full_name = Column(String(200), nullable=False)
-    gender = Column(String(10))
-    date_of_birth = Column(Date)
-    nationality = Column(String(100))
-    phone_number = Column(String(20))
-    email = Column(String(150))
-    address = Column(String(300))
-    passport_number = Column(String(30))
     nin = Column(String(20))
-    next_of_kin = Column(String(200))
-    next_of_kin_phone = Column(String(20))
-    customer_type = Column(String(20), default="Registered")  # Walk-In | Registered | Corporate | Contract | VIP
-    company_name = Column(String(200))
+    passport_number = Column(String(30))
+    phone_number = Column(String(20))
+    customer_type = Column(String(20), default="Registered")
     is_contract_client = Column(Boolean, default=False)
-    contract_expiry = Column(Date)
     total_spent = Column(DECIMAL(18, 2), default=0)
-    visit_count = Column(Integer, default=0)
     loyalty_points = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
+    visit_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
+    user = relationship("User", back_populates="customer", foreign_keys=[user_id])
     orders = relationship("RestaurantOrder", back_populates="customer", cascade="all, delete-orphan")
     reservations = relationship("AccommodationReservation", back_populates="customer", cascade="all, delete-orphan")
     conference_reservations = relationship("ConferenceReservation", back_populates="customer", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="customer", cascade="all, delete-orphan")
     reviews = relationship("CustomerReview", back_populates="customer", cascade="all, delete-orphan")
-    
+
     __table_args__ = (
         Index('ix_customers_phone_number', 'phone_number'),
         Index('ix_customers_nin', 'nin'),
         Index('ix_customers_passport_number', 'passport_number'),
-        Index('ix_customers_customer_type', 'customer_type'),
     )
 
 
@@ -659,6 +640,7 @@ class Payment(Base):
     customer_id = Column(Integer, ForeignKey("customers.customer_id"))
     payment_type = Column(String(30), nullable=False)
     # RestaurantOrder | AccommodationReservation | ConferenceReservation
+    reference_type = Column(String(30), default="Unknown")
     reference_id = Column(Integer, nullable=False)
     payment_method = Column(String(30), nullable=False)
     # MobileMoney | VISA | FlexPay | BankTransfer

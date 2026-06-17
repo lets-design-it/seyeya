@@ -4,6 +4,7 @@ Repository implementations for different modules
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from typing import Optional, List
+from datetime import datetime
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
     ConferenceReservation, MenuItem, MenuCategory, Room, ConferenceHall,
@@ -98,6 +99,81 @@ class CustomerRepository:
         """Get all customers"""
         result = await self.db.execute(
             select(Customer).offset(skip).limit(limit)
+        )
+        return result.scalars().all()
+
+    async def search_customers(self, query: str, skip: int = 0, limit: int = 50) -> List[Customer]:
+        """Search customers by name, phone, email, NIN, passport"""
+        q = f"%{query}%"
+        result = await self.db.execute(
+            select(Customer).where(
+                or_(
+                    Customer.full_name.ilike(q),
+                    Customer.phone_number.ilike(q),
+                    Customer.email.ilike(q),
+                    Customer.nin.ilike(q),
+                    Customer.passport_number.ilike(q)
+                )
+            ).offset(skip).limit(limit)
+        )
+        return result.scalars().all()
+
+    async def update_customer(self, customer: Customer) -> Customer:
+        """Update and persist a customer instance"""
+        self.db.add(customer)
+        await self.db.commit()
+        await self.db.refresh(customer)
+        return customer
+
+    async def deactivate_customer(self, customer_id: int) -> bool:
+        result = await self.db.execute(
+            select(Customer).where(Customer.customer_id == customer_id)
+        )
+        cust = result.scalar_one_or_none()
+        if not cust:
+            return False
+        cust.is_active = False
+        self.db.add(cust)
+        await self.db.commit()
+        return True
+
+    async def get_customer_transactions(self, customer_id: int, limit: int = 50) -> List[dict]:
+        """Return recent transactions (payments, orders, reservations) for a customer"""
+        txs = []
+        # payments
+        pay_res = await self.db.execute(
+            select(Payment).where(Payment.customer_id == customer_id).order_by(Payment.payment_date.desc()).limit(limit)
+        )
+        for p in pay_res.scalars().all():
+            txs.append({"type": "payment", "reference_id": p.payment_id, "amount": p.amount_paid, "currency": p.currency, "date": p.payment_date, "description": p.payment_reference})
+
+        # orders
+        ord_res = await self.db.execute(
+            select(RestaurantOrder).where(RestaurantOrder.customer_id == customer_id).order_by(RestaurantOrder.created_at.desc()).limit(limit)
+        )
+        for o in ord_res.scalars().all():
+            txs.append({"type": "order", "reference_id": o.order_id, "amount": o.total_amount, "currency": None, "date": o.created_at, "description": o.order_number})
+
+        # accommodation
+        acc_res = await self.db.execute(
+            select(AccommodationReservation).where(AccommodationReservation.customer_id == customer_id).order_by(AccommodationReservation.created_at.desc()).limit(limit)
+        )
+        for a in acc_res.scalars().all():
+            txs.append({"type": "accommodation", "reference_id": a.reservation_id, "amount": a.total_amount, "currency": None, "date": a.created_at, "description": a.reservation_code})
+
+        # sort and trim
+        txs_sorted = sorted(txs, key=lambda x: x["date"] or datetime.utcnow(), reverse=True)
+        return txs_sorted[:limit]
+
+    async def get_top_customers(self, limit: int = 10) -> List[Customer]:
+        result = await self.db.execute(
+            select(Customer).order_by(Customer.total_spent.desc()).limit(limit)
+        )
+        return result.scalars().all()
+
+    async def get_vip_customers(self, min_spent: float = 1000000.0) -> List[Customer]:
+        result = await self.db.execute(
+            select(Customer).where(Customer.total_spent >= min_spent).order_by(Customer.total_spent.desc())
         )
         return result.scalars().all()
 
@@ -296,11 +372,12 @@ class PaymentRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
     
-    async def create_payment(self, customer_id: Optional[int], payment_type: str, reference_id: int, payment_method: str, amount_paid, payment_reference: str) -> Payment:
+    async def create_payment(self, customer_id: Optional[int], payment_type: str, reference_type: str, reference_id: int, payment_method: str, amount_paid, payment_reference: str) -> Payment:
         """Create a new payment"""
         payment = Payment(
             customer_id=customer_id,
             payment_type=payment_type,
+            reference_type=reference_type,
             reference_id=reference_id,
             payment_method=payment_method,
             amount_paid=amount_paid,

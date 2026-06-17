@@ -2,7 +2,7 @@
 Service layer for business logic
 """
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, and_
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, Tuple, List
@@ -151,6 +151,66 @@ class CustomerService:
         """Lookup customer by NIN, Passport, or Phone"""
         return await self.repo.get_by_identifier(identifier)
 
+    async def list_customers(self, skip: int = 0, limit: int = 50):
+        return await self.repo.get_all_customers(skip=skip, limit=limit)
+
+    async def search_customers(self, query: str, skip: int = 0, limit: int = 50):
+        return await self.repo.search_customers(query, skip=skip, limit=limit)
+
+    async def update_customer(self, customer_id: int, updates: dict) -> Optional[Customer]:
+        customer = await self.repo.get_by_id(customer_id)
+        if not customer:
+            return None
+        for k, v in updates.items():
+            if hasattr(customer, k) and v is not None:
+                setattr(customer, k, v)
+        return await self.repo.update_customer(customer)
+
+    async def deactivate_customer(self, customer_id: int) -> bool:
+        return await self.repo.deactivate_customer(customer_id)
+
+    async def get_customer_profile(self, customer_id: int):
+        cust = await self.repo.get_by_id(customer_id)
+        if not cust:
+            return None
+
+        # counts
+        orders_count = await self.db.execute(select(func.count(RestaurantOrder.order_id)).where(RestaurantOrder.customer_id == customer_id))
+        orders_count = int(orders_count.scalar_one())
+
+        acc_count = await self.db.execute(select(func.count(AccommodationReservation.reservation_id)).where(AccommodationReservation.customer_id == customer_id))
+        acc_count = int(acc_count.scalar_one())
+
+        conf_count = await self.db.execute(select(func.count(ConferenceReservation.conference_res_id)).where(ConferenceReservation.customer_id == customer_id))
+        conf_count = int(conf_count.scalar_one())
+
+        recent_txs = await self.repo.get_customer_transactions(customer_id, limit=10)
+
+        profile = {
+            "customer_id": cust.customer_id,
+            "customer_code": cust.customer_code,
+            "full_name": cust.full_name,
+            "total_spent": cust.total_spent,
+            "visit_count": cust.visit_count,
+            "loyalty_points": cust.loyalty_points,
+            "num_restaurant_orders": orders_count,
+            "num_accommodation_reservations": acc_count,
+            "num_conference_reservations": conf_count,
+            "recent_transactions": recent_txs,
+            "reviews": [],
+            "customer_tier": None
+        }
+        return profile
+
+    async def get_customer_transactions(self, customer_id: int, limit: int = 50):
+        return await self.repo.get_customer_transactions(customer_id, limit=limit)
+
+    async def get_top_customers(self, limit: int = 10):
+        return await self.repo.get_top_customers(limit=limit)
+
+    async def get_vip_customers(self, min_spent: float = 1000000.0):
+        return await self.repo.get_vip_customers(min_spent=min_spent)
+
 
 class RestaurantOrderService:
     """Restaurant order service"""
@@ -279,12 +339,12 @@ class PaymentService:
         self.db = db
         self.repo = PaymentRepository(db)
     
-    async def create_payment(self, customer_id: Optional[int], payment_type: str, reference_id: int, payment_method: str, amount_paid: Decimal, is_deposit: bool = False) -> Payment:
+    async def create_payment(self, customer_id: Optional[int], payment_type: str, reference_type: str, reference_id: int, payment_method: str, amount_paid: Decimal, is_deposit: bool = False) -> Payment:
         """Create a payment"""
         payment_reference = f"PAY-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8].upper()}"
         
         payment = await self.repo.create_payment(
-            customer_id, payment_type, reference_id, payment_method, amount_paid, payment_reference
+            customer_id, payment_type, reference_type, reference_id, payment_method, amount_paid, payment_reference
         )
         payment.is_deposit = is_deposit
         payment.payment_status = "Pending"

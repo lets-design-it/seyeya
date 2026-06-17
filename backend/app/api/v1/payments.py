@@ -23,6 +23,7 @@ async def create_payment(
         payment = await service.create_payment(
             customer_id=request.customer_id if hasattr(request, 'customer_id') else None,
             payment_type=request.payment_type,
+            reference_type=request.reference_type,
             reference_id=request.reference_id,
             payment_method=request.payment_method,
             amount_paid=request.amount_paid,
