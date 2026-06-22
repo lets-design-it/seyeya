@@ -16,13 +16,13 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = "inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseStyles = "inline-flex items-center justify-center font-semibold rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed";
   
   const variants = {
-    primary: "bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md hover:from-violet-500 hover:to-indigo-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.25)]",
-    secondary: "bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 light:bg-zinc-100 light:hover:bg-zinc-200 light:border-zinc-200 light:text-zinc-800",
-    outline: "border border-zinc-850 hover:border-zinc-700 bg-transparent text-zinc-300 hover:text-zinc-100 light:border-zinc-250 light:hover:border-zinc-400 light:text-zinc-750",
-    ghost: "bg-transparent hover:bg-zinc-900/50 text-zinc-400 hover:text-zinc-200 light:hover:bg-zinc-100 light:text-zinc-600 light:hover:text-zinc-850",
+    primary: "bg-primary text-white shadow-sm hover:bg-zinc-800 border border-transparent focus:ring-zinc-500/20",
+    secondary: "bg-white hover:bg-zinc-100  text-primary dark:bg-zinc-100/80 dark:hover:bg-zinc-800 dark:border-zinc-850 dark:text-foreground",
+    outline: " hover:border-zinc-700 bg-transparent text-foreground hover:text-zinc-100 light:border-zinc-250 light:hover:border-zinc-400 light:text-zinc-750",
+    ghost: "bg-transparent hover:bg-zinc-100 text-zinc-550 hover:text-foreground light:hover:bg-zinc-100 light:text-zinc-600 light:hover:text-zinc-850",
     danger: "bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400"
   };
 
@@ -45,3 +45,5 @@ export const Button: React.FC<ButtonProps> = ({
     </button>
   );
 };
+
+

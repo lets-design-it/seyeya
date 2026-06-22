@@ -101,7 +101,7 @@ export const Dashboard: React.FC = () => {
       <div className="rounded-3xl bg-gradient-to-r from-violet-950/30 to-indigo-950/20 border border-violet-500/10 p-6 shadow-xl relative overflow-hidden">
         <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-violet-500/5 blur-[40px] pointer-events-none" />
         <h3 className="text-xl font-bold text-white tracking-tight">Executive Dashboard Overview</h3>
-        <p className="mt-1 text-sm text-zinc-400 max-w-xl">
+        <p className="mt-1 text-sm text-zinc-550 max-w-xl">
           Real-time aggregates of Seyeya sales channels, lead velocity metrics, and system activity.
         </p>
       </div>
@@ -111,9 +111,9 @@ export const Dashboard: React.FC = () => {
         {/* KPI 1 */}
         <div className="glass-panel glass-card-glow rounded-2xl p-5 flex items-center justify-between shadow-lg">
           <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-zinc-500 light:text-zinc-400 uppercase tracking-wider">Closed Revenue</span>
+            <span className="text-xs font-semibold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Closed Revenue</span>
             <h4 className="text-2xl font-bold text-white light:text-zinc-900">${kpis.revenue.toLocaleString()}</h4>
-            <span className="text-[10px] text-emerald-400 font-medium">✦ 12% increase from last month</span>
+            <span className="text-xs text-emerald-400 font-medium">✦ 12% increase from last month</span>
           </div>
           <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400">
             <DollarSign className="h-6 w-6" />
@@ -123,9 +123,9 @@ export const Dashboard: React.FC = () => {
         {/* KPI 2 */}
         <div className="glass-panel glass-card-glow rounded-2xl p-5 flex items-center justify-between shadow-lg">
           <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-zinc-500 light:text-zinc-400 uppercase tracking-wider">Pipeline Value</span>
+            <span className="text-xs font-semibold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Pipeline Value</span>
             <h4 className="text-2xl font-bold text-white light:text-zinc-900">${kpis.pipeline.toLocaleString()}</h4>
-            <span className="text-[10px] text-indigo-400 font-medium">✦ Active contract negotiations</span>
+            <span className="text-xs text-indigo-400 font-medium">✦ Active contract negotiations</span>
           </div>
           <div className="h-12 w-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
             <TrendingUp className="h-6 w-6" />
@@ -135,9 +135,9 @@ export const Dashboard: React.FC = () => {
         {/* KPI 3 */}
         <div className="glass-panel glass-card-glow rounded-2xl p-5 flex items-center justify-between shadow-lg">
           <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-zinc-500 light:text-zinc-400 uppercase tracking-wider">Active Leads</span>
+            <span className="text-xs font-semibold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Active Leads</span>
             <h4 className="text-2xl font-bold text-white light:text-zinc-900">{kpis.activeLeads}</h4>
-            <span className="text-[10px] text-rose-400 font-medium">✦ Under customer development</span>
+            <span className="text-xs text-rose-400 font-medium">✦ Under customer development</span>
           </div>
           <div className="h-12 w-12 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400">
             <Users className="h-6 w-6" />
@@ -147,9 +147,9 @@ export const Dashboard: React.FC = () => {
         {/* KPI 4 */}
         <div className="glass-panel glass-card-glow rounded-2xl p-5 flex items-center justify-between shadow-lg">
           <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-zinc-500 light:text-zinc-400 uppercase tracking-wider">Conversion Rate</span>
+            <span className="text-xs font-semibold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Conversion Rate</span>
             <h4 className="text-2xl font-bold text-white light:text-zinc-900">{kpis.winRate}%</h4>
-            <span className="text-[10px] text-emerald-400 font-medium">✦ Highly qualified pipeline</span>
+            <span className="text-xs text-emerald-400 font-medium">✦ Highly qualified pipeline</span>
           </div>
           <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-450">
             <CheckCircle className="h-6 w-6" />
@@ -163,17 +163,17 @@ export const Dashboard: React.FC = () => {
         <div className="glass-panel glass-card-glow rounded-2xl p-5 lg:col-span-2 shadow-lg flex flex-col justify-between min-h-[350px]">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h4 className="text-sm font-bold text-zinc-200 light:text-zinc-800">Sales Velocity Projection</h4>
-              <p className="text-[11px] text-zinc-500">Comparing target projections against actual closed wins.</p>
+              <h4 className="text-sm font-bold text-foreground light:text-zinc-800">Sales Velocity Projection</h4>
+              <p className="text-xs text-zinc-500">Comparing target projections against actual closed wins.</p>
             </div>
-            <div className="flex items-center gap-3 text-[11px]">
+            <div className="flex items-center gap-3 text-xs">
               <div className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-violet-500" />
-                <span className="text-zinc-400">Actual Sales</span>
+                <span className="text-zinc-550">Actual Sales</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full bg-indigo-500/40" />
-                <span className="text-zinc-400">Target</span>
+                <span className="text-zinc-550">Target</span>
               </div>
             </div>
           </div>
@@ -207,8 +207,8 @@ export const Dashboard: React.FC = () => {
         {/* Lead Stages Distribution */}
         <div className="glass-panel glass-card-glow rounded-2xl p-5 shadow-lg flex flex-col justify-between min-h-[350px]">
           <div>
-            <h4 className="text-sm font-bold text-zinc-200 light:text-zinc-800">Pipeline Funnel Distribution</h4>
-            <p className="text-[11px] text-zinc-500">Distribution of leads across each sales stage.</p>
+            <h4 className="text-sm font-bold text-foreground light:text-zinc-800">Pipeline Funnel Distribution</h4>
+            <p className="text-xs text-zinc-500">Distribution of leads across each sales stage.</p>
           </div>
           <div className="h-[220px] w-full my-4">
             <ResponsiveContainer width="100%" height="100%">
@@ -233,16 +233,16 @@ export const Dashboard: React.FC = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="grid grid-cols-3 gap-1.5 text-[9px] text-zinc-500 text-center font-medium border-t border-zinc-900/60 pt-3">
+          <div className="grid grid-cols-3 gap-1.5 text-xs text-zinc-500 text-center font-medium  pt-3">
             {stageData.slice(0, 3).map((item, index) => (
               <div key={item.name} className="flex flex-col items-center">
-                <span className="font-semibold text-zinc-300 capitalize">{item.name}</span>
+                <span className="font-semibold text-foreground capitalize">{item.name}</span>
                 <span className="text-zinc-500 mt-0.5">{item.count} items</span>
               </div>
             ))}
             {stageData.slice(3, 6).map((item, index) => (
               <div key={item.name} className="flex flex-col items-center">
-                <span className="font-semibold text-zinc-300 capitalize">{item.name}</span>
+                <span className="font-semibold text-foreground capitalize">{item.name}</span>
                 <span className="text-zinc-500 mt-0.5">{item.count} items</span>
               </div>
             ))}
@@ -255,19 +255,19 @@ export const Dashboard: React.FC = () => {
         {/* Activities Stream */}
         <div className="glass-panel glass-card-glow rounded-2xl p-5 lg:col-span-2 shadow-lg space-y-4">
           <div>
-            <h4 className="text-sm font-bold text-zinc-200 light:text-zinc-800">Operational Log Feed</h4>
-            <p className="text-[11px] text-zinc-500">Live feed tracking actions taken across the Seyeya CRM workspace.</p>
+            <h4 className="text-sm font-bold text-foreground light:text-zinc-800">Operational Log Feed</h4>
+            <p className="text-xs text-zinc-500">Live feed tracking actions taken across the Seyeya CRM workspace.</p>
           </div>
-          <div className="divide-y divide-zinc-900/40 space-y-3 max-h-[280px] overflow-y-auto pr-1">
+          <div className=" space-y-3 max-h-[280px] overflow-y-auto pr-1">
             {activities.map((act) => (
               <div key={act.id} className="flex items-start gap-3.5 pt-3 first:pt-0">
-                <img src={act.avatar} alt={act.user} className="h-7 w-7 rounded-lg object-cover border border-zinc-900 shrink-0" />
+                <img src={act.avatar} alt={act.user} className="h-7 w-7 rounded-lg object-cover  shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-zinc-300 light:text-zinc-700">
+                  <p className="text-xs text-foreground light:text-zinc-700">
                     <span className="font-semibold text-white light:text-zinc-900">{act.user}</span>{' '}
                     {act.action}
                   </p>
-                  <div className="flex items-center gap-1.5 mt-1 text-[10px] text-zinc-500 font-medium">
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-zinc-500 font-medium">
                     {getActivityIcon(act.type)}
                     <span>{act.time}</span>
                   </div>
@@ -280,8 +280,8 @@ export const Dashboard: React.FC = () => {
         {/* Lead Velocity Summary */}
         <div className="glass-panel glass-card-glow rounded-2xl p-5 shadow-lg space-y-4">
           <div>
-            <h4 className="text-sm font-bold text-zinc-200 light:text-zinc-800">Workload Distribution</h4>
-            <p className="text-[11px] text-zinc-500">Volume breakdown by industry sector.</p>
+            <h4 className="text-sm font-bold text-foreground light:text-zinc-800">Workload Distribution</h4>
+            <p className="text-xs text-zinc-500">Volume breakdown by industry sector.</p>
           </div>
           <div className="space-y-3.5 pt-2">
             {[
@@ -292,10 +292,10 @@ export const Dashboard: React.FC = () => {
             ].map((industry) => (
               <div key={industry.label} className="space-y-1">
                 <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-zinc-300 light:text-zinc-700 truncate max-w-[170px]">{industry.label}</span>
-                  <span className="text-zinc-400">{industry.count} leads ({industry.pct})</span>
+                  <span className="text-foreground light:text-zinc-700 truncate max-w-[170px]">{industry.label}</span>
+                  <span className="text-zinc-550">{industry.count} leads ({industry.pct})</span>
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-zinc-900 light:bg-zinc-200 overflow-hidden">
+                <div className="h-1.5 w-full rounded-full bg-zinc-100 light:bg-zinc-200 overflow-hidden">
                   <div 
                     className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500" 
                     style={{ width: industry.pct }}
@@ -309,3 +309,5 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
+

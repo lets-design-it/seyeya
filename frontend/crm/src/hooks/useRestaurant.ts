@@ -107,12 +107,27 @@ const DEFAULT_ORDERS: RestaurantOrder[] = [
 export const useRestaurant = () => {
   const { addNotification } = useNotification();
   const [orders, setOrders] = useState<RestaurantOrder[]>([]);
+  const [menu, setMenu] = useState<MenuItem[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('seyeya_crm_orders');
-    if (saved) {
+    // Load menu
+    const savedMenu = localStorage.getItem('seyeya_crm_menu');
+    if (savedMenu) {
       try {
-        setOrders(JSON.parse(saved));
+        setMenu(JSON.parse(savedMenu));
+      } catch (e) {
+        setMenu(MENU_ITEMS);
+      }
+    } else {
+      localStorage.setItem('seyeya_crm_menu', JSON.stringify(MENU_ITEMS));
+      setMenu(MENU_ITEMS);
+    }
+
+    // Load orders
+    const savedOrders = localStorage.getItem('seyeya_crm_orders');
+    if (savedOrders) {
+      try {
+        setOrders(JSON.parse(savedOrders));
       } catch (e) {
         setOrders(DEFAULT_ORDERS);
       }
@@ -151,10 +166,40 @@ export const useRestaurant = () => {
     localStorage.setItem('seyeya_crm_orders', JSON.stringify(updated));
   };
 
+  const addMenuItem = (item: Omit<MenuItem, 'id'>) => {
+    const newItem: MenuItem = {
+      ...item,
+      id: `m-${Date.now()}`,
+    };
+    const updated = [...menu, newItem];
+    setMenu(updated);
+    localStorage.setItem('seyeya_crm_menu', JSON.stringify(updated));
+    addNotification('Restaurant Menu Updated', `Added new menu item: ${item.name}`, 'order');
+  };
+
+  const updateMenuItem = (item: MenuItem) => {
+    const updated = menu.map(m => m.id === item.id ? item : m);
+    setMenu(updated);
+    localStorage.setItem('seyeya_crm_menu', JSON.stringify(updated));
+  };
+
+  const deleteMenuItem = (id: string) => {
+    const target = menu.find(m => m.id === id);
+    const updated = menu.filter(m => m.id !== id);
+    setMenu(updated);
+    localStorage.setItem('seyeya_crm_menu', JSON.stringify(updated));
+    if (target) {
+      addNotification('Restaurant Menu Updated', `Removed menu item: ${target.name}`, 'order');
+    }
+  };
+
   return {
-    menu: MENU_ITEMS,
+    menu,
     orders,
     placeOrder,
     updateOrderStatus,
+    addMenuItem,
+    updateMenuItem,
+    deleteMenuItem,
   };
 };

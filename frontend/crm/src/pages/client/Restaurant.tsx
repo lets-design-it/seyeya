@@ -17,7 +17,7 @@ export const Restaurant: React.FC = () => {
   const [tableNumber, setTableNumber] = useState('Table 1');
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const categories = ['All', 'Local Food', 'Continental', 'Drinks'];
+  const categories = ['All', 'Local Food', 'Continental', 'Drinks', 'Desserts'];
 
   // Filter menu items
   const filteredMenu = useMemo(() => {
@@ -97,10 +97,10 @@ export const Restaurant: React.FC = () => {
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`rounded-xl px-4 py-2 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${
+            className={`rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors ${
               selectedCategory === cat
                 ? 'bg-violet-600/10 text-violet-400 border border-violet-500/20'
-                : 'bg-zinc-900/40 border border-zinc-900 text-zinc-450 hover:text-zinc-350'
+                : 'bg-zinc-100  text-zinc-450 hover:text-foreground'
             }`}
           >
             {cat}
@@ -116,18 +116,18 @@ export const Restaurant: React.FC = () => {
             <img 
               src={item.image} 
               alt={item.name} 
-              className="h-16 w-16 rounded-xl object-cover border border-zinc-900 shrink-0" 
+              className="h-16 w-16 rounded-xl object-cover  shrink-0" 
             />
             
             {/* Food Info */}
             <div className="flex-1 min-w-0 flex flex-col justify-between">
               <div>
                 <h4 className="text-xs font-bold text-zinc-100 truncate leading-tight">{item.name}</h4>
-                <p className="text-[10px] text-zinc-500 mt-1 leading-normal line-clamp-2">{item.description}</p>
+                <p className="text-xs text-zinc-500 mt-1 leading-normal line-clamp-2">{item.description}</p>
               </div>
 
               <div className="flex items-center justify-between mt-2.5">
-                <span className="text-[10px] font-semibold text-violet-400">
+                <span className="text-xs font-semibold text-violet-400">
                   UGX {item.priceUGX.toLocaleString()} / ${item.priceUSD}
                 </span>
 
@@ -146,13 +146,13 @@ export const Restaurant: React.FC = () => {
 
       {/* Success Modal */}
       {isSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/75 backdrop-blur-md animate-fade-in">
-          <div className="glass-panel glass-card-glow rounded-3xl w-full max-w-sm p-6 text-center shadow-2xl border border-zinc-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-card/75 backdrop-blur-md animate-fade-in">
+          <div className="glass-panel glass-card-glow rounded-3xl w-full max-w-sm p-6 text-center shadow-2xl ">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-450 animate-bounce">
               <CheckCircle className="h-7 w-7" />
             </div>
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">Order Dispatched</h3>
-            <p className="mt-2 text-xs text-zinc-400">
+            <p className="mt-2 text-xs text-zinc-550">
               Your ticket has been sent to the kitchen. Chef has received the order and is preparing.
             </p>
             <Button 
@@ -183,17 +183,17 @@ export const Restaurant: React.FC = () => {
 
       {/* Cart Drawer Modal */}
       {showCart && (
-        <div className="fixed inset-0 z-40 bg-zinc-950/70 backdrop-blur-sm animate-fade-in flex items-end justify-center">
-          <div className="glass-panel w-full sm:max-w-md bg-zinc-950 border-t border-zinc-900 rounded-t-3xl max-h-[75vh] flex flex-col justify-between p-5 shadow-2xl">
+        <div className="fixed inset-0 z-40 bg-card/70 backdrop-blur-sm animate-fade-in flex items-end justify-center">
+          <div className="glass-panel w-full sm:max-w-md bg-card  rounded-t-3xl max-h-[75vh] flex flex-col justify-between p-5 shadow-2xl">
             {/* Cart Header */}
-            <div className="flex items-center justify-between border-b border-zinc-900/60 pb-3 mb-4">
+            <div className="flex items-center justify-between  pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="h-4 w-4 text-violet-400" />
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider">Your Basket</h3>
               </div>
               <button 
                 onClick={() => setShowCart(false)}
-                className="text-zinc-500 hover:text-zinc-350 p-1 rounded-lg"
+                className="text-zinc-500 hover:text-foreground p-1 rounded-lg"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -207,8 +207,8 @@ export const Restaurant: React.FC = () => {
                 return (
                   <div key={item.id} className="flex items-center justify-between text-xs">
                     <div className="min-w-0 flex-1">
-                      <h4 className="font-semibold text-zinc-200 truncate">{item.name}</h4>
-                      <span className="text-[10px] text-zinc-500 mt-0.5 block">
+                      <h4 className="font-semibold text-foreground truncate">{item.name}</h4>
+                      <span className="text-xs text-zinc-500 mt-0.5 block">
                         UGX {item.priceUGX.toLocaleString()} each
                       </span>
                     </div>
@@ -216,14 +216,14 @@ export const Restaurant: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <button 
                         onClick={() => removeFromCart(item.id)}
-                        className="h-6 w-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-200"
+                        className="h-6 w-6 rounded-lg bg-zinc-100  flex items-center justify-center text-zinc-550 hover:text-foreground"
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className="text-xs font-semibold text-zinc-200 w-4 text-center">{qty}</span>
+                      <span className="text-xs font-semibold text-foreground w-4 text-center">{qty}</span>
                       <button 
                         onClick={() => addToCart(item.id)}
-                        className="h-6 w-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-200"
+                        className="h-6 w-6 rounded-lg bg-zinc-100  flex items-center justify-center text-zinc-550 hover:text-foreground"
                       >
                         <Plus className="h-3 w-3" />
                       </button>
@@ -234,14 +234,14 @@ export const Restaurant: React.FC = () => {
             </div>
 
             {/* Checkout Form */}
-            <form onSubmit={handleCheckout} className="border-t border-zinc-900/60 pt-4 mt-4 space-y-4">
+            <form onSubmit={handleCheckout} className=" pt-4 mt-4 space-y-4">
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">Delivery Point</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1.5">Delivery Point</label>
                   <select
                     value={tableNumber}
                     onChange={(e) => setTableNumber(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-850 bg-zinc-900/50 py-2 px-3 text-xs text-zinc-300 outline-none focus:border-violet-500 cursor-pointer"
+                    className="w-full rounded-xl  bg-zinc-100 py-2 px-3 text-xs text-foreground outline-none focus:border-violet-500 cursor-pointer"
                   >
                     <option value="Table 1">Table 1 (Garden)</option>
                     <option value="Table 2">Table 2 (Garden)</option>
@@ -255,9 +255,9 @@ export const Restaurant: React.FC = () => {
                 </div>
 
                 <div className="text-right flex flex-col justify-end">
-                  <span className="text-[9px] uppercase font-bold text-zinc-550 block">Aggregate Total</span>
+                  <span className="text-xs uppercase font-bold text-zinc-550 block">Aggregate Total</span>
                   <span className="text-xs font-bold text-white mt-1 block">UGX {cartTotal.ugx.toLocaleString()}</span>
-                  <span className="text-[9px] text-zinc-500">~ ${cartTotal.usd} USD</span>
+                  <span className="text-xs text-zinc-500">~ ${cartTotal.usd} USD</span>
                 </div>
               </div>
 
@@ -277,3 +277,5 @@ export const Restaurant: React.FC = () => {
   );
 };
 export default Restaurant;
+
+

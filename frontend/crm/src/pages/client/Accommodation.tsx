@@ -67,11 +67,11 @@ export const Accommodation: React.FC = () => {
     <div className="space-y-5 animate-fade-in pb-16 font-sans">
       
       {/* Date & Contact Information Card */}
-      <Card variant="glass" className="p-4 border border-zinc-900 shadow-md">
-        <h4 className="text-xs font-bold text-zinc-200 uppercase tracking-wider mb-3.5">Stay Specifications</h4>
+      <Card variant="glass" className="p-4  shadow-md">
+        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider mb-3.5">Stay Specifications</h4>
         
         {error && (
-          <div className="mb-3.5 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-[10px] text-red-400">
+          <div className="mb-3.5 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400">
             {error}
           </div>
         )}
@@ -115,7 +115,7 @@ export const Accommodation: React.FC = () => {
 
       {/* Cottages Selector Cards */}
       <div className="space-y-4">
-        <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Cottage Lodges & Suites</h4>
+        <h4 className="text-xs font-bold text-zinc-550 uppercase tracking-wider">Cottage Lodges & Suites</h4>
         
         {rooms.map((room) => {
           const isSelected = selectedRoomId === room.id;
@@ -123,32 +123,32 @@ export const Accommodation: React.FC = () => {
             <div 
               key={room.id}
               onClick={() => setSelectedRoomId(room.id)}
-              className={`rounded-2xl border bg-zinc-950/40 p-4 transition-all duration-300 shadow-sm cursor-pointer relative ${
+              className={`rounded-2xl border bg-zinc-50 p-4 transition-all duration-300 shadow-sm cursor-pointer relative ${
                 isSelected 
-                  ? 'border-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.15)] bg-zinc-950/80' 
+                  ? 'border-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.15)] bg-card/80' 
                   : 'border-zinc-900 hover:border-zinc-850'
               }`}
             >
               {/* Image & Title */}
               <div className="flex gap-3.5">
-                <img src={room.image} alt={room.name} className="h-16 w-20 rounded-xl object-cover border border-zinc-900 shrink-0" />
+                <img src={room.image} alt={room.name} className="h-16 w-20 rounded-xl object-cover  shrink-0" />
                 <div className="min-w-0 flex-1">
                   <h5 className="text-xs font-bold text-zinc-100 truncate leading-snug">{room.name}</h5>
-                  <p className="text-[10px] text-zinc-500 mt-1 leading-normal line-clamp-2">{room.description}</p>
+                  <p className="text-xs text-zinc-500 mt-1 leading-normal line-clamp-2">{room.description}</p>
                 </div>
               </div>
 
               {/* Price & Amenities */}
-              <div className="mt-3.5 pt-3 border-t border-zinc-900/60 flex items-center justify-between">
+              <div className="mt-3.5 pt-3  flex items-center justify-between">
                 <div className="flex flex-wrap gap-1.5 max-w-[170px]">
                   {room.amenities.slice(0, 2).map((amenity) => (
-                    <span key={amenity} className="px-1.5 py-0.5 rounded-md bg-zinc-900 text-zinc-400 text-[8px] font-semibold">
+                    <span key={amenity} className="px-1.5 py-0.5 rounded-md bg-zinc-100 text-zinc-550 text-xs font-semibold">
                       {amenity}
                     </span>
                   ))}
                 </div>
                 <div className="text-right">
-                  <span className="text-[9px] uppercase font-bold text-zinc-500 block leading-none">Price per Night</span>
+                  <span className="text-xs uppercase font-bold text-zinc-500 block leading-none">Price per Night</span>
                   <span className="text-xs font-bold text-violet-400 mt-1 block leading-none">
                     UGX {room.priceUGX.toLocaleString()} / ${room.priceUSD}
                   </span>
@@ -161,16 +161,16 @@ export const Accommodation: React.FC = () => {
 
       {/* Pricing Summary & Checkout Button */}
       {nightsCount > 0 && (
-        <Card variant="glow" className="p-4 border border-zinc-900 flex items-center justify-between gap-4">
+        <Card variant="glow" className="p-4  flex items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-1.5 text-[9px] text-indigo-400 font-bold uppercase tracking-wider leading-none">
+            <div className="flex items-center gap-1.5 text-xs text-indigo-400 font-bold uppercase tracking-wider leading-none">
               <Calendar className="h-3.5 w-3.5" />
               <span>{nightsCount} Nights Selection</span>
             </div>
             <span className="text-sm font-bold text-white mt-1.5 block leading-none">
               UGX {totalCost.ugx.toLocaleString()}
             </span>
-            <span className="text-[10px] text-zinc-500 mt-1 block">~ ${totalCost.usd} USD</span>
+            <span className="text-xs text-zinc-500 mt-1 block">~ ${totalCost.usd} USD</span>
           </div>
 
           <Button 
@@ -184,13 +184,13 @@ export const Accommodation: React.FC = () => {
 
       {/* Success Modal */}
       {isSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/75 backdrop-blur-md animate-fade-in">
-          <div className="glass-panel glass-card-glow rounded-3xl w-full max-w-sm p-6 text-center shadow-2xl border border-zinc-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-card/75 backdrop-blur-md animate-fade-in">
+          <div className="glass-panel glass-card-glow rounded-3xl w-full max-w-sm p-6 text-center shadow-2xl ">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-450 animate-bounce">
               <CheckCircle className="h-7 w-7" />
             </div>
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">Reservation Confirmed</h3>
-            <p className="mt-2 text-xs text-zinc-400">
+            <p className="mt-2 text-xs text-zinc-550">
               Your room reservation request has been submitted successfully. A front desk representative will check you in shortly.
             </p>
             <Button 
@@ -207,3 +207,5 @@ export const Accommodation: React.FC = () => {
   );
 };
 export default Accommodation;
+
+

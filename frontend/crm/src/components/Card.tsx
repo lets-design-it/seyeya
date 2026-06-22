@@ -11,11 +11,11 @@ export const Card: React.FC<CardProps> = ({
   children,
   ...props
 }) => {
-  const baseStyle = "rounded-2xl border transition-all duration-300 shadow-md";
+  const baseStyle = "rounded-[24px]  transition-all duration-300 shadow-[0_8px_30px_rgb(0,0,0,0.02)]";
   const styles = {
-    default: "bg-zinc-900/40 border-zinc-900 light:bg-zinc-50 light:border-zinc-200 text-zinc-100 light:text-zinc-900",
-    glass: "glass-panel bg-zinc-950/40 border-zinc-900 text-zinc-100",
-    glow: "glass-panel glass-card-glow bg-zinc-950/40 border-zinc-900 text-zinc-100"
+    default: "bg-card text-foreground",
+    glass: "glass-panel text-foreground",
+    glow: "glass-panel text-foreground"
   };
 
   return (
@@ -27,3 +27,5 @@ export const Card: React.FC<CardProps> = ({
     </div>
   );
 };
+
+

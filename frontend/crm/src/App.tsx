@@ -10,6 +10,7 @@ import { Orders } from './pages/dashboard/Orders';
 import { Rooms } from './pages/dashboard/Rooms';
 import { Conferences } from './pages/dashboard/Conferences';
 import { ClientsCRM } from './pages/dashboard/ClientsCRM';
+import { MenuEditor } from './pages/dashboard/MenuEditor';
 
 // Client Views
 import { Restaurant } from './pages/client/Restaurant';
@@ -114,6 +115,12 @@ const CRMApp: React.FC = () => {
             <ClientsCRM />
           </ProtectedRoute>
         );
+      case 'menu-editor':
+        return (
+          <ProtectedRoute allowedRoles={['admin', 'manager']}>
+            <MenuEditor />
+          </ProtectedRoute>
+        );
       default:
         return (
           <ProtectedRoute>
@@ -145,3 +152,5 @@ function App() {
 }
 
 export default App;
+
+

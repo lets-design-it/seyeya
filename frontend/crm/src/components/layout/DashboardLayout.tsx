@@ -86,15 +86,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   return (
-    <div className="flex min-h-screen bg-zinc-950 font-sans text-zinc-100 dark:bg-zinc-950 light:bg-white light:text-zinc-900 transition-colors duration-250">
+    <div className="flex min-h-screen bg-card font-sans text-zinc-100 dark:bg-card light:bg-white light:text-zinc-900 transition-colors duration-250">
       {/* Sidebar */}
       <aside 
-        className={`relative z-20 flex flex-col border-r border-zinc-900 light:border-zinc-200 bg-zinc-950/80 light:bg-zinc-50/80 backdrop-blur-xl transition-all duration-300 ${
+        className={`relative z-20 flex flex-col  light:border-zinc-200 bg-card/80 light:bg-zinc-50/80 backdrop-blur-xl transition-all duration-300 ${
           isSidebarCollapsed ? 'w-[78px]' : 'w-[260px]'
         }`}
       >
         {/* Sidebar Header */}
-        <div className="flex h-16 items-center justify-between px-4 border-b border-zinc-900/60 light:border-zinc-200/60">
+        <div className="flex h-16 items-center justify-between px-4  light:border-zinc-200/60">
           <div className="flex items-center gap-2.5 overflow-hidden">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-500 shadow-lg shadow-indigo-500/15">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-white">
@@ -110,7 +110,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
           <button 
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden md:flex h-6 w-6 items-center justify-center rounded-md border border-zinc-800 light:border-zinc-300 hover:bg-zinc-900 light:hover:bg-zinc-150 text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="hidden md:flex h-6 w-6 items-center justify-center rounded-md  light:border-zinc-300 hover:bg-zinc-100 light:hover:bg-zinc-150 text-zinc-550 hover:text-foreground transition-colors"
           >
             {isSidebarCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
           </button>
@@ -128,15 +128,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 className={`flex w-full items-center gap-3.5 rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-200 group relative ${
                   isActive 
                     ? 'bg-violet-600/10 text-violet-400 border-l-[3px] border-violet-500 pl-[11px]' 
-                    : 'text-zinc-400 hover:bg-zinc-900/40 hover:text-zinc-200 light:text-zinc-600 light:hover:bg-zinc-100'
+                    : 'text-zinc-550 hover:bg-zinc-100 hover:text-foreground light:text-zinc-600 light:hover:bg-zinc-100'
                 }`}
               >
-                <Icon className={`h-4.5 w-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-violet-400' : 'text-zinc-500 light:text-zinc-400'}`} />
+                <Icon className={`h-4.5 w-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-violet-400' : 'text-zinc-500 light:text-zinc-550'}`} />
                 {!isSidebarCollapsed && <span>{item.label}</span>}
                 
                 {/* Collapsed Tooltip */}
                 {isSidebarCollapsed && (
-                  <div className="pointer-events-none absolute left-16 z-30 rounded-md bg-zinc-900 border border-zinc-800 px-2 py-1 text-xs text-zinc-100 opacity-0 shadow-md group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                  <div className="pointer-events-none absolute left-16 z-30 rounded-md bg-zinc-100  px-2 py-1 text-xs text-zinc-100 opacity-0 shadow-md group-hover:opacity-100 transition-opacity whitespace-nowrap">
                     {item.label}
                   </div>
                 )}
@@ -146,28 +146,28 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </nav>
 
         {/* Sidebar Footer (User Account & Role Switcher) */}
-        <div className="border-t border-zinc-900 light:border-zinc-200 p-3.5">
+        <div className=" light:border-zinc-200 p-3.5">
           {/* Quick Role Switch Panel */}
           {!isSidebarCollapsed && showRoleSwitcher && (
-            <div className="mb-3 rounded-2xl border border-zinc-800 light:border-zinc-200 bg-zinc-950/90 light:bg-white p-2.5 shadow-xl animate-fade-in space-y-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 px-2 mb-1.5">Switch Identity</p>
+            <div className="mb-3 rounded-2xl  light:border-zinc-200 bg-card/90 light:bg-white p-2.5 shadow-xl animate-fade-in space-y-1">
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 px-2 mb-1.5">Switch Identity</p>
               <button 
                 onClick={() => { updateUserRole('admin'); setShowRoleSwitcher(false); }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-zinc-300 light:text-zinc-700 hover:bg-zinc-900 light:hover:bg-zinc-100 transition-colors"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground light:text-zinc-700 hover:bg-zinc-100 light:hover:bg-zinc-100 transition-colors"
               >
                 <div className="h-1.5 w-1.5 rounded-full bg-violet-400" />
                 Sarah Jenkins (Admin)
               </button>
               <button 
                 onClick={() => { updateUserRole('manager'); setShowRoleSwitcher(false); }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-zinc-300 light:text-zinc-700 hover:bg-zinc-900 light:hover:bg-zinc-100 transition-colors"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground light:text-zinc-700 hover:bg-zinc-100 light:hover:bg-zinc-100 transition-colors"
               >
                 <div className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
                 Marcus Vance (Manager)
               </button>
               <button 
                 onClick={() => { updateUserRole('agent'); setShowRoleSwitcher(false); }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-zinc-300 light:text-zinc-700 hover:bg-zinc-900 light:hover:bg-zinc-100 transition-colors"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground light:text-zinc-700 hover:bg-zinc-100 light:hover:bg-zinc-100 transition-colors"
               >
                 <div className="h-1.5 w-1.5 rounded-full bg-rose-400" />
                 Elena Rostova (Agent)
@@ -185,7 +185,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               <img 
                 src={user.avatar} 
                 alt={user.name} 
-                className="h-9 w-9 rounded-xl border border-zinc-800 object-cover shadow-sm group-hover:border-violet-500 transition-colors" 
+                className="h-9 w-9 rounded-xl  object-cover shadow-sm group-hover:border-violet-500 transition-colors" 
               />
               <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-zinc-950" />
             </button>
@@ -193,11 +193,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             {!isSidebarCollapsed && (
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 justify-between">
-                  <p className="text-xs font-semibold text-zinc-200 dark:text-zinc-200 light:text-zinc-800 truncate leading-none">{user.name}</p>
+                  <p className="text-xs font-semibold text-foreground dark:text-foreground light:text-zinc-800 truncate leading-none">{user.name}</p>
                 </div>
                 <button
                   onClick={() => setShowRoleSwitcher(!showRoleSwitcher)}
-                  className={`mt-1 border px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide inline-flex leading-none ${getRoleBadgeColor(user.role)}`}
+                  className={`mt-1 border px-1.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wide inline-flex leading-none ${getRoleBadgeColor(user.role)}`}
                 >
                   {user.role} ✦
                 </button>
@@ -207,7 +207,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             {!isSidebarCollapsed && (
               <button 
                 onClick={logout}
-                className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-900 light:hover:bg-zinc-100 transition-colors focus:outline-none"
+                className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-100 light:hover:bg-zinc-100 transition-colors focus:outline-none"
                 title="Logout Session"
               >
                 <LogOut className="h-4.5 w-4.5" />
@@ -220,13 +220,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 border-b border-zinc-900 light:border-zinc-200 flex items-center justify-between px-6 bg-zinc-950/40 light:bg-zinc-50/40 backdrop-blur-md z-10">
+        <header className="h-16  light:border-zinc-200 flex items-center justify-between px-6 bg-zinc-50 light:bg-zinc-50/40 backdrop-blur-md z-10">
           <div className="flex items-center gap-3">
             <h2 className="text-md font-bold tracking-wide uppercase text-zinc-100 dark:text-zinc-100 light:text-zinc-900">
               {allowedMenuItems.find(i => i.id === activeTab)?.label || 'Workspace'}
             </h2>
             <div className="h-4 w-px bg-zinc-800 light:bg-zinc-350" />
-            <div className="flex items-center gap-1 text-[11px] text-zinc-400">
+            <div className="flex items-center gap-1 text-xs text-zinc-550">
               <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
               <span>Live Node Connected</span>
             </div>
@@ -237,7 +237,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             {/* Theme Toggle */}
             <button 
               onClick={toggleTheme}
-              className="h-9 w-9 rounded-xl border border-zinc-800 light:border-zinc-250 flex items-center justify-center text-zinc-400 hover:text-zinc-200 light:hover:bg-zinc-100 transition-colors focus:outline-none"
+              className="h-9 w-9 rounded-xl  light:border-zinc-250 flex items-center justify-center text-zinc-550 hover:text-foreground light:hover:bg-zinc-100 transition-colors focus:outline-none"
               title="Toggle Light/Dark Theme"
             >
               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -250,15 +250,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
 
             {/* User Identity Display */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-900/50 light:bg-zinc-100/50 border border-zinc-800 light:border-zinc-200">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100 light:bg-zinc-100/50  light:border-zinc-200">
               <div className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span className="text-xs font-semibold text-zinc-300 light:text-zinc-700 capitalize">{user.role} view</span>
+              <span className="text-xs font-semibold text-foreground light:text-zinc-700 capitalize">{user.role} view</span>
             </div>
           </div>
         </header>
 
         {/* Main View Area */}
-        <main className="flex-1 overflow-y-auto bg-zinc-950 dark:bg-zinc-950 light:bg-zinc-50 radial-bg p-6">
+        <main className="flex-1 overflow-y-auto bg-card dark:bg-card light:bg-zinc-50 radial-bg p-6">
           <div className="mx-auto max-w-7xl h-full">
             {children}
           </div>
@@ -267,3 +267,5 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     </div>
   );
 };
+
+

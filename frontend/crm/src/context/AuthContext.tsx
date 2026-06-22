@@ -149,7 +149,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
       <div className="flex h-screen w-screen items-center justify-center bg-[#09090b]">
         <div className="flex flex-col items-center gap-4">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
-          <p className="text-sm text-zinc-400 font-medium tracking-wide">Syncing Workspace...</p>
+          <p className="text-sm text-zinc-550 font-medium tracking-wide">Syncing Workspace...</p>
         </div>
       </div>
     );
@@ -171,7 +171,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
             </svg>
           </div>
           <h2 className="text-xl font-semibold text-zinc-100">Access Restricted</h2>
-          <p className="mt-2 text-sm text-zinc-400">
+          <p className="mt-2 text-sm text-zinc-550">
             Your current account role <span className="font-semibold text-indigo-400 uppercase">({user.role})</span> does not have permissions to view this resource.
           </p>
           <div className="mt-6 text-xs text-zinc-500 border-t border-zinc-800 pt-4">
@@ -195,3 +195,5 @@ const RedirectToLogin: React.FC = () => {
 
   return null;
 };
+
+

@@ -54,7 +54,7 @@ export const Login: React.FC = () => {
             </svg>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-white">SEYEYA CRM</h1>
-          <p className="mt-2 text-sm text-zinc-400">Next-gen intelligence & user control panel</p>
+          <p className="mt-2 text-sm text-zinc-550">Next-gen intelligence & user control panel</p>
         </div>
 
         {/* Login Glass Card */}
@@ -69,7 +69,7 @@ export const Login: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Email Address</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-550 mb-2">Email Address</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-500">
                   <Mail className="h-4 w-4" />
@@ -79,13 +79,13 @@ export const Login: React.FC = () => {
                   placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950/50 py-2.5 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-offset-zinc-950 transition-all duration-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                  className="w-full rounded-xl  bg-card/50 py-2.5 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-offset-zinc-950 transition-all duration-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-2">Password</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-550 mb-2">Password</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-zinc-500">
                   <Lock className="h-4 w-4" />
@@ -95,7 +95,7 @@ export const Login: React.FC = () => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-800 bg-zinc-950/50 py-2.5 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-offset-zinc-950 transition-all duration-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
+                  className="w-full rounded-xl  bg-card/50 py-2.5 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-600 outline-none ring-offset-zinc-950 transition-all duration-200 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                 />
               </div>
             </div>
@@ -118,21 +118,21 @@ export const Login: React.FC = () => {
 
           {/* Preset Buttons for Quick Login / Review */}
           <div className="mt-8 border-t border-zinc-800 pt-6">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-4 text-center">Quick Demo Accounts</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-550 mb-4 text-center">Quick Demo Accounts</h3>
             <div className="grid grid-cols-1 gap-2.5">
               <button
                 type="button"
                 onClick={() => handleQuickLogin('admin')}
                 disabled={isSubmitting}
-                className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 text-left transition-all duration-200 hover:border-violet-500/40 hover:bg-violet-950/10 group"
+                className="flex items-center justify-between rounded-xl  bg-zinc-100 p-3 text-left transition-all duration-200 hover:border-violet-500/40 hover:bg-violet-950/10 group"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400">
                     <Shield className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-zinc-200">Administrator</p>
-                    <p className="text-[10px] text-zinc-500">Full workspace access & UAC</p>
+                    <p className="text-xs font-semibold text-foreground">Administrator</p>
+                    <p className="text-xs text-zinc-500">Full workspace access & UAC</p>
                   </div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-violet-400 group-hover:translate-x-0.5 transition-all" />
@@ -142,15 +142,15 @@ export const Login: React.FC = () => {
                 type="button"
                 onClick={() => handleQuickLogin('manager')}
                 disabled={isSubmitting}
-                className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 text-left transition-all duration-200 hover:border-indigo-500/40 hover:bg-indigo-950/10 group"
+                className="flex items-center justify-between rounded-xl  bg-zinc-100 p-3 text-left transition-all duration-200 hover:border-indigo-500/40 hover:bg-indigo-950/10 group"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-400">
                     <Users className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-zinc-200">Manager</p>
-                    <p className="text-[10px] text-zinc-500">All data visibility, restricted UAC</p>
+                    <p className="text-xs font-semibold text-foreground">Manager</p>
+                    <p className="text-xs text-zinc-500">All data visibility, restricted UAC</p>
                   </div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-indigo-400 group-hover:translate-x-0.5 transition-all" />
@@ -160,15 +160,15 @@ export const Login: React.FC = () => {
                 type="button"
                 onClick={() => handleQuickLogin('agent')}
                 disabled={isSubmitting}
-                className="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/40 p-3 text-left transition-all duration-200 hover:border-rose-500/40 hover:bg-rose-950/10 group"
+                className="flex items-center justify-between rounded-xl  bg-zinc-100 p-3 text-left transition-all duration-200 hover:border-rose-500/40 hover:bg-rose-950/10 group"
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-500/10 text-rose-400">
                     <Briefcase className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-zinc-200">Sales Agent</p>
-                    <p className="text-[10px] text-zinc-500">Only assigned pipeline data</p>
+                    <p className="text-xs font-semibold text-foreground">Sales Agent</p>
+                    <p className="text-xs text-zinc-500">Only assigned pipeline data</p>
                   </div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-zinc-600 group-hover:text-rose-400 group-hover:translate-x-0.5 transition-all" />
@@ -184,3 +184,5 @@ export const Login: React.FC = () => {
     </div>
   );
 };
+
+

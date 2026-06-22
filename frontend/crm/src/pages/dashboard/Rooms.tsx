@@ -26,7 +26,7 @@ export const Rooms: React.FC = () => {
   // Find active booking for a given room number
   const roomStatusMap = useMemo(() => {
     const map: Record<string, { booking: BookingRecord; status: 'Reserved' | 'Checked In' } | null> = {};
-    
+
     ROOM_LIST.forEach(room => {
       // Find a booking for this room type that is active (Reserved or Checked In)
       // Since it's a mock, we match booking records.
@@ -36,7 +36,7 @@ export const Rooms: React.FC = () => {
         // Let's bind b-1 to room 102, b-2 to room 301, b-3 is checked out.
         if (b.id === 'b-1' && room.number === '102') return true;
         if (b.id === 'b-2' && room.number === '301') return true;
-        
+
         // For new client bookings, match them to the first vacant room of that type!
         if (b.roomId === room.typeId && (b.status === 'Reserved' || b.status === 'Checked In')) {
           // Prevent double assignment in mock view
@@ -64,21 +64,21 @@ export const Rooms: React.FC = () => {
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-white tracking-tight">Cottage & Rooms Calendar</h3>
-          <p className="text-xs text-zinc-400">Front desk room occupancy console. Coordinate check-ins and vacancy status.</p>
+          <h3 className="text-xl font-bold text-dark tracking-tight">Cottage & Rooms Calendar</h3>
+          <p className="text-xs text-zinc-550">Front desk room occupancy console. Coordinate check-ins and vacancy status.</p>
         </div>
         <div className="flex items-center gap-3.5 text-xs">
           <div className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            <span className="text-zinc-400">Vacant</span>
+            <span className="text-zinc-550">Vacant</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-            <span className="text-zinc-400">Reserved</span>
+            <span className="text-zinc-550">Reserved</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-violet-500" />
-            <span className="text-zinc-400">Checked In</span>
+            <span className="text-zinc-550">Checked In</span>
           </div>
         </div>
       </div>
@@ -87,62 +87,60 @@ export const Rooms: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {ROOM_LIST.map((room) => {
           const occupancy = roomStatusMap[room.number];
-          
+
           return (
-            <Card 
+            <Card
               key={room.number}
               variant="glass"
-              className={`p-4 border transition-all duration-300 relative flex flex-col justify-between min-h-[190px] ${
-                occupancy?.status === 'Checked In' 
-                  ? 'border-violet-500/25 bg-violet-950/5' 
+              className={`p-4 border transition-all duration-300 relative flex flex-col justify-between min-h-[190px] ${occupancy?.status === 'Checked In'
+                  ? 'border-violet-500/25 bg-violet-950/5'
                   : occupancy?.status === 'Reserved'
-                  ? 'border-amber-500/25 bg-amber-950/5'
-                  : 'border-emerald-500/20 bg-emerald-950/5 hover:border-emerald-500/30'
-              }`}
+                    ? 'border-amber-500/25 bg-amber-950/5'
+                    : 'border-emerald-500/20 bg-emerald-950/5 hover:border-emerald-500/30'
+                }`}
             >
               {/* Room Header */}
               <div className="flex items-start justify-between">
                 <div>
                   <h4 className="text-sm font-bold text-white leading-none">Room {room.number}</h4>
-                  <span className="text-[9px] text-zinc-500 uppercase mt-1 block tracking-wider leading-none">
+                  <span className="text-xs text-zinc-500 uppercase mt-1 block tracking-wider leading-none">
                     {room.typeName.replace('Seyeya ', '')}
                   </span>
                 </div>
-                <Bed className={`h-4.5 w-4.5 ${
-                  occupancy?.status === 'Checked In'
+                <Bed className={`h-4.5 w-4.5 ${occupancy?.status === 'Checked In'
                     ? 'text-violet-400'
                     : occupancy?.status === 'Reserved'
-                    ? 'text-amber-400'
-                    : 'text-emerald-400'
-                }`} />
+                      ? 'text-amber-400'
+                      : 'text-emerald-400'
+                  }`} />
               </div>
 
               {/* Occupancy details */}
               <div className="my-4 flex-1">
                 {occupancy ? (
-                  <div className="space-y-1.5 text-[10px]">
+                  <div className="space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="text-zinc-500">Guest:</span>
-                      <span className="font-semibold text-zinc-200 truncate max-w-[120px]">{occupancy.booking.guestName}</span>
+                      <span className="font-semibold text-foreground truncate max-w-[120px]">{occupancy.booking.guestName}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-zinc-500">Stay Dates:</span>
-                      <span className="text-zinc-400">{occupancy.booking.checkIn} to {occupancy.booking.checkOut}</span>
+                      <span className="text-zinc-550">{occupancy.booking.checkIn} to {occupancy.booking.checkOut}</span>
                     </div>
                   </div>
                 ) : (
-                  <div className="h-full flex items-center justify-start text-[10px] text-emerald-450 font-bold uppercase tracking-wider">
+                  <div className="h-full flex items-center justify-start text-xs text-emerald-450 font-bold uppercase tracking-wider">
                     ✦ Vacant & Prepared
                   </div>
                 )}
               </div>
 
               {/* Action buttons */}
-              <div className="border-t border-zinc-900/60 pt-3 flex justify-end shrink-0">
+              <div className=" pt-3 flex justify-end shrink-0">
                 {occupancy?.status === 'Reserved' && (
                   <button
                     onClick={() => updateBookingStatus(occupancy.booking.id, 'Checked In')}
-                    className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-amber-600/10 border border-amber-500/20 hover:bg-amber-600 hover:text-white py-1.5 text-[9px] font-bold text-amber-400 transition-colors focus:outline-none"
+                    className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-amber-600/10 border border-amber-500/20 hover:bg-amber-600 hover:text-white py-1.5 text-xs font-bold text-amber-400 transition-colors focus:outline-none"
                   >
                     <UserCheck className="h-3 w-3" />
                     Check In Guest
@@ -151,14 +149,14 @@ export const Rooms: React.FC = () => {
                 {occupancy?.status === 'Checked In' && (
                   <button
                     onClick={() => updateBookingStatus(occupancy.booking.id, 'Checked Out')}
-                    className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-violet-600/10 border border-violet-500/20 hover:bg-red-650 hover:text-white py-1.5 text-[9px] font-bold text-violet-400 transition-colors focus:outline-none"
+                    className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-violet-600/10 border border-violet-500/20 hover:bg-red-650 hover:text-white py-1.5 text-xs font-bold text-violet-400 transition-colors focus:outline-none"
                   >
                     <ShieldAlert className="h-3 w-3" />
                     Check Out / Clear
                   </button>
                 )}
                 {!occupancy && (
-                  <div className="w-full text-center py-1 text-[8px] text-zinc-600 font-semibold uppercase tracking-wider">
+                  <div className="w-full text-center py-1 text-xs text-zinc-600 font-semibold uppercase tracking-wider">
                     Available for reservation
                   </div>
                 )}
@@ -171,3 +169,5 @@ export const Rooms: React.FC = () => {
   );
 };
 export default Rooms;
+
+
