@@ -38,6 +38,20 @@ def send_order_confirmation_email(self, order_id: int):
 
 
 @celery_app.task(bind=True, max_retries=3)
+def send_customer_welcome_email(self, user_id: int, email: str, reset_token: str, temp_password: Optional[str] = None):
+    """Send welcome email with password reset link"""
+    try:
+        reset_link = f"https://your-app.example.com/reset-password?token={reset_token}"
+        print(f"Sending customer welcome email to {email}")
+        print(f"Reset link: {reset_link}")
+        if temp_password:
+            print(f"Temporary password: {temp_password}")
+        return {"status": "success", "user_id": user_id, "email": email}
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=60)
+
+
+@celery_app.task(bind=True, max_retries=3)
 def send_reservation_reminder(self, reservation_id: int):
     """Send reservation reminder SMS/Email"""
     try:

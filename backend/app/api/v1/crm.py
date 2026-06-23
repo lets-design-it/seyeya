@@ -28,6 +28,10 @@ async def create_customer(
             full_name=request.full_name,
             phone_number=request.phone_number,
             email=request.email,
+            gender=request.gender,
+            date_of_birth=request.date_of_birth,
+            nationality=request.nationality,
+            address=request.address,
             customer_type=request.customer_type
         )
         return customer

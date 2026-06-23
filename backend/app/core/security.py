@@ -10,7 +10,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
 
 # Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256", "bcrypt"], deprecated="auto")
 
 # HTTP Bearer scheme
 security = HTTPBearer()

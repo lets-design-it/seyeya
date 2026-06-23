@@ -8,7 +8,7 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 from app.schemas import (
     RestaurantOrderCreate, RestaurantOrderResponse, RestaurantOrderUpdate,
-    MenuCategoryResponse, MenuItemResponse, CustomerReviewCreate, CustomerReviewResponse
+    MenuCategoryResponse, MenuCategoryCreate, MenuItemResponse, MenuItemCreate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse
 )
 from app.services import RestaurantOrderService
 from app.repositories import MenuRepository, ReviewRepository
@@ -24,12 +24,81 @@ async def get_menu_categories(db: AsyncSession = Depends(get_db)):
     return categories
 
 
+@router.post("/menu/categories", response_model=MenuCategoryResponse)
+async def create_menu_category(request: MenuCategoryCreate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Create a menu category"""
+    repo = MenuRepository(db)
+    category = await repo.create_menu_category(
+        category_name=request.category_name,
+        description=request.description,
+        image_url=request.image_url,
+        sort_order=request.sort_order or 0,
+        is_active=request.is_active
+    )
+    return category
+
+
 @router.get("/menu/categories/{category_id}/items", response_model=List[MenuItemResponse])
 async def get_category_items(category_id: int, db: AsyncSession = Depends(get_db)):
     """Get items in a menu category"""
     repo = MenuRepository(db)
     items = await repo.get_items_by_category(category_id)
     return items
+
+
+@router.get("/menu/items", response_model=List[MenuItemResponse])
+async def get_all_menu_items(db: AsyncSession = Depends(get_db)):
+    """Get all menu items"""
+    repo = MenuRepository(db)
+    items = await repo.get_all_items()
+    return items
+
+
+@router.post("/menu/items", response_model=MenuItemResponse)
+async def create_menu_item(request: MenuItemCreate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Create a menu item"""
+    repo = MenuRepository(db)
+    item = await repo.create_menu_item(
+        category_id=request.category_id,
+        item_name=request.item_name,
+        price=request.price,
+        description=request.description,
+        image_url=request.image_url,
+        allergen_info=request.allergen_info,
+        preparation_time=request.preparation_time,
+        is_available=request.is_available,
+        is_active=request.is_active,
+        quantity=request.quantity or 0
+    )
+    return item
+
+
+@router.get("/menu/items/{item_id}", response_model=MenuItemResponse)
+async def get_menu_item(item_id: int, db: AsyncSession = Depends(get_db)):
+    """Get a single menu item with extras"""
+    repo = MenuRepository(db)
+    item = await repo.get_menu_item(item_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
+    return item
+
+
+@router.post("/menu/items/{item_id}/extras", response_model=MenuExtraResponse)
+async def add_menu_item_extra(item_id: int, request: MenuExtraCreate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Add an extra to a menu item"""
+    repo = MenuRepository(db)
+    # ensure menu item exists
+    item = await repo.get_menu_item(item_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
+    extra = await repo.create_menu_extra_for_item(menu_item_id=item_id, extra_name=request.extra_name, price=request.price, is_available=request.is_available)
+    # set image_url if provided
+    if request.image_url:
+        extra.image_url = request.image_url
+        db.add(extra)
+        await db.commit()
+        await db.refresh(extra)
+    return extra
 
 
 @router.post("/orders", response_model=RestaurantOrderResponse)

@@ -3,10 +3,11 @@ Service layer for business logic
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, Tuple, List
 import uuid
+import secrets
 from app.repositories import (
     UserRepository, CustomerRepository, MenuRepository,
     RestaurantOrderRepository, AccommodationRepository,
@@ -16,7 +17,7 @@ from app.core.security import hash_password, verify_password, create_access_toke
 from app.models import (
     User, Customer, RestaurantOrder, OrderItem, MenuExtra, AccommodationReservation,
     ConferenceReservation, ConferenceResourceBooking, ConferenceMealBooking, Payment,
-    UserSession, ActivityLog, LoginLog
+    UserSession, ActivityLog, LoginLog, PasswordResetToken
 )
 
 
@@ -106,7 +107,7 @@ class AuthService:
         })
         
         # Create session
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        expires_at = datetime.utcnow() + timedelta(days=7)
         session = UserSession(
             user_id=user.user_id,
             refresh_token=refresh_token,
@@ -118,7 +119,7 @@ class AuthService:
         
         self.db.add(login_log)
         self.db.add(session)
-        self.db.commit()
+        await self.db.commit()
         await self.db.refresh(user)
         
         return user, access_token, refresh_token
@@ -130,17 +131,73 @@ class CustomerService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.repo = CustomerRepository(db)
+        self.user_repo = UserRepository(db)
     
-    async def create_customer(self, full_name: str, phone_number: Optional[str] = None, email: Optional[str] = None, customer_type: str = "Registered") -> Customer:
+    async def create_customer(
+        self,
+        full_name: str,
+        phone_number: Optional[str] = None,
+        email: Optional[str] = None,
+        gender: Optional[str] = None,
+        date_of_birth: Optional[date] = None,
+        nationality: Optional[str] = None,
+        address: Optional[str] = None,
+        customer_type: str = "Registered"
+    ) -> Customer:
         """Create a new customer"""
-        # Generate unique customer code
+        existing_customer = await self.repo.get_by_email_or_phone(email=email, phone_number=phone_number)
+        if existing_customer:
+            raise ValueError("Customer with this email or phone number already exists")
+
+        user_id: Optional[int] = None
+        temp_password: Optional[str] = None
+        reset_token: Optional[str] = None
+
+        if email:
+            existing_user = await self.user_repo.get_by_email(email)
+            if existing_user:
+                user_id = existing_user.user_id
+            else:
+                temp_password = secrets.token_urlsafe(12)
+                password_hash = hash_password(temp_password)
+                new_user = await self.user_repo.create_user(full_name, email, password_hash, phone_number)
+                user_id = new_user.user_id
+
+            reset_token = uuid.uuid4().hex
+            expires_at = datetime.utcnow() + timedelta(days=1)
+            password_reset = PasswordResetToken(
+                user_id=user_id,
+                token=reset_token,
+                expires_at=expires_at
+            )
+            self.db.add(password_reset)
+            await self.db.commit()
+            await self.db.refresh(password_reset)
+
+            try:
+                from app.tasks.celery_app import send_customer_welcome_email
+                send_customer_welcome_email.delay(
+                    user_id,
+                    email,
+                    reset_token,
+                    temp_password
+                )
+            except Exception:
+                pass
+
         customer_code = f"CUST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8].upper()}"
-        
-        customer = await self.repo.create_customer(customer_code, full_name, phone_number, email)
-        customer.customer_type = customer_type
-        self.db.add(customer)
-        await self.db.commit()
-        await self.db.refresh(customer)
+        customer = await self.repo.create_customer(
+            customer_code,
+            full_name,
+            phone_number,
+            email,
+            gender=gender,
+            date_of_birth=date_of_birth,
+            nationality=nationality,
+            address=address,
+            customer_type=customer_type,
+            user_id=user_id
+        )
         return customer
     
     async def get_customer(self, customer_id: int) -> Optional[Customer]:

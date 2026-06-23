@@ -25,7 +25,6 @@ class User(Base):
     __tablename__ = "users"
 
     user_id = Column(Integer, primary_key=True)
-    branch_id = Column(Integer, ForeignKey("branches.branch_id"), nullable=True)
     full_name = Column(String(200), nullable=False)
     email = Column(String(150), unique=True)
     phone_number = Column(String(20))
@@ -37,7 +36,7 @@ class User(Base):
     last_login_at = Column(DateTime)
 
     # Relationships
-    roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan", foreign_keys=["UserRole.user_id"]) 
+    roles = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
     password_resets = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
     device_tokens = relationship("DeviceToken", back_populates="user", cascade="all, delete-orphan")
@@ -48,6 +47,9 @@ class User(Base):
         Index('ix_users_phone_number', 'phone_number'),
         Index('ix_users_nin', 'nin'),
     )
+
+
+# `branch_id` removed from `User` per request.
 
 
 class Permission(Base):
@@ -192,6 +194,12 @@ class Customer(Base):
     passport_number = Column(String(30))
     phone_number = Column(String(20))
     customer_type = Column(String(20), default="Registered")
+    email = Column(String(150), unique=False)
+    gender = Column(String(20))
+    date_of_birth = Column(Date)
+    nationality = Column(String(100))
+    address = Column(String(300))
+    is_active = Column(Boolean, default=True)
     is_contract_client = Column(Boolean, default=False)
     total_spent = Column(DECIMAL(18, 2), default=0)
     loyalty_points = Column(Integer, default=0)
@@ -208,6 +216,7 @@ class Customer(Base):
     reviews = relationship("CustomerReview", back_populates="customer", cascade="all, delete-orphan")
 
     __table_args__ = (
+        Index('ix_customers_email', 'email'),
         Index('ix_customers_phone_number', 'phone_number'),
         Index('ix_customers_nin', 'nin'),
         Index('ix_customers_passport_number', 'passport_number'),
@@ -243,6 +252,7 @@ class MenuItem(Base):
     item_name = Column(String(200), nullable=False)
     description = Column(String(500))
     price = Column(DECIMAL(10, 2), nullable=False)
+    quantity = Column(Integer, default=0)
     image_url = Column(String(500))
     allergen_info = Column(String(500))
     preparation_time = Column(Integer)  # minutes
@@ -254,6 +264,7 @@ class MenuItem(Base):
     # Relationships
     category = relationship("MenuCategory", back_populates="items")
     order_items = relationship("OrderItem", back_populates="menu_item", cascade="all, delete-orphan")
+    extras = relationship("MenuExtra", back_populates="menu_item", cascade="all, delete-orphan")
 
 
 class MenuExtra(Base):
@@ -263,11 +274,14 @@ class MenuExtra(Base):
     extra_id = Column(Integer, primary_key=True)
     extra_name = Column(String(100), nullable=False)
     price = Column(DECIMAL(10, 2), default=0)
+    image_url = Column(String(500))
     is_available = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    menu_item_id = Column(Integer, ForeignKey("menu_items.menu_item_id"), nullable=False)
     
     # Relationships
     order_extras = relationship("OrderItemExtra", back_populates="extra", cascade="all, delete-orphan")
+    menu_item = relationship("MenuItem", back_populates="extras")
 
 
 class RestaurantOrder(Base):

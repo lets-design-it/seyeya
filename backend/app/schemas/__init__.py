@@ -166,20 +166,61 @@ class MenuCategoryResponse(BaseModel):
         from_attributes = True
 
 
+class MenuCategoryCreate(BaseModel):
+    category_name: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    sort_order: Optional[int] = 0
+    is_active: Optional[bool] = True
+
+
+class MenuExtraResponse(BaseModel):
+    extra_id: int
+    extra_name: str
+    price: Decimal
+    is_available: bool
+    image_url: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+
 class MenuItemResponse(BaseModel):
     menu_item_id: int
     category_id: int
     item_name: str
     description: Optional[str] = None
     price: Decimal
+    quantity: int
     image_url: Optional[str] = None
     allergen_info: Optional[str] = None
     preparation_time: Optional[int] = None
     is_available: bool
     is_active: bool
+    extras: Optional[List[MenuExtraResponse]] = []
     
     class Config:
         from_attributes = True
+
+
+class MenuItemCreate(BaseModel):
+    category_id: int
+    item_name: str
+    description: Optional[str] = None
+    price: Decimal
+    quantity: Optional[int] = 0
+    image_url: Optional[str] = None
+    allergen_info: Optional[str] = None
+    preparation_time: Optional[int] = None
+    is_available: Optional[bool] = True
+    is_active: Optional[bool] = True
+
+
+class MenuExtraCreate(BaseModel):
+    extra_name: str
+    price: Decimal = 0
+    is_available: Optional[bool] = True
+    image_url: Optional[str] = None
 
 
 class MenuExtraResponse(BaseModel):

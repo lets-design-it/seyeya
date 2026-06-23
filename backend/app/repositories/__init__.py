@@ -3,12 +3,13 @@ Repository implementations for different modules
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
+from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
     ConferenceReservation, MenuItem, MenuCategory, Room, ConferenceHall,
-    Payment, CustomerReview, OrderItem
+    Payment, CustomerReview, OrderItem, MenuExtra
 )
 
 
@@ -60,14 +61,31 @@ class CustomerRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
     
-    async def create_customer(self, customer_code: str, full_name: str, phone_number: Optional[str] = None, email: Optional[str] = None) -> Customer:
+    async def create_customer(
+        self,
+        customer_code: str,
+        full_name: str,
+        phone_number: Optional[str] = None,
+        email: Optional[str] = None,
+        gender: Optional[str] = None,
+        date_of_birth: Optional[str] = None,
+        nationality: Optional[str] = None,
+        address: Optional[str] = None,
+        customer_type: str = "Registered",
+        user_id: Optional[int] = None
+    ) -> Customer:
         """Create a new customer"""
         customer = Customer(
             customer_code=customer_code,
             full_name=full_name,
             phone_number=phone_number,
             email=email,
-            customer_type="Registered",
+            gender=gender,
+            date_of_birth=date_of_birth,
+            nationality=nationality,
+            address=address,
+            customer_type=customer_type,
+            user_id=user_id,
             is_active=True
         )
         self.db.add(customer)
@@ -79,6 +97,35 @@ class CustomerRepository:
         """Get customer by ID"""
         result = await self.db.execute(
             select(Customer).where(Customer.customer_id == customer_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_email(self, email: str) -> Optional[Customer]:
+        """Get customer by email"""
+        result = await self.db.execute(
+            select(Customer).where(Customer.email == email)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_phone_number(self, phone_number: str) -> Optional[Customer]:
+        """Get customer by phone number"""
+        result = await self.db.execute(
+            select(Customer).where(Customer.phone_number == phone_number)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_email_or_phone(self, email: Optional[str] = None, phone_number: Optional[str] = None) -> Optional[Customer]:
+        """Get customer by email or phone"""
+        conditions = []
+        if email:
+            conditions.append(Customer.email == email)
+        if phone_number:
+            conditions.append(Customer.phone_number == phone_number)
+        if not conditions:
+            return None
+
+        result = await self.db.execute(
+            select(Customer).where(or_(*conditions))
         )
         return result.scalar_one_or_none()
     
@@ -190,23 +237,81 @@ class MenuRepository:
             select(MenuCategory).where(MenuCategory.is_active == True)
         )
         return result.scalars().all()
+
+    async def create_menu_category(self, category_name: str, description: Optional[str] = None, image_url: Optional[str] = None, sort_order: int = 0, is_active: bool = True) -> MenuCategory:
+        category = MenuCategory(
+            category_name=category_name,
+            description=description,
+            image_url=image_url,
+            sort_order=sort_order,
+            is_active=is_active
+        )
+        self.db.add(category)
+        await self.db.commit()
+        await self.db.refresh(category)
+        return category
     
     async def get_items_by_category(self, category_id: int) -> List[MenuItem]:
         """Get menu items by category"""
         result = await self.db.execute(
-            select(MenuItem).where(
+            select(MenuItem)
+            .where(
                 and_(
                     MenuItem.category_id == category_id,
                     MenuItem.is_active == True
                 )
             )
+            .options(selectinload(MenuItem.extras))
         )
         return result.scalars().all()
+
+    async def get_all_items(self) -> List[MenuItem]:
+        result = await self.db.execute(
+            select(MenuItem).where(MenuItem.is_active == True).options(selectinload(MenuItem.extras))
+        )
+        return result.scalars().all()
+
+    async def create_menu_item(self, category_id: int, item_name: str, price, description: Optional[str] = None, image_url: Optional[str] = None, allergen_info: Optional[str] = None, preparation_time: Optional[int] = None, is_available: bool = True, is_active: bool = True, quantity: int = 0) -> MenuItem:
+        item = MenuItem(
+            category_id=category_id,
+            item_name=item_name,
+            price=price,
+            description=description,
+            image_url=image_url,
+            allergen_info=allergen_info,
+            preparation_time=preparation_time,
+            is_available=is_available,
+            is_active=is_active,
+            quantity=quantity
+        )
+        self.db.add(item)
+        await self.db.commit()
+        await self.db.refresh(item)
+
+        result = await self.db.execute(
+            select(MenuItem)
+            .where(MenuItem.menu_item_id == item.menu_item_id)
+            .options(selectinload(MenuItem.extras))
+        )
+        return result.scalar_one()
+
+    async def create_menu_extra_for_item(self, menu_item_id: int, extra_name: str, price, is_available: bool = True) -> MenuExtra:
+        extra = MenuExtra(
+            extra_name=extra_name,
+            price=price,
+            is_available=is_available,
+            menu_item_id=menu_item_id,
+            image_url=None
+        )
+        self.db.add(extra)
+        await self.db.commit()
+        await self.db.refresh(extra)
+        return extra
     
     async def get_menu_item(self, item_id: int) -> Optional[MenuItem]:
         """Get menu item by ID"""
         result = await self.db.execute(
-            select(MenuItem).where(MenuItem.menu_item_id == item_id)
+            select(MenuItem).where(MenuItem.menu_item_id == item_id).options(selectinload(MenuItem.extras))
         )
         return result.scalar_one_or_none()
 
