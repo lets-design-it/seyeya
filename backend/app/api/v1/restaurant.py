@@ -124,14 +124,30 @@ async def create_order(
         
         db.add(order)
         await db.commit()
-        await db.refresh(order)
         
-        return order
+        return await service.get_order(order.order_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+
+@router.get("/orders", response_model=List[RestaurantOrderResponse])
+async def list_orders(
+    customer_id: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """List all restaurant orders, optionally filtered by customer_id"""
+    service = RestaurantOrderService(db)
+    if customer_id is not None:
+        orders = await service.get_customer_orders(customer_id, skip=skip, limit=limit)
+    else:
+        orders = await service.get_all_orders(skip=skip, limit=limit)
+    return orders
 
 
 @router.get("/orders/{order_id}", response_model=RestaurantOrderResponse)
@@ -183,9 +199,8 @@ async def update_order(
         
         db.add(order)
         await db.commit()
-        await db.refresh(order)
         
-        return order
+        return await service.get_order(order.order_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

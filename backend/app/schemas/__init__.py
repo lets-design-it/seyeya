@@ -1,9 +1,9 @@
 """
 Pydantic schemas for request/response validation
 """
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from datetime import datetime, date, time
-from typing import Optional, List
+from typing import Optional, List, Any
 from decimal import Decimal
 
 
@@ -17,6 +17,7 @@ class UserRegisterRequest(BaseModel):
     phone_number: Optional[str] = None
     password: str
     confirm_password: str
+    role_ids: Optional[List[int]] = None
     
     @field_validator("password")
     @classmethod
@@ -36,6 +37,12 @@ class TokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+    user_id: Optional[int] = None
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_staff: Optional[bool] = False
+    customer_id: Optional[int] = None
+    roles: Optional[List[str]] = []
 
 
 class RefreshTokenRequest(BaseModel):
@@ -50,11 +57,8 @@ class UserBase(BaseModel):
     full_name: str
     email: Optional[EmailStr] = None
     phone_number: Optional[str] = None
-    gender: Optional[str] = None
-    date_of_birth: Optional[date] = None
-    nationality: Optional[str] = None
-    address: Optional[str] = None
-    user_type: Optional[str] = "Customer"
+    is_staff: Optional[bool] = False
+    is_active: Optional[bool] = True
 
 
 class UserCreate(UserBase):
@@ -63,21 +67,40 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
     phone_number: Optional[str] = None
-    gender: Optional[str] = None
-    date_of_birth: Optional[date] = None
-    nationality: Optional[str] = None
-    address: Optional[str] = None
+    password: Optional[str] = None
+    is_staff: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 class UserResponse(UserBase):
     user_id: int
-    is_staff: bool
-    is_active: bool
-    is_verified: bool
-    created_at: datetime
-    updated_at: datetime
+    last_login_at: Optional[datetime] = None
+    roles: Optional[List[str]] = []
     
+    @model_validator(mode="before")
+    @classmethod
+    def extract_roles(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return data
+            
+        roles_list = []
+        if hasattr(data, "roles") and data.roles:
+            roles_list = [ur.role.role_name for ur in data.roles if ur.role]
+            
+        # Create dictionary from ORM attributes
+        return {
+            "user_id": data.user_id,
+            "full_name": data.full_name,
+            "email": data.email,
+            "phone_number": data.phone_number,
+            "is_staff": data.is_staff,
+            "is_active": data.is_active,
+            "last_login_at": data.last_login_at,
+            "roles": roles_list
+        }
+
     class Config:
         from_attributes = True
 
@@ -94,32 +117,121 @@ class CustomerBase(BaseModel):
     date_of_birth: Optional[date] = None
     nationality: Optional[str] = None
     address: Optional[str] = None
-    customer_type: str = "Registered"
+    nin: Optional[str] = None
+    passport_number: Optional[str] = None
+    customer_type: Optional[str] = "Registered"
+    is_contract_client: Optional[bool] = False
+    is_active: Optional[bool] = True
 
 
 class CustomerCreate(CustomerBase):
-    pass
+    user_id: Optional[int] = None
+    total_spent: Optional[Decimal] = Decimal(0)
+    visit_count: Optional[int] = 0
+    loyalty_points: Optional[int] = 0
 
 
 class CustomerUpdate(BaseModel):
     full_name: Optional[str] = None
     phone_number: Optional[str] = None
     email: Optional[EmailStr] = None
+    gender: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    nationality: Optional[str] = None
     address: Optional[str] = None
+    nin: Optional[str] = None
+    passport_number: Optional[str] = None
+    customer_type: Optional[str] = None
+    is_contract_client: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 class CustomerResponse(CustomerBase):
     customer_id: int
     customer_code: str
+    user_id: Optional[int] = None
     total_spent: Decimal
     visit_count: int
     loyalty_points: int
-    is_active: bool
     created_at: datetime
     updated_at: datetime
     
     class Config:
         from_attributes = True
+
+
+# =====================================================================
+# ROLES AND PERMISSIONS SCHEMAS
+# =====================================================================
+
+class PermissionResponse(BaseModel):
+    permission_id: int
+    group_id: Optional[int] = None
+    permission_key: str
+    display_name: str
+    description: Optional[str] = None
+    is_active: Optional[bool] = True
+
+    class Config:
+        from_attributes = True
+
+
+class PermissionGroupResponse(BaseModel):
+    group_id: int
+    group_name: str
+    permissions: List[PermissionResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class RolePermissionResponse(BaseModel):
+    role_permission_id: int
+    role_id: int
+    permission_id: int
+    permission: Optional[PermissionResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class RoleResponse(BaseModel):
+    role_id: int
+    role_name: str
+    description: Optional[str] = None
+    parent_role_id: Optional[int] = None
+    is_active: bool
+    is_system_role: bool
+    permissions: List[RolePermissionResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class RoleCreate(BaseModel):
+    role_name: str
+    description: Optional[str] = None
+    parent_role_id: Optional[int] = None
+    is_active: Optional[bool] = True
+    is_system_role: Optional[bool] = False
+    permission_ids: Optional[List[int]] = []
+
+
+class RoleUpdate(BaseModel):
+    role_name: Optional[str] = None
+    description: Optional[str] = None
+    parent_role_id: Optional[int] = None
+    is_active: Optional[bool] = None
+    permission_ids: Optional[List[int]] = None
+
+
+class UserRoleAssign(BaseModel):
+    role_id: int
+    expires_at: Optional[datetime] = None
+
+
+class RolePermissionAssign(BaseModel):
+    permission_ids: List[int]
 
 
 class TransactionResponse(BaseModel):
@@ -292,6 +404,15 @@ class RestaurantOrderResponse(BaseModel):
         from_attributes = True
 
 
+class CustomerOrdersResponse(BaseModel):
+    customer_id: int
+    total_orders: int
+    orders: List[RestaurantOrderResponse]
+
+    class Config:
+        from_attributes = True
+
+
 # =====================================================================
 # ACCOMMODATION SCHEMAS
 # =====================================================================
@@ -453,6 +574,8 @@ class ConferenceReservationResponse(BaseModel):
     event_name: str
     event_date: date
     start_time: time
+    end_time: time
+    booking_type: str
     num_participants: int
     total_amount: Decimal
     amount_paid: Decimal
@@ -471,6 +594,7 @@ class ConferenceReservationResponse(BaseModel):
 # =====================================================================
 
 class PaymentCreate(BaseModel):
+    customer_id: Optional[int] = None
     payment_type: str  # RestaurantOrder | AccommodationReservation | ConferenceReservation
     reference_type: str  # RestaurantOrder | AccommodationReservation | ConferenceReservation
     reference_id: int
@@ -530,3 +654,16 @@ class ErrorResponse(BaseModel):
     detail: str
     status_code: int
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+# =====================================================================
+# PASSWORD RESET SCHEMAS
+# =====================================================================
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordConfirm(BaseModel):
+    token: str
+    new_password: str

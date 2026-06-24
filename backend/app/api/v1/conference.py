@@ -12,7 +12,6 @@ from app.schemas import (
     ConferenceReservationCreate, ConferenceReservationResponse, ConferenceReservationUpdate,
     ConferenceHallResponse, ConferenceResourceResponse, ConferenceMealPackageResponse
 )
-from app.services import ConferenceRepository
 from app.repositories import ConferenceRepository
 from app.models import ConferenceHall, ConferenceResource, ConferenceMealPackage, ConferenceResourceBooking, ConferenceMealBooking
 
@@ -72,6 +71,8 @@ async def create_reservation(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a conference reservation"""
+    from datetime import datetime
+    import uuid
     try:
         repo = ConferenceRepository(db)
         
@@ -116,9 +117,6 @@ async def create_reservation(
         
         total_amount = hall_cost + resource_cost + meal_cost
         reservation_code = f"CON-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
-        
-        from datetime import datetime
-        import uuid
         
         reservation = await repo.create_reservation(
             customer_id=request.customer_id,

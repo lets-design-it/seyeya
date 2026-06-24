@@ -12,6 +12,7 @@ from app.api.v1.accommodation import router as accommodation_router
 from app.api.v1.conference import router as conference_router
 from app.api.v1.payments import router as payments_router
 from app.api.v1.crm import router as crm_router
+from app.api.v1.roles import router as roles_router
 from app.db.database import engine, Base
 
 
@@ -53,6 +54,7 @@ app.include_router(accommodation_router)
 app.include_router(conference_router)
 app.include_router(payments_router)
 app.include_router(crm_router)
+app.include_router(roles_router)
 
 
 @app.get("/")

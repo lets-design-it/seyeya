@@ -5,12 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.db.database import get_db
-from app.core.security import get_current_user
+from app.core.security import get_current_user, check_permission
 from app.schemas import (
     CustomerCreate, CustomerResponse, CustomerUpdate,
-    CustomerProfileResponse, TransactionResponse, TopCustomerResponse
+    CustomerProfileResponse, TransactionResponse, TopCustomerResponse,
+    CustomerOrdersResponse, ForgotPasswordRequest, ResetPasswordConfirm
 )
-from app.services import CustomerService
+from app.services import CustomerService, RestaurantOrderService, AuthService
 
 router = APIRouter(prefix="/api/v1/crm", tags=["crm"])
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/api/v1/crm", tags=["crm"])
 async def create_customer(
     request: CustomerCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.create"))
 ):
     """Create a new customer"""
     try:
@@ -32,7 +33,14 @@ async def create_customer(
             date_of_birth=request.date_of_birth,
             nationality=request.nationality,
             address=request.address,
-            customer_type=request.customer_type
+            customer_type=request.customer_type,
+            nin=request.nin,
+            passport_number=request.passport_number,
+            is_contract_client=request.is_contract_client,
+            total_spent=request.total_spent,
+            visit_count=request.visit_count,
+            loyalty_points=request.loyalty_points,
+            is_active=request.is_active
         )
         return customer
     except Exception as e:
@@ -46,7 +54,7 @@ async def create_customer(
 async def get_customer(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.view"))
 ):
     """Get customer details"""
     service = CustomerService(db)
@@ -65,7 +73,7 @@ async def get_customer(
 async def lookup_customer(
     identifier: str,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.view"))
 ):
     """Lookup customer by NIN, Passport, or Phone"""
     service = CustomerService(db)
@@ -85,7 +93,7 @@ async def update_customer(
     customer_id: int,
     request: CustomerUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.edit"))
 ):
     """Update customer details"""
     service = CustomerService(db)
@@ -119,7 +127,7 @@ async def list_customers(
     skip: int = 0,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.view"))
 ):
     service = CustomerService(db)
     customers = await service.list_customers(skip=skip, limit=limit)
@@ -131,7 +139,7 @@ async def put_customer(
     customer_id: int,
     request: CustomerUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.edit"))
 ):
     service = CustomerService(db)
     updated = await service.update_customer(customer_id, request.model_dump())
@@ -144,7 +152,7 @@ async def put_customer(
 async def delete_customer(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.delete"))
 ):
     service = CustomerService(db)
     ok = await service.deactivate_customer(customer_id)
@@ -159,7 +167,7 @@ async def search_customers(
     skip: int = 0,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.view"))
 ):
     service = CustomerService(db)
     return await service.search_customers(q, skip=skip, limit=limit)
@@ -169,7 +177,7 @@ async def search_customers(
 async def customer_profile(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.view"))
 ):
     service = CustomerService(db)
     profile = await service.get_customer_profile(customer_id)
@@ -182,7 +190,7 @@ async def customer_profile(
 async def customer_transactions(
     customer_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.view"))
 ):
     service = CustomerService(db)
     txs = await service.get_customer_transactions(customer_id)
@@ -193,7 +201,7 @@ async def customer_transactions(
 async def top_customers(
     limit: int = 10,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.view"))
 ):
     service = CustomerService(db)
     customers = await service.get_top_customers(limit=limit)
@@ -204,8 +212,76 @@ async def top_customers(
 async def vip_customers(
     min_spent: Optional[float] = 1000000.0,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(check_permission("crm.view"))
 ):
     service = CustomerService(db)
     customers = await service.get_vip_customers(min_spent=min_spent)
     return customers
+
+
+@router.get("/customers/{customer_id}/orders", response_model=CustomerOrdersResponse)
+async def get_customer_orders_crm(
+    customer_id: int,
+    skip: int = 0,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(check_permission("crm.view"))
+):
+    """Get customer orders history and count"""
+    from sqlalchemy import select, func
+    from app.models import RestaurantOrder
+    
+    # Verify customer exists
+    customer_service = CustomerService(db)
+    customer = await customer_service.get_customer(customer_id)
+    if not customer:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+        
+    order_service = RestaurantOrderService(db)
+    orders = await order_service.get_customer_orders(customer_id, skip=skip, limit=limit)
+    
+    # Also count total orders
+    count_result = await db.execute(
+        select(func.count(RestaurantOrder.order_id))
+        .where(RestaurantOrder.customer_id == customer_id)
+    )
+    total_count = int(count_result.scalar_one())
+    
+    return {
+        "customer_id": customer_id,
+        "total_orders": total_count,
+        "orders": orders
+    }
+
+
+@router.post("/customers/password-reset/request", status_code=status.HTTP_200_OK)
+async def request_customer_password_reset(
+    request: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Request a password reset link for a customer to be sent via email"""
+    from app.repositories import CustomerRepository
+    repo = CustomerRepository(db)
+    customer = await repo.get_by_email_or_phone(email=request.email)
+    if not customer:
+        return {"message": "If the email is registered in our system, a password reset link has been sent."}
+        
+    auth_service = AuthService(db)
+    await auth_service.request_password_reset(request.email)
+    return {"message": "If the email is registered in our system, a password reset link has been sent."}
+
+
+@router.post("/customers/password-reset/confirm", status_code=status.HTTP_200_OK)
+async def confirm_customer_password_reset(
+    request: ResetPasswordConfirm,
+    db: AsyncSession = Depends(get_db)
+):
+    """Confirm a customer's password reset using the token received via email"""
+    auth_service = AuthService(db)
+    success = await auth_service.confirm_password_reset(request.token, request.new_password)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token."
+        )
+    return {"message": "Customer password has been reset successfully."}

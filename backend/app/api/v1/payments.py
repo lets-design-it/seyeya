@@ -21,7 +21,7 @@ async def create_payment(
     try:
         service = PaymentService(db)
         payment = await service.create_payment(
-            customer_id=request.customer_id if hasattr(request, 'customer_id') else None,
+            customer_id=request.customer_id,
             payment_type=request.payment_type,
             reference_type=request.reference_type,
             reference_id=request.reference_id,

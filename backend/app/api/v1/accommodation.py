@@ -180,20 +180,12 @@ async def check_out(
     """Check out guest"""
     from datetime import datetime
     service = AccommodationService(db)
-    reservation = await service.get_reservation(reservation_id)
+    reservation = await service.check_out(reservation_id, current_user["user_id"])
     
     if not reservation:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Reservation not found"
         )
-    
-    reservation.reservation_status = "CheckedOut"
-    reservation.check_out_actual = datetime.utcnow()
-    reservation.checked_out_by = current_user["user_id"]
-    
-    db.add(reservation)
-    await db.commit()
-    await db.refresh(reservation)
     
     return reservation

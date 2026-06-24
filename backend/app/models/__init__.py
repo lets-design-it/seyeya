@@ -29,8 +29,6 @@ class User(Base):
     email = Column(String(150), unique=True)
     phone_number = Column(String(20))
     password_hash = Column(String(500), nullable=False)
-    nin = Column(String(20))
-    passport_number = Column(String(30))
     is_staff = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     last_login_at = Column(DateTime)
@@ -45,11 +43,21 @@ class User(Base):
     __table_args__ = (
         Index('ix_users_email', 'email'),
         Index('ix_users_phone_number', 'phone_number'),
-        Index('ix_users_nin', 'nin'),
     )
 
 
 # `branch_id` removed from `User` per request.
+
+
+class PermissionGroup(Base):
+    """Permission Group model"""
+    __tablename__ = "permission_groups"
+    
+    group_id = Column(Integer, primary_key=True)
+    group_name = Column(String(100), nullable=False, unique=True)
+    
+    # Relationships
+    permissions = relationship("Permission", back_populates="group", cascade="all, delete-orphan")
 
 
 class Permission(Base):
@@ -57,6 +65,7 @@ class Permission(Base):
     __tablename__ = "permissions"
     
     permission_id = Column(Integer, primary_key=True)
+    group_id = Column(Integer, ForeignKey("permission_groups.group_id", ondelete="CASCADE"), nullable=True)
     permission_key = Column(String(100), nullable=False, unique=True)
     display_name = Column(String(150), nullable=False)
     description = Column(String(300))
@@ -64,6 +73,7 @@ class Permission(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
+    group = relationship("PermissionGroup", back_populates="permissions")
     roles = relationship("RolePermission", back_populates="permission", cascade="all, delete-orphan")
 
 
@@ -188,7 +198,7 @@ class Customer(Base):
 
     customer_id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=True)
-    customer_code = Column(String(20), nullable=False, unique=True)
+    customer_code = Column(String(100), nullable=False, unique=True)
     full_name = Column(String(200), nullable=False)
     nin = Column(String(20))
     passport_number = Column(String(30))

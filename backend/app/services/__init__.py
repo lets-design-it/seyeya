@@ -11,14 +11,17 @@ import secrets
 from app.repositories import (
     UserRepository, CustomerRepository, MenuRepository,
     RestaurantOrderRepository, AccommodationRepository,
-    ConferenceRepository, PaymentRepository, ReviewRepository
+    ConferenceRepository, PaymentRepository, ReviewRepository,
+    RoleRepository, PasswordResetRepository
 )
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.models import (
     User, Customer, RestaurantOrder, OrderItem, MenuExtra, AccommodationReservation,
     ConferenceReservation, ConferenceResourceBooking, ConferenceMealBooking, Payment,
-    UserSession, ActivityLog, LoginLog, PasswordResetToken
+    UserSession, ActivityLog, LoginLog, PasswordResetToken,
+    Role, Permission, PermissionGroup, UserRole, RolePermission
 )
+from app.utils.email import send_immediate_welcome_email, send_password_reset_email
 
 
 class AuthService:
@@ -28,7 +31,14 @@ class AuthService:
         self.db = db
         self.user_repo = UserRepository(db)
     
-    async def register_user(self, full_name: str, email: str, password: str, phone_number: Optional[str] = None) -> Tuple[User, str, str]:
+    async def register_user(
+        self,
+        full_name: str,
+        email: str,
+        password: str,
+        phone_number: Optional[str] = None,
+        role_ids: Optional[List[int]] = None
+    ) -> Tuple[User, str, str]:
         """Register a new user"""
         # Check if user already exists
         existing_user = await self.user_repo.get_by_email(email)
@@ -40,6 +50,12 @@ class AuthService:
         
         # Create user
         user = await self.user_repo.create_user(full_name, email, password_hash, phone_number)
+        
+        # Assign roles if provided
+        if role_ids:
+            role_repo = RoleRepository(self.db)
+            for role_id in role_ids:
+                await role_repo.assign_role_to_user(user.user_id, role_id)
         
         # Generate tokens
         access_token = create_access_token({
@@ -53,7 +69,7 @@ class AuthService:
         })
         
         # Create session
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        expires_at = datetime.utcnow() + timedelta(days=7)
         session = UserSession(
             user_id=user.user_id,
             refresh_token=refresh_token,
@@ -124,6 +140,106 @@ class AuthService:
         
         return user, access_token, refresh_token
 
+    async def refresh_user_token(self, refresh_token: str) -> Tuple[User, str, str]:
+        """Refresh user tokens using a refresh token"""
+        from app.core.security import decode_token
+        
+        # Decode token
+        try:
+            payload = decode_token(refresh_token)
+        except Exception:
+            raise ValueError("Invalid refresh token")
+            
+        if payload.get("type") != "refresh":
+            raise ValueError("Invalid token type")
+            
+        user_id = payload.get("sub")
+        if not user_id:
+            raise ValueError("Invalid token subject")
+            
+        user = await self.user_repo.get_by_id(int(user_id))
+        if not user or not user.is_active:
+            raise ValueError("User not found or inactive")
+            
+        # Verify user session
+        result = await self.db.execute(
+            select(UserSession).where(and_(
+                UserSession.user_id == user.user_id,
+                UserSession.refresh_token == refresh_token,
+                UserSession.is_active == True,
+                UserSession.expires_at > datetime.utcnow()
+            ))
+        )
+        session = result.scalar_one_or_none()
+        if not session:
+            raise ValueError("Session expired or invalid")
+            
+        # Generate new tokens
+        access_token = create_access_token({
+            "sub": str(user.user_id),
+            "email": user.email,
+            "is_admin": user.is_staff
+        })
+        new_refresh_token = create_refresh_token({
+            "sub": str(user.user_id),
+            "email": user.email
+        })
+        
+        # Deactivate old session and create a new one
+        session.is_active = False
+        self.db.add(session)
+        
+        expires_at = datetime.utcnow() + timedelta(days=7)
+        new_session = UserSession(
+            user_id=user.user_id,
+            refresh_token=new_refresh_token,
+            expires_at=expires_at,
+            is_active=True,
+            ip_address=session.ip_address,
+            user_agent=session.user_agent
+        )
+        self.db.add(new_session)
+        await self.db.commit()
+        await self.db.refresh(user)
+        
+        return user, access_token, new_refresh_token
+
+    async def request_password_reset(self, email: str) -> bool:
+        """Request a password reset"""
+        user = await self.user_repo.get_by_email(email)
+        if not user:
+            return True
+            
+        token = uuid.uuid4().hex
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        
+        pwd_reset_repo = PasswordResetRepository(self.db)
+        await pwd_reset_repo.create_token(user_id=user.user_id, token=token, expires_at=expires_at)
+        
+        send_password_reset_email(email=user.email, full_name=user.full_name, reset_token=token)
+        return True
+
+    async def confirm_password_reset(self, token: str, new_password: str) -> bool:
+        """Confirm password reset with token"""
+        pwd_reset_repo = PasswordResetRepository(self.db)
+        token_obj = await pwd_reset_repo.get_token(token)
+        
+        if not token_obj or token_obj.used_at is not None:
+            return False
+            
+        if token_obj.expires_at < datetime.utcnow():
+            return False
+            
+        user = token_obj.user
+        if not user:
+            return False
+            
+        user.password_hash = hash_password(new_password)
+        self.db.add(user)
+        
+        await pwd_reset_repo.mark_used(token_obj)
+        return True
+
 
 class CustomerService:
     """Customer service"""
@@ -142,7 +258,14 @@ class CustomerService:
         date_of_birth: Optional[date] = None,
         nationality: Optional[str] = None,
         address: Optional[str] = None,
-        customer_type: str = "Registered"
+        customer_type: str = "Registered",
+        nin: Optional[str] = None,
+        passport_number: Optional[str] = None,
+        is_contract_client: bool = False,
+        total_spent: Decimal = Decimal(0),
+        visit_count: int = 0,
+        loyalty_points: int = 0,
+        is_active: bool = True
     ) -> Customer:
         """Create a new customer"""
         existing_customer = await self.repo.get_by_email_or_phone(email=email, phone_number=phone_number)
@@ -160,7 +283,14 @@ class CustomerService:
             else:
                 temp_password = secrets.token_urlsafe(12)
                 password_hash = hash_password(temp_password)
-                new_user = await self.user_repo.create_user(full_name, email, password_hash, phone_number)
+                new_user = await self.user_repo.create_user(
+                    full_name=full_name,
+                    email=email,
+                    password_hash=password_hash,
+                    phone_number=phone_number,
+                    is_staff=False,
+                    is_active=is_active
+                )
                 user_id = new_user.user_id
 
             reset_token = uuid.uuid4().hex
@@ -174,29 +304,33 @@ class CustomerService:
             await self.db.commit()
             await self.db.refresh(password_reset)
 
-            try:
-                from app.tasks.celery_app import send_customer_welcome_email
-                send_customer_welcome_email.delay(
-                    user_id,
-                    email,
-                    reset_token,
-                    temp_password
-                )
-            except Exception:
-                pass
+            # Send the welcome credentials email immediately
+            send_immediate_welcome_email(
+                email=email,
+                full_name=full_name,
+                temp_password=temp_password,
+                reset_token=reset_token
+            )
 
         customer_code = f"CUST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8].upper()}"
         customer = await self.repo.create_customer(
-            customer_code,
-            full_name,
-            phone_number,
-            email,
+            customer_code=customer_code,
+            full_name=full_name,
+            phone_number=phone_number,
+            email=email,
             gender=gender,
             date_of_birth=date_of_birth,
             nationality=nationality,
             address=address,
             customer_type=customer_type,
-            user_id=user_id
+            user_id=user_id,
+            nin=nin,
+            passport_number=passport_number,
+            is_contract_client=is_contract_client,
+            total_spent=total_spent,
+            visit_count=visit_count,
+            loyalty_points=loyalty_points,
+            is_active=is_active
         )
         return customer
     
@@ -307,7 +441,7 @@ class RestaurantOrderService:
                 )
                 
                 # Add extras if provided
-                if "extras" in item_data:
+                if item_data.get("extras") is not None:
                     for extra_data in item_data["extras"]:
                         # Fetch extra price from database
                         result = await self.db.execute(
@@ -327,8 +461,7 @@ class RestaurantOrderService:
         
         self.db.add(order)
         await self.db.commit()
-        await self.db.refresh(order)
-        return order
+        return await self.get_order(order.order_id)
     
     async def get_order(self, order_id: int) -> Optional[RestaurantOrder]:
         """Get order details"""
@@ -343,8 +476,21 @@ class RestaurantOrderService:
         order.order_status = new_status
         self.db.add(order)
         await self.db.commit()
-        await self.db.refresh(order)
-        return order
+        return await self.get_order(order_id)
+
+    async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
+        """Get orders for a customer"""
+        return await self.order_repo.get_customer_orders(customer_id, skip=skip, limit=limit)
+
+    async def get_all_orders(self, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
+        """Get all restaurant orders"""
+        result = await self.db.execute(
+            select(RestaurantOrder)
+            .options(selectinload(RestaurantOrder.items))
+            .offset(skip)
+            .limit(limit)
+        )
+        return result.scalars().all()
 
 
 class AccommodationService:
@@ -380,8 +526,36 @@ class AccommodationService:
         reservation.check_in_actual = datetime.utcnow()
         reservation.checked_in_by = checked_in_by
         
-        # Update room status
-        room = await self.repo.db.execute(select(RestaurantOrder).where(RestaurantOrder.room_id == reservation.room_id))
+        # Update room status to Occupied
+        from app.models import Room
+        result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
+        room = result.scalar_one_or_none()
+        if room:
+            room.room_status = "Occupied"
+            self.db.add(room)
+        
+        self.db.add(reservation)
+        await self.db.commit()
+        await self.db.refresh(reservation)
+        return reservation
+
+    async def check_out(self, reservation_id: int, checked_out_by: int) -> Optional[AccommodationReservation]:
+        """Check out guest"""
+        reservation = await self.repo.get_reservation_by_id(reservation_id)
+        if not reservation:
+            return None
+        
+        reservation.reservation_status = "CheckedOut"
+        reservation.check_out_actual = datetime.utcnow()
+        reservation.checked_out_by = checked_out_by
+        
+        # Update room status to Available
+        from app.models import Room
+        result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
+        room = result.scalar_one_or_none()
+        if room:
+            room.room_status = "Available"
+            self.db.add(room)
         
         self.db.add(reservation)
         await self.db.commit()
@@ -400,6 +574,27 @@ class PaymentService:
         """Create a payment"""
         payment_reference = f"PAY-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8].upper()}"
         
+        # Auto-lookup customer_id if not explicitly passed
+        if not customer_id:
+            if reference_type == "RestaurantOrder":
+                from app.models import RestaurantOrder
+                res = await self.db.execute(select(RestaurantOrder).where(RestaurantOrder.order_id == reference_id))
+                order = res.scalar_one_or_none()
+                if order:
+                    customer_id = order.customer_id
+            elif reference_type == "AccommodationReservation":
+                from app.models import AccommodationReservation
+                res = await self.db.execute(select(AccommodationReservation).where(AccommodationReservation.reservation_id == reference_id))
+                reservation = res.scalar_one_or_none()
+                if reservation:
+                    customer_id = reservation.customer_id
+            elif reference_type == "ConferenceReservation":
+                from app.models import ConferenceReservation
+                res = await self.db.execute(select(ConferenceReservation).where(ConferenceReservation.conference_res_id == reference_id))
+                reservation = res.scalar_one_or_none()
+                if reservation:
+                    customer_id = reservation.customer_id
+
         payment = await self.repo.create_payment(
             customer_id, payment_type, reference_type, reference_id, payment_method, amount_paid, payment_reference
         )
@@ -420,8 +615,207 @@ class PaymentService:
         payment.payment_status = "Paid"
         payment.verified_by = verified_by
         payment.verified_at = datetime.utcnow()
+
+        # Update linked reservation/order
+        if payment.reference_type == "RestaurantOrder":
+            from app.models import RestaurantOrder
+            res = await self.db.execute(select(RestaurantOrder).where(RestaurantOrder.order_id == payment.reference_id))
+            order = res.scalar_one_or_none()
+            if order:
+                order.amount_paid += payment.amount_paid
+                order.balance_due = order.total_amount - order.amount_paid
+                if order.balance_due <= 0:
+                    order.payment_status = "Paid"
+                else:
+                    order.payment_status = "PartiallyPaid"
+                self.db.add(order)
+                
+        elif payment.reference_type == "AccommodationReservation":
+            from app.models import AccommodationReservation
+            res = await self.db.execute(select(AccommodationReservation).where(AccommodationReservation.reservation_id == payment.reference_id))
+            reservation = res.scalar_one_or_none()
+            if reservation:
+                reservation.amount_paid += payment.amount_paid
+                reservation.balance_due = reservation.total_amount - reservation.amount_paid
+                if reservation.balance_due <= 0:
+                    reservation.payment_status = "Paid"
+                else:
+                    reservation.payment_status = "PartiallyPaid"
+                self.db.add(reservation)
+                
+        elif payment.reference_type == "ConferenceReservation":
+            from app.models import ConferenceReservation
+            res = await self.db.execute(select(ConferenceReservation).where(ConferenceReservation.conference_res_id == payment.reference_id))
+            reservation = res.scalar_one_or_none()
+            if reservation:
+                reservation.amount_paid += payment.amount_paid
+                reservation.balance_due = reservation.total_amount - reservation.amount_paid
+                if reservation.balance_due <= 0:
+                    reservation.payment_status = "Paid"
+                else:
+                    reservation.payment_status = "PartiallyPaid"
+                self.db.add(reservation)
         
         self.db.add(payment)
         await self.db.commit()
         await self.db.refresh(payment)
         return payment
+
+
+class UserService:
+    """User service for CRUD operations"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.user_repo = UserRepository(db)
+        
+    async def get_user_by_id(self, user_id: int) -> Optional[User]:
+        """Get user details"""
+        return await self.user_repo.get_by_id(user_id)
+        
+    async def get_user_by_email(self, email: str) -> Optional[User]:
+        """Get user by email"""
+        return await self.user_repo.get_by_email(email)
+        
+    async def list_users(self, skip: int = 0, limit: int = 100) -> List[User]:
+        """List users"""
+        return await self.user_repo.get_all_users(skip=skip, limit=limit)
+        
+    async def create_user(
+        self,
+        full_name: str,
+        email: str,
+        password: str,
+        phone_number: Optional[str] = None,
+        is_staff: bool = False,
+        is_active: bool = True
+    ) -> User:
+        """Create a new user"""
+        existing = await self.user_repo.get_by_email(email)
+        if existing:
+            raise ValueError("User with this email already exists")
+            
+        password_hash = hash_password(password)
+        return await self.user_repo.create_user(
+            full_name=full_name,
+            email=email,
+            password_hash=password_hash,
+            phone_number=phone_number,
+            is_staff=is_staff,
+            is_active=is_active
+        )
+        
+    async def update_user(self, user_id: int, updates: dict) -> Optional[User]:
+        """Update an existing user"""
+        user = await self.user_repo.get_by_id(user_id)
+        if not user:
+            return None
+            
+        if "email" in updates and updates["email"] != user.email:
+            existing = await self.user_repo.get_by_email(updates["email"])
+            if existing:
+                raise ValueError("User with this email already exists")
+                
+        for field, value in updates.items():
+            if value is not None:
+                if field == "password":
+                    user.password_hash = hash_password(value)
+                elif hasattr(user, field):
+                    setattr(user, field, value)
+                    
+        return await self.user_repo.update_user(user)
+        
+    async def delete_user(self, user_id: int) -> bool:
+        """Soft delete a user"""
+        return await self.user_repo.delete_user(user_id)
+
+
+class RoleService:
+    """Role and permission service"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        self.role_repo = RoleRepository(db)
+        
+    async def list_roles(self) -> List[Role]:
+        """List all roles"""
+        return await self.role_repo.get_all_roles()
+        
+    async def get_role_by_id(self, role_id: int) -> Optional[Role]:
+        """Get role by ID"""
+        return await self.role_repo.get_role_by_id(role_id)
+        
+    async def create_role(
+        self,
+        role_name: str,
+        description: Optional[str] = None,
+        parent_role_id: Optional[int] = None,
+        is_active: bool = True,
+        is_system_role: bool = False,
+        permission_ids: Optional[List[int]] = None
+    ) -> Role:
+        """Create role and assign permissions"""
+        existing = await self.role_repo.get_role_by_name(role_name)
+        if existing:
+            raise ValueError("Role with this name already exists")
+            
+        role = await self.role_repo.create_role(
+            role_name=role_name,
+            description=description,
+            parent_role_id=parent_role_id,
+            is_active=is_active,
+            is_system_role=is_system_role
+        )
+        
+        if permission_ids:
+            await self.role_repo.assign_permissions_to_role(role.role_id, permission_ids)
+            
+        return await self.role_repo.get_role_by_id(role.role_id)
+        
+    async def update_role(self, role_id: int, updates: dict) -> Optional[Role]:
+        """Update role details and permissions"""
+        role = await self.role_repo.get_role_by_id(role_id)
+        if not role:
+            return None
+            
+        if "role_name" in updates and updates["role_name"] != role.role_name:
+            existing = await self.role_repo.get_role_by_name(updates["role_name"])
+            if existing:
+                raise ValueError("Role with this name already exists")
+                
+        permission_ids = updates.pop("permission_ids", None)
+        
+        for field, value in updates.items():
+            if value is not None and hasattr(role, field):
+                setattr(role, field, value)
+                
+        await self.role_repo.update_role(role)
+        
+        if permission_ids is not None:
+            await self.role_repo.assign_permissions_to_role(role_id, permission_ids)
+            
+        return await self.role_repo.get_role_by_id(role_id)
+        
+    async def delete_role(self, role_id: int) -> bool:
+        """Delete role"""
+        return await self.role_repo.delete_role(role_id)
+        
+    async def list_permissions(self) -> List[Permission]:
+        """List all permissions"""
+        return await self.role_repo.get_all_permissions()
+        
+    async def list_permission_groups(self) -> List[PermissionGroup]:
+        """List all permission groups"""
+        return await self.role_repo.get_permission_groups()
+        
+    async def assign_permissions_to_role(self, role_id: int, permission_ids: List[int], granted_by: Optional[int] = None):
+        """Assign permissions to role"""
+        return await self.role_repo.assign_permissions_to_role(role_id, permission_ids, granted_by)
+        
+    async def assign_role_to_user(self, user_id: int, role_id: int, assigned_by: Optional[int] = None, expires_at: Optional[datetime] = None) -> UserRole:
+        """Assign role to user"""
+        return await self.role_repo.assign_role_to_user(user_id, role_id, assigned_by, expires_at)
+        
+    async def remove_user_role(self, user_id: int, role_id: int) -> bool:
+        """Remove user role"""
+        return await self.role_repo.remove_user_role(user_id, role_id)

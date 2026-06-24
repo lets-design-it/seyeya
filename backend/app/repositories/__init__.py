@@ -5,11 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, date
+from decimal import Decimal
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
     ConferenceReservation, MenuItem, MenuCategory, Room, ConferenceHall,
-    Payment, CustomerReview, OrderItem, MenuExtra
+    Payment, CustomerReview, OrderItem, MenuExtra,
+    Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken
 )
 
 
@@ -22,25 +24,38 @@ class UserRepository:
     async def get_by_email(self, email: str) -> Optional[User]:
         """Get user by email"""
         result = await self.db.execute(
-            select(User).where(User.email == email)
+            select(User)
+            .where(User.email == email)
+            .options(selectinload(User.roles).selectinload(UserRole.role))
         )
         return result.scalar_one_or_none()
     
     async def get_by_id(self, user_id: int) -> Optional[User]:
         """Get user by ID"""
         result = await self.db.execute(
-            select(User).where(User.user_id == user_id)
+            select(User)
+            .where(User.user_id == user_id)
+            .options(selectinload(User.roles).selectinload(UserRole.role))
         )
         return result.scalar_one_or_none()
     
-    async def create_user(self, full_name: str, email: str, password_hash: str, phone_number: Optional[str] = None) -> User:
+    async def create_user(
+        self,
+        full_name: str,
+        email: str,
+        password_hash: str,
+        phone_number: Optional[str] = None,
+        is_staff: bool = False,
+        is_active: bool = True
+    ) -> User:
         """Create a new user"""
         user = User(
             full_name=full_name,
             email=email,
             password_hash=password_hash,
             phone_number=phone_number,
-            is_active=True
+            is_staff=is_staff,
+            is_active=is_active
         )
         self.db.add(user)
         await self.db.commit()
@@ -50,9 +65,169 @@ class UserRepository:
     async def get_all_users(self, skip: int = 0, limit: int = 100) -> List[User]:
         """Get all users"""
         result = await self.db.execute(
-            select(User).offset(skip).limit(limit)
+            select(User)
+            .options(selectinload(User.roles).selectinload(UserRole.role))
+            .offset(skip)
+            .limit(limit)
         )
         return result.scalars().all()
+
+    async def update_user(self, user: User) -> User:
+        """Update an existing user"""
+        self.db.add(user)
+        await self.db.commit()
+        return await self.get_by_id(user.user_id)
+
+    async def delete_user(self, user_id: int) -> bool:
+        """Soft-delete a user for relational integrity"""
+        user = await self.get_by_id(user_id)
+        if user:
+            user.is_active = False
+            self.db.add(user)
+            await self.db.commit()
+            return True
+        return False
+
+
+class RoleRepository:
+    """Repository for role and permission operations"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        
+    async def get_all_roles(self) -> List[Role]:
+        """Get all roles with permissions preloaded"""
+        result = await self.db.execute(
+            select(Role).options(selectinload(Role.permissions).selectinload(RolePermission.permission))
+        )
+        return result.scalars().all()
+        
+    async def get_role_by_id(self, role_id: int) -> Optional[Role]:
+        """Get role by ID with permissions preloaded"""
+        result = await self.db.execute(
+            select(Role)
+            .where(Role.role_id == role_id)
+            .options(selectinload(Role.permissions).selectinload(RolePermission.permission))
+        )
+        return result.scalar_one_or_none()
+        
+    async def get_role_by_name(self, role_name: str) -> Optional[Role]:
+        """Get role by name"""
+        result = await self.db.execute(
+            select(Role).where(Role.role_name == role_name)
+        )
+        return result.scalar_one_or_none()
+        
+    async def create_role(
+        self,
+        role_name: str,
+        description: Optional[str] = None,
+        parent_role_id: Optional[int] = None,
+        is_active: bool = True,
+        is_system_role: bool = False
+    ) -> Role:
+        """Create a new role"""
+        role = Role(
+            role_name=role_name,
+            description=description,
+            parent_role_id=parent_role_id,
+            is_active=is_active,
+            is_system_role=is_system_role
+        )
+        self.db.add(role)
+        await self.db.commit()
+        return await self.get_role_by_id(role.role_id)
+        
+    async def update_role(self, role: Role) -> Role:
+        """Update an existing role"""
+        self.db.add(role)
+        await self.db.commit()
+        return await self.get_role_by_id(role.role_id)
+        
+    async def delete_role(self, role_id: int) -> bool:
+        """Delete a role"""
+        result = await self.db.execute(
+            select(Role).where(Role.role_id == role_id)
+        )
+        role = result.scalar_one_or_none()
+        if role:
+            await self.db.delete(role)
+            await self.db.commit()
+            return True
+        return False
+        
+    async def get_all_permissions(self) -> List[Permission]:
+        """Get all permissions with groups preloaded"""
+        result = await self.db.execute(
+            select(Permission).options(selectinload(Permission.group))
+        )
+        return result.scalars().all()
+
+    async def get_permission_groups(self) -> List[PermissionGroup]:
+        """Get all permission groups with permissions preloaded"""
+        result = await self.db.execute(
+            select(PermissionGroup).options(selectinload(PermissionGroup.permissions))
+        )
+        return result.scalars().all()
+        
+    async def assign_permissions_to_role(self, role_id: int, permission_ids: List[int], granted_by: Optional[int] = None):
+        """Re-assign permissions to a role"""
+        from sqlalchemy import delete
+        await self.db.execute(
+            delete(RolePermission).where(RolePermission.role_id == role_id)
+        )
+        
+        for perm_id in permission_ids:
+            rp = RolePermission(
+                role_id=role_id,
+                permission_id=perm_id,
+                granted_by=granted_by
+            )
+            self.db.add(rp)
+        await self.db.commit()
+        
+    async def assign_role_to_user(
+        self,
+        user_id: int,
+        role_id: int,
+        assigned_by: Optional[int] = None,
+        expires_at: Optional[datetime] = None
+    ) -> UserRole:
+        """Assign role to user"""
+        result = await self.db.execute(
+            select(UserRole).where(and_(UserRole.user_id == user_id, UserRole.role_id == role_id))
+        )
+        existing = result.scalar_one_or_none()
+        if existing:
+            existing.expires_at = expires_at
+            existing.assigned_by = assigned_by
+            self.db.add(existing)
+            await self.db.commit()
+            await self.db.refresh(existing)
+            return existing
+            
+        user_role = UserRole(
+            user_id=user_id,
+            role_id=role_id,
+            assigned_by=assigned_by,
+            expires_at=expires_at
+        )
+        self.db.add(user_role)
+        await self.db.commit()
+        await self.db.refresh(user_role)
+        return user_role
+
+    async def remove_user_role(self, user_id: int, role_id: int) -> bool:
+        """Remove a role assignment from a user"""
+        result = await self.db.execute(
+            select(UserRole).where(and_(UserRole.user_id == user_id, UserRole.role_id == role_id))
+        )
+        user_role = result.scalar_one_or_none()
+        if user_role:
+            await self.db.delete(user_role)
+            await self.db.commit()
+            return True
+        return False
 
 
 class CustomerRepository:
@@ -68,11 +243,18 @@ class CustomerRepository:
         phone_number: Optional[str] = None,
         email: Optional[str] = None,
         gender: Optional[str] = None,
-        date_of_birth: Optional[str] = None,
+        date_of_birth: Optional[date] = None,
         nationality: Optional[str] = None,
         address: Optional[str] = None,
         customer_type: str = "Registered",
-        user_id: Optional[int] = None
+        user_id: Optional[int] = None,
+        nin: Optional[str] = None,
+        passport_number: Optional[str] = None,
+        is_contract_client: bool = False,
+        total_spent: Decimal = Decimal(0),
+        visit_count: int = 0,
+        loyalty_points: int = 0,
+        is_active: bool = True
     ) -> Customer:
         """Create a new customer"""
         customer = Customer(
@@ -86,7 +268,13 @@ class CustomerRepository:
             address=address,
             customer_type=customer_type,
             user_id=user_id,
-            is_active=True
+            nin=nin,
+            passport_number=passport_number,
+            is_contract_client=is_contract_client,
+            total_spent=total_spent,
+            visit_count=visit_count,
+            loyalty_points=loyalty_points,
+            is_active=is_active
         )
         self.db.add(customer)
         await self.db.commit()
@@ -332,20 +520,23 @@ class RestaurantOrderRepository:
         )
         self.db.add(order)
         await self.db.commit()
-        await self.db.refresh(order)
-        return order
+        return await self.get_by_id(order.order_id)
     
     async def get_by_id(self, order_id: int) -> Optional[RestaurantOrder]:
         """Get order by ID"""
         result = await self.db.execute(
-            select(RestaurantOrder).where(RestaurantOrder.order_id == order_id)
+            select(RestaurantOrder)
+            .where(RestaurantOrder.order_id == order_id)
+            .options(selectinload(RestaurantOrder.items))
         )
         return result.scalar_one_or_none()
     
     async def get_by_number(self, order_number: str) -> Optional[RestaurantOrder]:
         """Get order by order number"""
         result = await self.db.execute(
-            select(RestaurantOrder).where(RestaurantOrder.order_number == order_number)
+            select(RestaurantOrder)
+            .where(RestaurantOrder.order_number == order_number)
+            .options(selectinload(RestaurantOrder.items))
         )
         return result.scalar_one_or_none()
     
@@ -354,6 +545,7 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.customer_id == customer_id)
+            .options(selectinload(RestaurantOrder.items))
             .offset(skip)
             .limit(limit)
         )
@@ -369,7 +561,12 @@ class AccommodationRepository:
     async def get_available_rooms(self, check_in: str, check_out: str) -> List[Room]:
         """Get available rooms for date range"""
         result = await self.db.execute(
-            select(Room).where(
+            select(Room)
+            .options(
+                selectinload(Room.category),
+                selectinload(Room.photos)
+            )
+            .where(
                 and_(
                     Room.room_status == "Available",
                     Room.is_active == True
@@ -381,7 +578,12 @@ class AccommodationRepository:
     async def get_room_by_id(self, room_id: int) -> Optional[Room]:
         """Get room by ID"""
         result = await self.db.execute(
-            select(Room).where(Room.room_id == room_id)
+            select(Room)
+            .options(
+                selectinload(Room.category),
+                selectinload(Room.photos)
+            )
+            .where(Room.room_id == room_id)
         )
         return result.scalar_one_or_none()
     
@@ -549,3 +751,37 @@ class ReviewRepository:
             )
         )
         return result.scalars().all()
+
+
+class PasswordResetRepository:
+    """Repository for password reset operations"""
+    
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        
+    async def create_token(self, user_id: int, token: str, expires_at: datetime) -> PasswordResetToken:
+        """Create a new password reset token"""
+        reset_token = PasswordResetToken(
+            user_id=user_id,
+            token=token,
+            expires_at=expires_at
+        )
+        self.db.add(reset_token)
+        await self.db.commit()
+        await self.db.refresh(reset_token)
+        return reset_token
+        
+    async def get_token(self, token: str) -> Optional[PasswordResetToken]:
+        """Get token details with eager loaded user"""
+        result = await self.db.execute(
+            select(PasswordResetToken)
+            .where(PasswordResetToken.token == token)
+            .options(selectinload(PasswordResetToken.user))
+        )
+        return result.scalar_one_or_none()
+        
+    async def mark_used(self, token_obj: PasswordResetToken) -> None:
+        """Mark token as used"""
+        token_obj.used_at = datetime.utcnow()
+        self.db.add(token_obj)
+        await self.db.commit()
