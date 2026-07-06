@@ -22,10 +22,16 @@ export const MenuEditor: React.FC = () => {
   // Delete confirm state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Active Category tab
+  const [activeCategory, setActiveCategory] = useState<MenuItem['category']>('Local Food');
+
+  // Selected item state for details drawer
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+
   const openAddModal = () => {
     setEditItem(null);
     setName('');
-    setCategory('Local Food');
+    setCategory(activeCategory);
     setPriceUGX(15000);
     setPriceUSD(4);
     setDescription('');
@@ -66,15 +72,19 @@ export const MenuEditor: React.FC = () => {
       addMenuItem(itemData);
     }
 
+    setActiveCategory(category);
     setIsOpen(false);
   };
 
   const handleDelete = (id: string) => {
     deleteMenuItem(id);
     setDeleteConfirmId(null);
+    setSelectedItem(null);
   };
 
   const categories: MenuItem['category'][] = ['Local Food', 'Continental', 'Drinks', 'Desserts'];
+
+
 
   return (
     <div className="space-y-6 animate-fade-in relative h-full">
@@ -93,61 +103,79 @@ export const MenuEditor: React.FC = () => {
         </Button>
       </div>
 
-      {/* Grid of menu items grouped by categories */}
-      <div className="space-y-8">
+      {/* Category Tabs */}
+      <div className="flex flex-wrap items-center gap-2 bg-zinc-100/60 rounded-2xl p-1.5 w-fit">
         {categories.map((cat) => {
           const itemsInCat = menu.filter((item) => item.category === cat);
-          if (itemsInCat.length === 0) return null;
-
+          const count = itemsInCat.length;
+          const isActive = activeCategory === cat;
           return (
-            <div key={cat} className="space-y-4">
-              <h4 className="text-sm font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-2 pl-1">
-                <ChefHat className="h-4 w-4 text-primary" />
-                {cat} ({itemsInCat.length})
-              </h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {itemsInCat.map((item) => (
-                  <Card key={item.id} className="p-4 flex flex-col justify-between hover:shadow-md transition-shadow">
-                    <div className="flex gap-4">
-                      <img 
-                        src={item.image} 
-                        alt={item.name} 
-                        className="h-16 w-16 rounded-[16px] object-cover shrink-0 bg-zinc-100" 
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h5 className="text-sm font-bold text-foreground truncate leading-tight">{item.name}</h5>
-                        <p className="text-xs text-zinc-500 mt-1 line-clamp-2 leading-relaxed">{item.description}</p>
-                        <p className="text-xs font-bold text-violet-500 mt-2">
-                          UGX {item.priceUGX.toLocaleString()} / ${item.priceUSD}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2.5 mt-4 pt-3 border-t border-zinc-100/50">
-                      <button
-                        onClick={() => openEditModal(item)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-650 hover:bg-zinc-100 transition-colors"
-                        title="Edit Item"
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmId(item.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-red-500 hover:bg-red-50/50 transition-colors"
-                        title="Delete Item"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
-                      </button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all duration-200 flex items-center gap-2 cursor-pointer ${
+                isActive
+                  ? 'bg-[#212121] text-white shadow-sm'
+                  : 'text-zinc-500 hover:text-foreground hover:bg-zinc-200/50'
+              }`}
+            >
+              <span>{cat}</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${isActive ? 'bg-zinc-800 text-zinc-300' : 'bg-zinc-200/80 text-zinc-650'}`}>
+                {count}
+              </span>
+            </button>
           );
         })}
+      </div>
+
+      {/* Grid of menu items for the active category */}
+      <div>
+        {(() => {
+          const itemsInActiveCat = menu.filter((item) => item.category === activeCategory);
+
+          if (itemsInActiveCat.length === 0) {
+            return (
+              <div className="text-center py-16 bg-white rounded-[24px] shadow-sm">
+                <ChefHat className="h-8 w-8 mx-auto text-zinc-400 mb-2.5 animate-pulse" />
+                <h5 className="text-sm font-bold text-zinc-700 uppercase tracking-wider">No menu items found</h5>
+                <p className="text-xs text-zinc-550 mt-1 max-w-xs mx-auto">
+                  There are no dishes or drinks registered under "{activeCategory}" yet.
+                </p>
+                <Button 
+                  onClick={openAddModal}
+                  className="mt-4 flex items-center gap-1.5 mx-auto bg-primary hover:bg-zinc-850 text-white rounded-full px-4.5 py-2 text-xs font-bold shadow-sm"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add First Item
+                </Button>
+              </div>
+            );
+          }
+
+          return (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {itemsInActiveCat.map((item) => (
+                <Card 
+                  key={item.id} 
+                  onClick={() => setSelectedItem(item)}
+                  className="p-3 flex items-center gap-3 hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0 bg-white"
+                >
+                  <img 
+                    src={item.image} 
+                    alt={item.name} 
+                    className="h-10 w-10 rounded-xl object-cover shrink-0 bg-zinc-100" 
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h5 className="text-xs font-bold text-foreground truncate leading-tight">{item.name}</h5>
+                    <p className="text-[11px] font-bold text-violet-500 mt-1">
+                      UGX {item.priceUGX.toLocaleString()}
+                    </p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Add / Edit Drawer Modal */}
@@ -262,6 +290,101 @@ export const MenuEditor: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Sliding Details Drawer Backdrop Overlay */}
+      {selectedItem && (
+        <div 
+          className="fixed inset-0 z-30 bg-zinc-950/15 backdrop-blur-xs transition-opacity duration-300"
+          onClick={() => setSelectedItem(null)}
+        />
+      )}
+
+      {/* Sliding Details Drawer */}
+      <div
+        className={`fixed inset-y-0 right-0 z-40 w-full sm:max-w-md bg-card shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col ${
+          selectedItem ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {selectedItem && (
+          <div className="flex flex-col h-full font-sans">
+            {/* Drawer Header */}
+            <div className="h-16 flex items-center justify-between px-6 bg-zinc-50 shrink-0">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Menu Item Details</span>
+              <button
+                onClick={() => setSelectedItem(null)}
+                className="text-zinc-500 hover:text-foreground rounded-lg p-1.5 transition-colors focus:outline-none cursor-pointer"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div className="flex flex-col items-center text-center space-y-4">
+                <img
+                  src={selectedItem.image}
+                  alt={selectedItem.name}
+                  className="h-32 w-32 rounded-[24px] object-cover bg-zinc-100 shadow-md"
+                />
+                <div>
+                  <span className="inline-block px-2.5 py-1 rounded-full bg-zinc-100 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    {selectedItem.category}
+                  </span>
+                  <h4 className="text-base font-bold text-foreground mt-2 leading-tight">
+                    {selectedItem.name}
+                  </h4>
+                </div>
+              </div>
+
+              <div className="space-y-4 border-t border-zinc-100/60 pt-5">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Description</span>
+                  <p className="text-xs text-zinc-650 mt-1.5 leading-relaxed bg-zinc-50/50 p-4 rounded-[18px]">
+                    {selectedItem.description || 'No description provided.'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 bg-zinc-50/50 p-4 rounded-[18px] text-xs">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Price (UGX)</span>
+                    <span className="font-bold text-foreground block">
+                      UGX {selectedItem.priceUGX.toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Price (USD)</span>
+                    <span className="font-bold text-foreground block">
+                      ${selectedItem.priceUSD}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer Actions */}
+            <div className="p-6 bg-zinc-50/50 border-t border-zinc-100/60 flex items-center justify-end gap-3 shrink-0">
+              <button
+                onClick={() => setDeleteConfirmId(selectedItem.id)}
+                className="flex items-center justify-center gap-1.5 px-4.5 py-2.5 rounded-full text-xs font-bold text-red-500 hover:bg-red-550 transition-colors cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+              <Button
+                onClick={() => {
+                  openEditModal(selectedItem);
+                  setSelectedItem(null);
+                }}
+                className="flex items-center justify-center gap-1.5 bg-primary hover:bg-zinc-800 text-white rounded-full px-5 py-2.5 text-xs font-bold shadow-sm"
+              >
+                <Edit2 className="h-4 w-4" />
+                Edit Item
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
