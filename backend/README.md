@@ -34,6 +34,20 @@ GRANT ALL PRIVILEGES ON DATABASE seyeya_db TO seyeya_user;
 \q
 ```
 
+### ☁️ Using Neon Serverless PostgreSQL (Recommended)
+
+By default, the backend is pre-configured to use the shared Neon development database. New developers do not need to create or provision a new database to get started.
+
+To connect:
+1. Copy the environment template:
+   ```bash
+   cp .env.example .env
+   ```
+2. The `.env` file is already populated with the shared development Neon database credentials.
+3. Start the application normally!
+
+*Note: If you ever want to point to your own private Neon database instead, simply replace `DATABASE_URL` and `DATABASE_SYNC_URL` in `.env` with your dashboard connection strings. The backend automatically formats the connection schemas, strips incompatible flags (like `channel_binding`), and applies correct SSL options automatically.*
+
 ---
 
 ## 🛠️ Backend Installation & Setup

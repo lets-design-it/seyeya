@@ -47,6 +47,19 @@ GRANT ALL PRIVILEGES ON DATABASE seyeya_db TO seyeya_user;
 \q
 ```
 
+##### Alternative: Cloud PostgreSQL Setup with Neon
+
+If you prefer a cloud-hosted database, you can use **Neon**:
+1. Sign up on [Neon.tech](https://neon.tech/) and create a new PostgreSQL project.
+2. Retrieve the connection string from the dashboard.
+3. Add the connection strings directly to your `.env` file (e.g. `DATABASE_URL` and `DATABASE_SYNC_URL`).
+   ```env
+   DATABASE_URL=postgresql+asyncpg://alex:AbC123dEf@ep-cool-flower-a576yd.us-east-2.aws.neon.tech/neondb?ssl=require
+   DATABASE_SYNC_URL=postgresql://alex:AbC123dEf@ep-cool-flower-a576yd.us-east-2.aws.neon.tech/neondb?sslmode=require
+   ```
+   *Note: If you copy-paste the standard Neon connection string (starts with `postgres://` and contains `sslmode=require`), the backend automatically transforms the driver schema and parameters correctly.*
+
+
 #### 2. Install Redis
 
 ```bash
