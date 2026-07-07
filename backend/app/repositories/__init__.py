@@ -63,9 +63,11 @@ class UserRepository:
         return user
     
     async def get_all_users(self, skip: int = 0, limit: int = 100) -> List[User]:
-        """Get all users"""
+        """Get all users except those with associated customer profiles"""
         result = await self.db.execute(
             select(User)
+            .outerjoin(Customer)
+            .where(Customer.customer_id == None)
             .options(selectinload(User.roles).selectinload(UserRole.role))
             .offset(skip)
             .limit(limit)

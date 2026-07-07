@@ -61,7 +61,7 @@ async def register(request: UserRegisterRequest, db: AsyncSession = Depends(get_
     try:
         auth_service = AuthService(db)
         user, access_token, refresh_token = await auth_service.register_user(
-            request.full_name, request.email, request.password, request.phone_number, request.role_ids
+            request.full_name, request.email, request.password, request.phone_number, request.role_ids, request.is_staff
         )
         
         return await build_token_response(user, access_token, refresh_token, db)

@@ -14,39 +14,44 @@ Ensure you have the following installed on your machine:
 
 ## 🗄️ Database Setup (PostgreSQL)
 
-Verify that the local PostgreSQL service is running on your system:
-```bash
-sudo systemctl status postgresql
-# If not running, start it:
-sudo systemctl start postgresql
-```
+The backend is pre-configured to connect to a shared cloud-hosted **Neon Serverless PostgreSQL** database. This allows developers to run the application immediately without installing or setting up a local database server.
 
-Create a database and user for the project:
-```bash
-sudo -u postgres psql
-```
+### ☁️ Using the Shared Neon Database (Recommended)
 
-Inside the prompt, run:
-```sql
-CREATE USER seyeya_user WITH PASSWORD 'seyeya_password';
-CREATE DATABASE seyeya_db OWNER seyeya_user;
-GRANT ALL PRIVILEGES ON DATABASE seyeya_db TO seyeya_user;
-\q
-```
-
-### ☁️ Using Neon Serverless PostgreSQL (Recommended)
-
-By default, the backend is pre-configured to use the shared Neon development database. New developers do not need to create or provision a new database to get started.
-
-To connect:
-1. Copy the environment template:
+1. **Copy the environment template**:
    ```bash
    cp .env.example .env
    ```
 2. The `.env` file is already populated with the shared development Neon database credentials.
 3. Start the application normally!
 
-*Note: If you ever want to point to your own private Neon database instead, simply replace `DATABASE_URL` and `DATABASE_SYNC_URL` in `.env` with your dashboard connection strings. The backend automatically formats the connection schemas, strips incompatible flags (like `channel_binding`), and applies correct SSL options automatically.*
+*Note: If you want to point to your own private Neon database instead, simply replace `DATABASE_URL` and `DATABASE_SYNC_URL` in `.env` with your own dashboard connection strings. The backend automatically formats the connection schemas, strips incompatible flags (like `channel_binding`), and applies correct SSL options automatically.*
+
+### 💻 Using a Local PostgreSQL Installation (Alternative)
+
+If you prefer to run a local PostgreSQL instance instead of the shared Neon cloud database:
+
+1. **Start the local PostgreSQL service**:
+   ```bash
+   sudo systemctl start postgresql
+   ```
+2. **Create a local database and user**:
+   ```bash
+   sudo -u postgres psql
+   ```
+   Inside the psql shell:
+   ```sql
+   CREATE USER seyeya_user WITH PASSWORD 'seyeya_password';
+   CREATE DATABASE seyeya_db OWNER seyeya_user;
+   GRANT ALL PRIVILEGES ON DATABASE seyeya_db TO seyeya_user;
+   \q
+   ```
+3. **Update your `.env` file**:
+   Replace the database URLs in your `.env` with your local connection strings:
+   ```env
+   DATABASE_URL=postgresql+asyncpg://seyeya_user:seyeya_password@localhost:5432/seyeya_db
+   DATABASE_SYNC_URL=postgresql://seyeya_user:seyeya_password@localhost:5432/seyeya_db
+   ```
 
 ---
 

@@ -18,6 +18,7 @@ class UserRegisterRequest(BaseModel):
     password: str
     confirm_password: str
     role_ids: Optional[List[int]] = None
+    is_staff: Optional[bool] = False
     
     @field_validator("password")
     @classmethod
