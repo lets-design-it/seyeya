@@ -37,7 +37,8 @@ class AuthService:
         email: str,
         password: str,
         phone_number: Optional[str] = None,
-        role_ids: Optional[List[int]] = None
+        role_ids: Optional[List[int]] = None,
+        is_staff: bool = False
     ) -> Tuple[User, str, str]:
         """Register a new user"""
         # Check if user already exists
@@ -49,7 +50,13 @@ class AuthService:
         password_hash = hash_password(password)
         
         # Create user
-        user = await self.user_repo.create_user(full_name, email, password_hash, phone_number)
+        user = await self.user_repo.create_user(
+            full_name=full_name,
+            email=email,
+            password_hash=password_hash,
+            phone_number=phone_number,
+            is_staff=is_staff
+        )
         
         # Assign roles if provided
         if role_ids:
