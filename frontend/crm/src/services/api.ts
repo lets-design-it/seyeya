@@ -1,8 +1,11 @@
 import axios from 'axios';
 
+const isLocal = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 // Global Axios client instance ready for backend connection
 export const api = axios.create({
-  baseURL: 'https://api.seyeyalodge.com/v1',
+  baseURL: isLocal ? 'http://localhost:8000/api/v1' : 'https://api.seyeyalodge.com/v1',
   headers: {
     'Content-Type': 'application/json',
   },

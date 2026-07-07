@@ -11,6 +11,7 @@ import { Rooms } from './pages/dashboard/Rooms';
 import { Conferences } from './pages/dashboard/Conferences';
 import { ClientsCRM } from './pages/dashboard/ClientsCRM';
 import { MenuEditor } from './pages/dashboard/MenuEditor';
+import { UserManagement } from './pages/dashboard/UserManagement';
 
 // Client Views
 import { Restaurant } from './pages/client/Restaurant';
@@ -119,6 +120,12 @@ const CRMApp: React.FC = () => {
         return (
           <ProtectedRoute allowedRoles={['admin', 'manager']}>
             <MenuEditor />
+          </ProtectedRoute>
+        );
+      case 'users':
+        return (
+          <ProtectedRoute allowedRoles={['admin']}>
+            <UserManagement />
           </ProtectedRoute>
         );
       default:

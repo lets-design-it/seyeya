@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from '../services/api';
 
 export type UserRole = 'admin' | 'manager' | 'agent';
 
@@ -9,13 +10,14 @@ export interface User {
   role: UserRole;
   avatar: string;
   joinedDate: string;
+  token?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, role?: UserRole) => Promise<boolean>;
+  login: (email: string, passwordOrRole?: string, role?: UserRole) => Promise<boolean>;
   logout: () => void;
   updateUserRole: (role: UserRole) => void;
 }
@@ -66,34 +68,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, selectedRole?: UserRole): Promise<boolean> => {
-    setIsLoading(true);
-    // Simulate brief network delay for realism
-    await new Promise((resolve) => setTimeout(resolve, 600));
+const mapBackendRolesToUserRole = (roles: string[] | undefined): UserRole => {
+  if (!roles || roles.length === 0) return 'agent';
+  if (roles.includes('Super Admin')) return 'admin';
+  if (roles.includes('Hotel Manager') || roles.includes('Restaurant Manager')) return 'manager';
+  return 'agent';
+};
 
-    // Simple matching:
-    // If selectedRole is directly provided (from quick-select), log in as that role
-    // Otherwise, match email string.
-    let targetRole: UserRole | null = null;
+  const login = async (email: string, passwordOrRole?: string, role?: UserRole): Promise<boolean> => {
+    setIsLoading(true);
     
-    if (selectedRole) {
-      targetRole = selectedRole;
+    let password = '';
+    let targetRole: UserRole | undefined = undefined;
+
+    if (passwordOrRole === 'admin' || passwordOrRole === 'manager' || passwordOrRole === 'agent') {
+      targetRole = passwordOrRole;
+      password = 'SecurePass123!';
     } else {
-      const emailLower = email.toLowerCase().trim();
-      if (emailLower.includes('admin')) targetRole = 'admin';
-      else if (emailLower.includes('manager')) targetRole = 'manager';
-      else if (emailLower.includes('agent')) targetRole = 'agent';
-      else {
-        // Fallback default
-        targetRole = 'agent';
-      }
+      password = passwordOrRole || '';
+      targetRole = role;
     }
 
-    const matchedUser = MOCK_USERS[targetRole];
-    setUser(matchedUser);
-    localStorage.setItem('seyeya_crm_user', JSON.stringify(matchedUser));
-    setIsLoading(false);
-    return true;
+    try {
+      const response = await api.post('/auth/login', {
+        email: email,
+        password: password
+      });
+
+      const data = response.data;
+      const mappedRole = mapBackendRolesToUserRole(data.roles);
+      const baseUser = MOCK_USERS[mappedRole];
+
+      const loggedInUser: User = {
+        id: String(data.user_id),
+        name: data.full_name || 'User',
+        email: data.email,
+        role: mappedRole,
+        avatar: baseUser?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+        joinedDate: baseUser?.joinedDate || new Date().toISOString().split('T')[0],
+        token: data.access_token,
+      };
+
+      setUser(loggedInUser);
+      localStorage.setItem('seyeya_crm_user', JSON.stringify(loggedInUser));
+      setIsLoading(false);
+      return true;
+    } catch (err: any) {
+      setIsLoading(false);
+      const errMsg = err.response?.data?.detail || err.message || 'Invalid login credentials';
+      throw new Error(errMsg);
+    }
   };
 
   const logout = () => {

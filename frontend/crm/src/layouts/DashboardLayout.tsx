@@ -15,7 +15,8 @@ import {
   Sparkles,
   Phone,
   Monitor,
-  Utensils
+  Utensils,
+  Shield
 } from 'lucide-react';
 import { OrderPopup } from '../components/OrderPopup';
 
@@ -66,6 +67,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     { id: 'conferences', label: 'Event Planner', icon: CalendarRange, roles: ['admin', 'manager'] },
     { id: 'clients', label: 'Guests CRM', icon: Users, roles: ['admin', 'manager', 'agent'] },
     { id: 'menu-editor', label: 'Restaurant Menu', icon: Utensils, roles: ['admin', 'manager'] },
+    { id: 'users', label: 'User Provisioning', icon: Shield, roles: ['admin'] },
   ];
 
   const allowedMenuItems = menuItems.filter(item => item.roles.includes(user.role));
