@@ -826,3 +826,8 @@ class RoleService:
     async def remove_user_role(self, user_id: int, role_id: int) -> bool:
         """Remove user role"""
         return await self.role_repo.remove_user_role(user_id, role_id)
+
+
+# Import new service
+from app.services.payment_method import PaymentMethodService
+from app.services.hotel_details import HotelDetailsService

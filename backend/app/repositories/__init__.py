@@ -787,3 +787,8 @@ class PasswordResetRepository:
         token_obj.used_at = datetime.utcnow()
         self.db.add(token_obj)
         await self.db.commit()
+
+
+# Import new repository
+from app.repositories.payment_method import PaymentMethodRepository
+from app.repositories.hotel_details import HotelDetailsRepository

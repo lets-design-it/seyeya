@@ -4,8 +4,8 @@ PostgreSQL database schema
 """
 from __future__ import annotations
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, Date, Time, Boolean, DECIMAL,
-    ForeignKey, UniqueConstraint, CheckConstraint, Index, Sequence, Enum
+    Column, Integer, String, Text, DateTime, Date, Time, Boolean, DECIMAL, Float,
+    ForeignKey, UniqueConstraint, CheckConstraint, Index, Sequence, Enum, JSON
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -39,6 +39,7 @@ class User(Base):
     password_resets = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")
     device_tokens = relationship("DeviceToken", back_populates="user", cascade="all, delete-orphan")
     customer = relationship("Customer", back_populates="user", uselist=False)
+    payment_methods = relationship("PaymentMethod", back_populates="user", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('ix_users_email', 'email'),
@@ -713,6 +714,41 @@ class PaymentRefund(Base):
     payment = relationship("Payment", back_populates="refunds")
 
 
+class PaymentMethod(Base):
+    """PaymentMethod model for secure card, mobile money, and digital wallet info"""
+    __tablename__ = "payment_methods"
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    payment_type = Column(String(50), nullable=False)  # card | mobile_money | digital_wallet
+    provider = Column(String(50), nullable=False)      # Visa, Mastercard, MTN MoMo, Airtel Money, PayPal, Apple Pay, Google Pay
+    nickname = Column(String(100))
+    is_default = Column(Boolean, default=False, nullable=False)
+    is_verified = Column(Boolean, default=False, nullable=False)
+    status = Column(String(20), default="active", nullable=False)  # active | inactive
+    
+    # Store masked safe details for quick retrieval as a JSON dictionary
+    details = Column(JSON, nullable=False, default=dict)
+    
+    # Store encrypted sensitive details (full card number, auth tokens, device secrets, wallet references, etc.)
+    encrypted_details = Column(Text, nullable=False)
+    
+    # Secure SHA-256 fingerprint hash of the unique identifier to prevent duplicates
+    unique_hash = Column(String(64), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    user = relationship("User", back_populates="payment_methods")
+    
+    __table_args__ = (
+        Index('ix_payment_methods_user_id', 'user_id'),
+        Index('ix_payment_methods_payment_type', 'payment_type'),
+        Index('ix_payment_methods_unique_hash', 'unique_hash'),
+    )
+
+
 # =====================================================================
 # SECTION 7: NOTIFICATIONS
 # =====================================================================
@@ -839,3 +875,44 @@ class CustomerReview(Base):
     
     # Relationships
     customer = relationship("Customer", back_populates="reviews")
+
+
+class HotelDetails(Base):
+    """HotelDetails model for dynamic hotel information management"""
+    __tablename__ = "hotel_details"
+    
+    id = Column(Integer, primary_key=True)
+    hotel_name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    phone_number = Column(String(50), nullable=False)
+    alternative_phone_number = Column(String(50), nullable=True)
+    email = Column(String(100), nullable=False)
+    website = Column(String(255), nullable=True)
+    physical_address = Column(Text, nullable=False)
+    city = Column(String(100), nullable=False)
+    country = Column(String(100), nullable=False)
+    postal_code = Column(String(20), nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    google_maps_pin = Column(Text, nullable=True)
+    logo_url = Column(String(500), nullable=True)
+    cover_image_url = Column(String(500), nullable=True)
+    facebook_url = Column(String(255), nullable=True)
+    instagram_url = Column(String(255), nullable=True)
+    x_url = Column(String(255), nullable=True)
+    linkedin_url = Column(String(255), nullable=True)
+    youtube_url = Column(String(255), nullable=True)
+    check_in_time = Column(String(50), nullable=True)
+    check_out_time = Column(String(50), nullable=True)
+    currency = Column(String(10), nullable=False, default="USD")
+    timezone = Column(String(50), nullable=False, default="UTC")
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    created_by = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+    updated_by = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+    
+    # Relationships
+    creator = relationship("User", foreign_keys=[created_by])
+    updater = relationship("User", foreign_keys=[updated_by])
