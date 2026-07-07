@@ -63,9 +63,10 @@ class UserRepository:
         return user
     
     async def get_all_users(self, skip: int = 0, limit: int = 100) -> List[User]:
-        """Get all users"""
+        """Get all active users"""
         result = await self.db.execute(
             select(User)
+            .where(User.is_active == True)
             .options(selectinload(User.roles).selectinload(UserRole.role))
             .offset(skip)
             .limit(limit)
@@ -79,13 +80,24 @@ class UserRepository:
         return await self.get_by_id(user.user_id)
 
     async def delete_user(self, user_id: int) -> bool:
-        """Soft-delete a user for relational integrity"""
+        """Attempt hard delete, fallback to soft delete for relational integrity"""
         user = await self.get_by_id(user_id)
         if user:
-            user.is_active = False
-            self.db.add(user)
-            await self.db.commit()
-            return True
+            try:
+                # Attempt to hard delete the user and cascade related roles/sessions/tokens
+                await self.db.delete(user)
+                await self.db.commit()
+                return True
+            except Exception:
+                # Fallback to soft delete if there are active references in other tables
+                await self.db.rollback()
+                # Re-fetch user in new transaction context and deactivate
+                user = await self.get_by_id(user_id)
+                if user:
+                    user.is_active = False
+                    self.db.add(user)
+                    await self.db.commit()
+                    return True
         return False
 
 

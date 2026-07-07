@@ -18,9 +18,9 @@ export const Login: React.FC = () => {
     setError('');
     setIsSubmitting(true);
     try {
-      await login(email);
-    } catch (err) {
-      setError('Invalid login credentials');
+      await login(email, password);
+    } catch (err: any) {
+      setError(err.message || 'Invalid login credentials');
     } finally {
       setIsSubmitting(false);
     }
@@ -31,8 +31,8 @@ export const Login: React.FC = () => {
     setError('');
     try {
       await login(`${role}@seyeya.com`, role);
-    } catch (err) {
-      setError('Failed to login as preset role');
+    } catch (err: any) {
+      setError(err.message || 'Failed to login as preset role');
     } finally {
       setIsSubmitting(false);
     }
