@@ -8,7 +8,7 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 from app.schemas import (
     RestaurantOrderCreate, RestaurantOrderResponse, RestaurantOrderUpdate,
-    MenuCategoryResponse, MenuCategoryCreate, MenuItemResponse, MenuItemCreate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse
+    MenuCategoryResponse, MenuCategoryCreate, MenuCategoryUpdate, MenuItemResponse, MenuItemCreate, MenuItemUpdate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse
 )
 from app.services import RestaurantOrderService
 from app.repositories import MenuRepository, ReviewRepository
@@ -18,9 +18,27 @@ router = APIRouter(prefix="/api/v1/restaurant", tags=["restaurant"])
 
 @router.get("/menu/categories", response_model=List[MenuCategoryResponse])
 async def get_menu_categories(db: AsyncSession = Depends(get_db)):
-    """Get all menu categories"""
+    """Get all menu categories, auto-seeding standard ones if missing"""
     repo = MenuRepository(db)
     categories = await repo.get_all_categories()
+    
+    # Auto-seed standard categories if they don't exist
+    standard_names = ["Local Food", "Continental", "Drinks", "Desserts"]
+    existing_names = {c.category_name for c in categories}
+    
+    seeded = False
+    for name in standard_names:
+        if name not in existing_names:
+            await repo.create_menu_category(
+                category_name=name,
+                description=f"Standard category for {name}",
+                is_active=True
+            )
+            seeded = True
+            
+    if seeded:
+        categories = await repo.get_all_categories()
+        
     return categories
 
 
@@ -36,6 +54,53 @@ async def create_menu_category(request: MenuCategoryCreate, db: AsyncSession = D
         is_active=request.is_active
     )
     return category
+
+
+@router.put("/menu/categories/{category_id}", response_model=MenuCategoryResponse)
+async def update_menu_category(
+    category_id: int,
+    request: MenuCategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a menu category"""
+    repo = MenuRepository(db)
+    category = await repo.get_menu_category(category_id)
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        
+    updated_category = await repo.update_menu_category(category_id, **request.model_dump(exclude_unset=True))
+    return updated_category
+
+
+@router.delete("/menu/categories/{category_id}", status_code=status.HTTP_200_OK)
+async def delete_menu_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete (deactivate) a menu category, if it has no active items"""
+    repo = MenuRepository(db)
+    
+    # 1. Check if category exists
+    category = await repo.get_menu_category(category_id)
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        
+    # 2. Check if there are active menu items attached to it
+    items = await repo.get_items_by_category(category_id)
+    if len(items) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete category with active menu items. Please delete the items first."
+        )
+        
+    # 3. Perform soft delete
+    success = await repo.delete_menu_category(category_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+        
+    return {"status": "deleted"}
 
 
 @router.get("/menu/categories/{category_id}/items", response_model=List[MenuItemResponse])
@@ -71,6 +136,37 @@ async def create_menu_item(request: MenuItemCreate, db: AsyncSession = Depends(g
         quantity=request.quantity or 0
     )
     return item
+
+
+@router.put("/menu/items/{item_id}", response_model=MenuItemResponse)
+async def update_menu_item(
+    item_id: int,
+    request: MenuItemUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a menu item"""
+    repo = MenuRepository(db)
+    item = await repo.get_menu_item(item_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
+        
+    updated_item = await repo.update_menu_item(item_id, **request.model_dump(exclude_unset=True))
+    return updated_item
+
+
+@router.delete("/menu/items/{item_id}", status_code=status.HTTP_200_OK)
+async def delete_menu_item(
+    item_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete (deactivate) a menu item"""
+    repo = MenuRepository(db)
+    success = await repo.delete_menu_item(item_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
+    return {"status": "deleted"}
 
 
 @router.get("/menu/items/{item_id}", response_model=MenuItemResponse)
@@ -201,6 +297,30 @@ async def update_order(
         await db.commit()
         
         return await service.get_order(order.order_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.delete("/orders/{order_id}", response_model=RestaurantOrderResponse)
+async def cancel_restaurant_order(
+    order_id: int,
+    reason: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Cancel (soft delete) a restaurant order"""
+    try:
+        service = RestaurantOrderService(db)
+        order = await service.cancel_order(order_id, reason)
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found"
+            )
+        return order
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

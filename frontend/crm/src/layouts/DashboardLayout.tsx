@@ -23,7 +23,7 @@ import { OrderPopup } from '../components/OrderPopup';
 interface DashboardLayoutProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  onSwitchPortal: () => void;
+  onSwitchPortal?: () => void;
   children: React.ReactNode;
 }
 
@@ -230,14 +230,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
  
           {/* Quick Actions Header */}
           <div className="flex items-center gap-3.5">
-            {/* Switch to Client Booking Interface */}
-            <button
-              onClick={onSwitchPortal}
-              className="flex items-center gap-2 rounded-full bg-primary hover:bg-zinc-800 px-5 py-2.5 text-xs font-bold text-white shadow-sm transition-all duration-200"
-            >
-              <Monitor className="h-3.5 w-3.5 text-white" />
-              Client Booking Portal
-            </button>
+
 
             {/* Theme Toggle */}
             <button 

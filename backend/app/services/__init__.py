@@ -3,6 +3,7 @@ Service layer for business logic
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, Tuple, List
@@ -485,6 +486,21 @@ class RestaurantOrderService:
         await self.db.commit()
         return await self.get_order(order_id)
 
+    async def cancel_order(self, order_id: int, reason: Optional[str] = None) -> Optional[RestaurantOrder]:
+        """Cancel (soft delete) a restaurant order"""
+        order = await self.order_repo.get_by_id(order_id)
+        if not order:
+            return None
+            
+        order.order_status = "Cancelled"
+        order.cancelled_at = datetime.utcnow()
+        if reason:
+            order.cancel_reason = reason
+            
+        self.db.add(order)
+        await self.db.commit()
+        return await self.get_order(order_id)
+
     async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
         """Get orders for a customer"""
         return await self.order_repo.get_customer_orders(customer_id, skip=skip, limit=limit)
@@ -493,7 +509,7 @@ class RestaurantOrderService:
         """Get all restaurant orders"""
         result = await self.db.execute(
             select(RestaurantOrder)
-            .options(selectinload(RestaurantOrder.items))
+            .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
             .offset(skip)
             .limit(limit)
         )
@@ -723,6 +739,20 @@ class UserService:
             if existing:
                 raise ValueError("User with this email already exists")
                 
+        # Update roles if role_ids are supplied
+        if "role_ids" in updates:
+            role_ids = updates.pop("role_ids")
+            if role_ids is not None:
+                current_role_ids = [r.role_id for r in user.roles]
+                if set(current_role_ids) != set(role_ids):
+                    # Clear roles and flush to avoid unique constraint conflict on insert
+                    user.roles = []
+                    await self.db.flush()
+                    # Re-assign new roles
+                    for role_id in role_ids:
+                        user_role = UserRole(user_id=user_id, role_id=role_id)
+                        user.roles.append(user_role)
+
         for field, value in updates.items():
             if value is not None:
                 if field == "password":

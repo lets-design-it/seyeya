@@ -73,6 +73,7 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     is_staff: Optional[bool] = None
     is_active: Optional[bool] = None
+    role_ids: Optional[List[int]] = None
 
 
 class UserResponse(UserBase):
@@ -287,6 +288,14 @@ class MenuCategoryCreate(BaseModel):
     is_active: Optional[bool] = True
 
 
+class MenuCategoryUpdate(BaseModel):
+    category_name: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
 class MenuExtraResponse(BaseModel):
     extra_id: int
     extra_name: str
@@ -327,6 +336,19 @@ class MenuItemCreate(BaseModel):
     preparation_time: Optional[int] = None
     is_available: Optional[bool] = True
     is_active: Optional[bool] = True
+
+
+class MenuItemUpdate(BaseModel):
+    category_id: Optional[int] = None
+    item_name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[Decimal] = None
+    quantity: Optional[int] = None
+    image_url: Optional[str] = None
+    allergen_info: Optional[str] = None
+    preparation_time: Optional[int] = None
+    is_available: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 class MenuExtraCreate(BaseModel):
@@ -391,15 +413,17 @@ class RestaurantOrderResponse(BaseModel):
     customer_id: Optional[int] = None
     order_number: str
     seating_location: Optional[str] = None
-    delivery_option: str
+    delivery_option: Optional[str] = "Premises"
     total_amount: Decimal
     amount_paid: Decimal
     balance_due: Decimal
-    order_status: str
-    payment_status: str
+    order_status: Optional[str] = "Pending"
+    payment_status: Optional[str] = "Pending"
     items: List[OrderItemResponse]
     created_at: datetime
     updated_at: datetime
+    cancelled_at: Optional[datetime] = None
+    cancel_reason: Optional[str] = None
     
     class Config:
         from_attributes = True

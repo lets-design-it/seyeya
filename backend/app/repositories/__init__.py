@@ -452,6 +452,45 @@ class MenuRepository:
         await self.db.commit()
         await self.db.refresh(category)
         return category
+
+    async def get_menu_category(self, category_id: int) -> Optional[MenuCategory]:
+        """Get a menu category by ID"""
+        result = await self.db.execute(
+            select(MenuCategory).where(MenuCategory.category_id == category_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_menu_category(self, category_id: int, **kwargs) -> Optional[MenuCategory]:
+        """Update a menu category"""
+        result = await self.db.execute(
+            select(MenuCategory).where(MenuCategory.category_id == category_id)
+        )
+        category = result.scalar_one_or_none()
+        if not category:
+            return None
+            
+        for key, value in kwargs.items():
+            if value is not None:
+                setattr(category, key, value)
+                
+        self.db.add(category)
+        await self.db.commit()
+        await self.db.refresh(category)
+        return category
+
+    async def delete_menu_category(self, category_id: int) -> bool:
+        """Deactivate a menu category (soft delete)"""
+        result = await self.db.execute(
+            select(MenuCategory).where(MenuCategory.category_id == category_id)
+        )
+        category = result.scalar_one_or_none()
+        if not category:
+            return False
+            
+        category.is_active = False
+        self.db.add(category)
+        await self.db.commit()
+        return True
     
     async def get_items_by_category(self, category_id: int) -> List[MenuItem]:
         """Get menu items by category"""
@@ -517,6 +556,46 @@ class MenuRepository:
         )
         return result.scalar_one_or_none()
 
+    async def update_menu_item(self, item_id: int, **kwargs) -> Optional[MenuItem]:
+        """Update a menu item"""
+        result = await self.db.execute(
+            select(MenuItem).where(MenuItem.menu_item_id == item_id)
+        )
+        item = result.scalar_one_or_none()
+        if not item:
+            return None
+        
+        for key, value in kwargs.items():
+            if value is not None:
+                setattr(item, key, value)
+                
+        self.db.add(item)
+        await self.db.commit()
+        await self.db.refresh(item)
+        
+        # Reload with extras preloaded
+        result = await self.db.execute(
+            select(MenuItem)
+            .where(MenuItem.menu_item_id == item_id)
+            .options(selectinload(MenuItem.extras))
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_menu_item(self, item_id: int) -> bool:
+        """Deactivate a menu item (soft delete)"""
+        result = await self.db.execute(
+            select(MenuItem).where(MenuItem.menu_item_id == item_id)
+        )
+        item = result.scalar_one_or_none()
+        if not item:
+            return False
+            
+        item.is_active = False
+        item.is_available = False
+        self.db.add(item)
+        await self.db.commit()
+        return True
+
 
 class RestaurantOrderRepository:
     """Repository for restaurant order operations"""
@@ -541,7 +620,7 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.order_id == order_id)
-            .options(selectinload(RestaurantOrder.items))
+            .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
         )
         return result.scalar_one_or_none()
     
@@ -550,7 +629,7 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.order_number == order_number)
-            .options(selectinload(RestaurantOrder.items))
+            .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
         )
         return result.scalar_one_or_none()
     
@@ -559,7 +638,7 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.customer_id == customer_id)
-            .options(selectinload(RestaurantOrder.items))
+            .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
             .offset(skip)
             .limit(limit)
         )

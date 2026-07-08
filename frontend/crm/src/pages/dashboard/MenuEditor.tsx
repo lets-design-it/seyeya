@@ -5,28 +5,58 @@ import { Button } from '../../components/Button';
 import { Plus, Edit2, Trash2, X, ChefHat, DollarSign } from 'lucide-react';
 
 export const MenuEditor: React.FC = () => {
-  const { menu, addMenuItem, updateMenuItem, deleteMenuItem } = useRestaurant();
+  const { 
+    menu, 
+    addMenuItem, 
+    updateMenuItem, 
+    deleteMenuItem,
+    categories,
+    addCategory,
+    updateCategory,
+    deleteCategory 
+  } = useRestaurant();
 
   // Modal states
   const [isOpen, setIsOpen] = useState(false);
   const [editItem, setEditItem] = useState<MenuItem | null>(null);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
 
   // Form states
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<MenuItem['category']>('Local Food');
+  const [category, setCategory] = useState<string>('Local Food');
   const [priceUGX, setPriceUGX] = useState<number>(10000);
   const [priceUSD, setPriceUSD] = useState<number>(3);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
+  const [quantity, setQuantity] = useState<number>(100);
+  const [allergenInfo, setAllergenInfo] = useState('');
+  const [prepTime, setPrepTime] = useState<number>(15);
+  const [isAvailable, setIsAvailable] = useState<boolean>(true);
+  const [isActive, setIsActive] = useState<boolean>(true);
+
+  // Category management form states
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDesc, setNewCategoryDesc] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingCategoryDesc, setEditingCategoryDesc] = useState('');
+  const [categoryError, setCategoryError] = useState<string | null>(null);
 
   // Delete confirm state
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Active Category tab
-  const [activeCategory, setActiveCategory] = useState<MenuItem['category']>('Local Food');
+  const [activeCategory, setActiveCategory] = useState<string>('Local Food');
 
   // Selected item state for details drawer
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+
+  // Fallback default active category if categories list changes
+  React.useEffect(() => {
+    if (categories.length > 0 && !categories.some(c => c.category_name === activeCategory)) {
+      setActiveCategory(categories[0].category_name);
+    }
+  }, [categories, activeCategory]);
 
   const openAddModal = () => {
     setEditItem(null);
@@ -36,6 +66,11 @@ export const MenuEditor: React.FC = () => {
     setPriceUSD(4);
     setDescription('');
     setImage('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200'); // generic food placeholder
+    setQuantity(100);
+    setAllergenInfo('');
+    setPrepTime(15);
+    setIsAvailable(true);
+    setIsActive(true);
     setIsOpen(true);
   };
 
@@ -47,6 +82,11 @@ export const MenuEditor: React.FC = () => {
     setPriceUSD(item.priceUSD);
     setDescription(item.description);
     setImage(item.image);
+    setQuantity(item.quantity ?? 100);
+    setAllergenInfo(item.allergen_info ?? '');
+    setPrepTime(item.preparation_time ?? 15);
+    setIsAvailable(item.is_available ?? true);
+    setIsActive(item.is_active ?? true);
     setIsOpen(true);
   };
 
@@ -60,7 +100,12 @@ export const MenuEditor: React.FC = () => {
       priceUGX: Number(priceUGX),
       priceUSD: Number(priceUSD),
       description: description.trim(),
-      image: image.trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200'
+      image: image.trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200',
+      quantity: Number(quantity),
+      allergen_info: allergenInfo.trim(),
+      preparation_time: Number(prepTime),
+      is_available: isAvailable,
+      is_active: isActive
     };
 
     if (editItem) {
@@ -82,7 +127,7 @@ export const MenuEditor: React.FC = () => {
     setSelectedItem(null);
   };
 
-  const categories: MenuItem['category'][] = ['Local Food', 'Continental', 'Drinks', 'Desserts'];
+  const categoryList = categories.map((c: any) => c.category_name);
 
 
 
@@ -94,18 +139,26 @@ export const MenuEditor: React.FC = () => {
           <h3 className="text-xl font-bold text-dark tracking-tight">Restaurant Menu Manager</h3>
           <p className="text-xs text-zinc-550">Create, adjust, and archive food or drink listings on the Nile Eatery checkout app.</p>
         </div>
-        <Button 
-          onClick={openAddModal}
-          className="flex items-center gap-2 bg-primary hover:bg-zinc-800 text-white rounded-full px-5 py-2.5 text-xs font-bold shadow-sm"
-        >
-          <Plus className="h-4 w-4" />
-          Add Menu Item
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={() => setIsCategoryModalOpen(true)}
+            className="flex items-center gap-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-full px-5 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
+          >
+            Manage Categories
+          </Button>
+          <Button 
+            onClick={openAddModal}
+            className="flex items-center gap-2 bg-primary hover:bg-zinc-800 text-white rounded-full px-5 py-2.5 text-xs font-bold shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Add Menu Item
+          </Button>
+        </div>
       </div>
 
       {/* Category Tabs */}
       <div className="flex flex-wrap items-center gap-2 bg-zinc-100/60 rounded-2xl p-1.5 w-fit">
-        {categories.map((cat) => {
+        {categoryList.map((cat) => {
           const itemsInCat = menu.filter((item) => item.category === cat);
           const count = itemsInCat.length;
           const isActive = activeCategory === cat;
@@ -212,10 +265,10 @@ export const MenuEditor: React.FC = () => {
                   <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Category</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as MenuItem['category'])}
+                    onChange={(e) => setCategory(e.target.value)}
                     className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500 cursor-pointer"
                   >
-                    {categories.map(cat => (
+                    {categoryList.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
                     ))}
                   </select>
@@ -260,6 +313,43 @@ export const MenuEditor: React.FC = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Stock Quantity</label>
+                  <input
+                    type="number"
+                    min={0}
+                    required
+                    placeholder="e.g. 50"
+                    value={quantity}
+                    onChange={(e) => setQuantity(Number(e.target.value))}
+                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Prep Time (mins)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 20"
+                    value={prepTime}
+                    onChange={(e) => setPrepTime(Number(e.target.value))}
+                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Allergen Info</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Gluten, Nuts, Dairy"
+                  value={allergenInfo}
+                  onChange={(e) => setAllergenInfo(e.target.value)}
+                  className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
+                />
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Description</label>
                 <textarea
@@ -269,6 +359,27 @@ export const MenuEditor: React.FC = () => {
                   rows={3}
                   className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500 resize-none"
                 />
+              </div>
+
+              <div className="flex items-center gap-6 pt-1">
+                <label className="flex items-center gap-2 text-xs font-bold text-zinc-650 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAvailable}
+                    onChange={(e) => setIsAvailable(e.target.checked)}
+                    className="rounded border-zinc-300 text-violet-500 focus:ring-violet-500 cursor-pointer h-4 w-4"
+                  />
+                  <span>Available for Order</span>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold text-zinc-650 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={(e) => setIsActive(e.target.checked)}
+                    className="rounded border-zinc-300 text-violet-500 focus:ring-violet-500 cursor-pointer h-4 w-4"
+                  />
+                  <span>Active in Catalog</span>
+                </label>
               </div>
 
               <div className="pt-2 flex justify-end gap-2.5">
@@ -358,6 +469,36 @@ export const MenuEditor: React.FC = () => {
                     </span>
                   </div>
                 </div>
+
+                <div className="grid grid-cols-3 gap-4 bg-zinc-50/50 p-4 rounded-[18px] text-xs">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Stock</span>
+                    <span className="font-bold text-foreground block">
+                      {selectedItem.quantity ?? 0} units
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Prep Time</span>
+                    <span className="font-bold text-foreground block">
+                      {selectedItem.preparation_time ?? 0} mins
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Status</span>
+                    <span className={`font-bold block ${selectedItem.is_available ? 'text-green-600' : 'text-red-500'}`}>
+                      {selectedItem.is_available ? 'Available' : 'Sold Out'}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedItem.allergen_info && (
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Allergen Info</span>
+                    <div className="text-xs text-amber-700 bg-amber-50/60 border border-amber-100/50 p-3.5 rounded-[18px] mt-1.5 leading-relaxed font-semibold">
+                      ⚠️ {selectedItem.allergen_info}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -407,6 +548,180 @@ export const MenuEditor: React.FC = () => {
               >
                 Confirm Delete
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Manager Modal */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 animate-fade-in backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-2xl bg-card rounded-[24px] p-6 shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 mb-5 border-b border-zinc-100/60 shrink-0">
+              <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
+                Manage Menu Categories
+              </h3>
+              <button 
+                onClick={() => {
+                  setIsCategoryModalOpen(false);
+                  setCategoryError(null);
+                  setEditingCategoryId(null);
+                }}
+                className="text-zinc-500 hover:text-foreground rounded-lg p-1 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {categoryError && (
+              <div className="mb-4 text-xs font-semibold text-red-600 bg-red-50 p-3.5 rounded-xl border border-red-150/50 flex items-center gap-2 shrink-0">
+                ⚠️ {categoryError}
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+              {/* Add Category Section */}
+              <div className="bg-zinc-50/50 p-4 rounded-[18px] border border-zinc-100/50">
+                <h4 className="text-xs font-bold text-zinc-700 uppercase tracking-wider mb-3">Add New Category</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <input
+                    type="text"
+                    placeholder="Category Name (e.g. Local Desserts)"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    className="rounded-xl bg-white border border-zinc-200 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Description (optional)"
+                    value={newCategoryDesc}
+                    onChange={(e) => setNewCategoryDesc(e.target.value)}
+                    className="rounded-xl bg-white border border-zinc-200 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={async () => {
+                      if (!newCategoryName.trim()) return;
+                      setCategoryError(null);
+                      try {
+                        await addCategory(newCategoryName.trim(), newCategoryDesc.trim());
+                        setNewCategoryName('');
+                        setNewCategoryDesc('');
+                      } catch (err: any) {
+                        setCategoryError(err.message || 'Failed to create category');
+                      }
+                    }}
+                    className="bg-primary hover:bg-zinc-800 text-white rounded-full px-4 py-2 text-xs font-bold shadow-sm"
+                  >
+                    Add Category
+                  </Button>
+                </div>
+              </div>
+
+              {/* Categories List Section */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-zinc-700 uppercase tracking-wider">Existing Categories</h4>
+                <div className="divide-y divide-zinc-100/80">
+                  {categories.map((cat: any) => {
+                    const isEditing = editingCategoryId === cat.category_id;
+                    const itemsInCat = menu.filter((item) => Number(item.category_id) === cat.category_id || item.category === cat.category_name);
+                    const itemCount = itemsInCat.length;
+
+                    return (
+                      <div key={cat.category_id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-0">
+                        {isEditing ? (
+                          <div className="flex-1 space-y-2">
+                            <input
+                              type="text"
+                              value={editingCategoryName}
+                              onChange={(e) => setEditingCategoryName(e.target.value)}
+                              className="w-full rounded-xl bg-zinc-50 border border-zinc-200 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500 font-semibold"
+                            />
+                            <input
+                              type="text"
+                              value={editingCategoryDesc}
+                              onChange={(e) => setEditingCategoryDesc(e.target.value)}
+                              className="w-full rounded-xl bg-zinc-50 border border-zinc-200 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-foreground">{cat.category_name}</span>
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-zinc-100 text-zinc-500">
+                                {itemCount} items
+                              </span>
+                            </div>
+                            {cat.description && (
+                              <p className="text-[11px] text-zinc-450 mt-0.5 truncate">{cat.description}</p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                          {isEditing ? (
+                            <>
+                              <Button
+                                onClick={() => setEditingCategoryId(null)}
+                                className="bg-transparent hover:bg-zinc-100 text-zinc-500 text-xs px-3 py-1.5 font-semibold"
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                onClick={async () => {
+                                  if (!editingCategoryName.trim()) return;
+                                  setCategoryError(null);
+                                  try {
+                                    await updateCategory(cat.category_id, editingCategoryName.trim(), editingCategoryDesc.trim());
+                                    setEditingCategoryId(null);
+                                  } catch (err: any) {
+                                    setCategoryError(err.message || 'Failed to update category');
+                                  }
+                                }}
+                                className="bg-violet-600 hover:bg-violet-700 text-white text-xs px-4 py-1.5 font-bold rounded-full"
+                              >
+                                Save
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                onClick={() => {
+                                  setEditingCategoryId(cat.category_id);
+                                  setEditingCategoryName(cat.category_name);
+                                  setEditingCategoryDesc(cat.description || '');
+                                  setCategoryError(null);
+                                }}
+                                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-650 text-xs px-3 py-1.5 font-bold rounded-full cursor-pointer"
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                onClick={async () => {
+                                  setCategoryError(null);
+                                  if (itemCount > 0) {
+                                    setCategoryError(`Cannot delete category "${cat.category_name}" because it contains active menu items. Please delete or move the items first.`);
+                                    return;
+                                  }
+                                  try {
+                                    await deleteCategory(cat.category_id);
+                                  } catch (err: any) {
+                                    setCategoryError(err.message || 'Failed to delete category');
+                                  }
+                                }}
+                                className="bg-red-550 hover:bg-red-100 text-red-600 text-xs px-3 py-1.5 font-bold rounded-full cursor-pointer"
+                              >
+                                Delete
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>

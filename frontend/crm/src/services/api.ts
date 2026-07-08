@@ -25,4 +25,18 @@ api.interceptors.request.use((config: any) => {
   return config;
 });
 
+// Interceptor to handle expired tokens and auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('seyeya_crm_user');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('seyeya_auth_required'));
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

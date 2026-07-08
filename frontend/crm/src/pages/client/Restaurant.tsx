@@ -5,7 +5,7 @@ import { Button } from '../../components/Button';
 import { Search, ShoppingBag, Plus, Minus, X, CheckCircle } from 'lucide-react';
 
 export const Restaurant: React.FC = () => {
-  const { menu, placeOrder } = useRestaurant();
+  const { menu, placeOrder, categories } = useRestaurant();
   
   // Search & Category states
   const [search, setSearch] = useState('');
@@ -17,7 +17,9 @@ export const Restaurant: React.FC = () => {
   const [tableNumber, setTableNumber] = useState('Table 1');
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const categories = ['All', 'Local Food', 'Continental', 'Drinks', 'Desserts'];
+  const categoryList = useMemo(() => {
+    return ['All', ...categories.map((c: any) => c.category_name)];
+  }, [categories]);
 
   // Filter menu items
   const filteredMenu = useMemo(() => {
@@ -66,26 +68,21 @@ export const Restaurant: React.FC = () => {
 
   const cartItemsCount = Object.values(cart).reduce((sum, q) => sum + q, 0);
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cartItemsCount === 0) return;
 
-    // Build items string
-    const itemsSummary = Object.entries(cart)
-      .map(([itemId, qty]) => {
-        const item = menu.find(m => m.id === itemId);
-        return item ? `${qty}x ${item.name.replace('Seyeya ', '')}` : '';
-      })
-      .filter(Boolean)
-      .join(', ');
+    try {
+      // Place order
+      await placeOrder(cart, tableNumber);
 
-    // Place order
-    placeOrder(itemsSummary, tableNumber, cartTotal.ugx);
-
-    // Show success overlay
-    setCart({});
-    setShowCart(false);
-    setIsSuccess(true);
+      // Show success overlay
+      setCart({});
+      setShowCart(false);
+      setIsSuccess(true);
+    } catch (err) {
+      console.error("Failed to checkout:", err);
+    }
   };
 
   return (
@@ -93,7 +90,7 @@ export const Restaurant: React.FC = () => {
       
       {/* Category Horizontal list */}
       <div className="flex gap-2 overflow-x-auto pb-1.5 -mx-4 px-4 scrollbar-none shrink-0">
-        {categories.map((cat) => (
+        {categoryList.map((cat) => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
