@@ -8,7 +8,8 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 from app.schemas import (
     RestaurantOrderCreate, RestaurantOrderResponse, RestaurantOrderUpdate,
-    MenuCategoryResponse, MenuCategoryCreate, MenuItemResponse, MenuItemCreate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse
+    MenuCategoryResponse, MenuCategoryCreate, MenuItemResponse, MenuItemCreate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse,
+    MenuChoiceCreate, MenuChoiceUpdate, MenuChoiceResponse, MenuAccompanimentCreate, MenuAccompanimentUpdate, MenuAccompanimentResponse, MenuExtraUpdate
 )
 from app.services import RestaurantOrderService
 from app.repositories import MenuRepository, ReviewRepository
@@ -99,6 +100,105 @@ async def add_menu_item_extra(item_id: int, request: MenuExtraCreate, db: AsyncS
         await db.commit()
         await db.refresh(extra)
     return extra
+
+
+@router.patch("/menu/extras/{extra_id}", response_model=MenuExtraResponse)
+async def update_menu_extra(extra_id: int, request: MenuExtraUpdate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Update a menu item extra option"""
+    repo = MenuRepository(db)
+    extra = await repo.update_menu_extra(extra_id, request.model_dump(exclude_unset=True))
+    if not extra:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu extra not found")
+    return extra
+
+
+@router.delete("/menu/extras/{extra_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_menu_extra(extra_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Delete a menu item extra option"""
+    repo = MenuRepository(db)
+    success = await repo.delete_menu_extra(extra_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu extra not found")
+
+
+@router.get("/menu/items/{item_id}/choices", response_model=List[MenuChoiceResponse])
+async def get_menu_item_choices(item_id: int, db: AsyncSession = Depends(get_db)):
+    """Get all choices/options for a menu item"""
+    repo = MenuRepository(db)
+    item = await repo.get_menu_item(item_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
+    return item.choices
+
+
+@router.post("/menu/items/{item_id}/choices", response_model=MenuChoiceResponse, status_code=status.HTTP_201_CREATED)
+async def add_menu_item_choice(item_id: int, request: MenuChoiceCreate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Add a choice option to a menu item"""
+    repo = MenuRepository(db)
+    item = await repo.get_menu_item(item_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
+    choice = await repo.create_menu_choice_for_item(menu_item_id=item_id, choice_name=request.choice_name, is_available=request.is_available)
+    return choice
+
+
+@router.patch("/menu/choices/{choice_id}", response_model=MenuChoiceResponse)
+async def update_menu_choice(choice_id: int, request: MenuChoiceUpdate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Update a menu item choice option"""
+    repo = MenuRepository(db)
+    choice = await repo.update_menu_choice(choice_id, request.model_dump(exclude_unset=True))
+    if not choice:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu choice not found")
+    return choice
+
+
+@router.delete("/menu/choices/{choice_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_menu_choice(choice_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Delete a menu item choice option"""
+    repo = MenuRepository(db)
+    success = await repo.delete_menu_choice(choice_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu choice not found")
+
+
+@router.get("/menu/items/{item_id}/accompaniments", response_model=List[MenuAccompanimentResponse])
+async def get_menu_item_accompaniments(item_id: int, db: AsyncSession = Depends(get_db)):
+    """Get all accompaniments for a menu item"""
+    repo = MenuRepository(db)
+    item = await repo.get_menu_item(item_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
+    return item.accompaniments
+
+
+@router.post("/menu/items/{item_id}/accompaniments", response_model=MenuAccompanimentResponse, status_code=status.HTTP_201_CREATED)
+async def add_menu_item_accompaniment(item_id: int, request: MenuAccompanimentCreate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Add an accompaniment option to a menu item"""
+    repo = MenuRepository(db)
+    item = await repo.get_menu_item(item_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
+    accompaniment = await repo.create_menu_accompaniment_for_item(menu_item_id=item_id, accompaniment_name=request.accompaniment_name, price=request.price, is_available=request.is_available)
+    return accompaniment
+
+
+@router.patch("/menu/accompaniments/{accompaniment_id}", response_model=MenuAccompanimentResponse)
+async def update_menu_accompaniment(accompaniment_id: int, request: MenuAccompanimentUpdate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Update a menu item accompaniment option"""
+    repo = MenuRepository(db)
+    accompaniment = await repo.update_menu_accompaniment(accompaniment_id, request.model_dump(exclude_unset=True))
+    if not accompaniment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu accompaniment not found")
+    return accompaniment
+
+
+@router.delete("/menu/accompaniments/{accompaniment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_menu_accompaniment(accompaniment_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Delete a menu item accompaniment option"""
+    repo = MenuRepository(db)
+    success = await repo.delete_menu_accompaniment(accompaniment_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu accompaniment not found")
 
 
 @router.post("/orders", response_model=RestaurantOrderResponse)

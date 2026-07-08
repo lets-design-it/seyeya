@@ -298,6 +298,56 @@ class MenuExtraResponse(BaseModel):
         from_attributes = True
 
 
+class MenuChoiceCreate(BaseModel):
+    choice_name: str
+    is_available: Optional[bool] = True
+
+
+class MenuChoiceUpdate(BaseModel):
+    choice_name: Optional[str] = None
+    is_available: Optional[bool] = None
+
+
+class MenuChoiceResponse(BaseModel):
+    choice_id: int
+    menu_item_id: int
+    choice_name: str
+    is_available: bool
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuAccompanimentCreate(BaseModel):
+    accompaniment_name: str
+    price: Optional[Decimal] = None
+    is_available: Optional[bool] = True
+
+
+class MenuAccompanimentUpdate(BaseModel):
+    accompaniment_name: Optional[str] = None
+    price: Optional[Decimal] = None
+    is_available: Optional[bool] = None
+
+
+class MenuAccompanimentResponse(BaseModel):
+    accompaniment_id: int
+    menu_item_id: int
+    accompaniment_name: str
+    price: Optional[Decimal] = None
+    is_available: bool
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuExtraUpdate(BaseModel):
+    extra_name: Optional[str] = None
+    price: Optional[Decimal] = None
+    is_available: Optional[bool] = None
+    image_url: Optional[str] = None
+
+
 class MenuItemResponse(BaseModel):
     menu_item_id: int
     category_id: int
@@ -311,6 +361,8 @@ class MenuItemResponse(BaseModel):
     is_available: bool
     is_active: bool
     extras: Optional[List[MenuExtraResponse]] = []
+    choices: Optional[List[MenuChoiceResponse]] = []
+    accompaniments: Optional[List[MenuAccompanimentResponse]] = []
     
     class Config:
         from_attributes = True
@@ -355,6 +407,8 @@ class OrderItemCreate(BaseModel):
     menu_item_id: int
     quantity: int = 1
     special_notes: Optional[str] = None
+    choice_id: Optional[int] = None
+    accompaniment_id: Optional[int] = None
     extras: Optional[List[OrderItemExtraCreate]] = None
 
 
@@ -381,6 +435,8 @@ class OrderItemResponse(BaseModel):
     unit_price: Decimal
     total_price: Decimal
     special_notes: Optional[str] = None
+    choice_id: Optional[int] = None
+    accompaniment_id: Optional[int] = None
     
     class Config:
         from_attributes = True

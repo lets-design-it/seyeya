@@ -276,6 +276,8 @@ class MenuItem(Base):
     category = relationship("MenuCategory", back_populates="items")
     order_items = relationship("OrderItem", back_populates="menu_item", cascade="all, delete-orphan")
     extras = relationship("MenuExtra", back_populates="menu_item", cascade="all, delete-orphan")
+    choices = relationship("MenuChoice", back_populates="menu_item", cascade="all, delete-orphan")
+    accompaniments = relationship("MenuAccompaniment", back_populates="menu_item", cascade="all, delete-orphan")
 
 
 class MenuExtra(Base):
@@ -293,6 +295,37 @@ class MenuExtra(Base):
     # Relationships
     order_extras = relationship("OrderItemExtra", back_populates="extra", cascade="all, delete-orphan")
     menu_item = relationship("MenuItem", back_populates="extras")
+
+
+class MenuChoice(Base):
+    """Menu choice/option model"""
+    __tablename__ = "menu_choices"
+    
+    choice_id = Column(Integer, primary_key=True)
+    choice_name = Column(String(100), nullable=False)
+    is_available = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    menu_item_id = Column(Integer, ForeignKey("menu_items.menu_item_id"), nullable=False)
+    
+    # Relationships
+    menu_item = relationship("MenuItem", back_populates="choices")
+    order_items = relationship("OrderItem", back_populates="choice")
+
+
+class MenuAccompaniment(Base):
+    """Menu accompaniment model"""
+    __tablename__ = "menu_accompaniments"
+    
+    accompaniment_id = Column(Integer, primary_key=True)
+    accompaniment_name = Column(String(100), nullable=False)
+    price = Column(DECIMAL(10, 2), nullable=True)
+    is_available = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    menu_item_id = Column(Integer, ForeignKey("menu_items.menu_item_id"), nullable=False)
+    
+    # Relationships
+    menu_item = relationship("MenuItem", back_populates="accompaniments")
+    order_items = relationship("OrderItem", back_populates="accompaniment")
 
 
 class RestaurantOrder(Base):
@@ -345,6 +378,8 @@ class OrderItem(Base):
     order_item_id = Column(Integer, primary_key=True)
     order_id = Column(Integer, ForeignKey("restaurant_orders.order_id", ondelete="CASCADE"), nullable=False)
     menu_item_id = Column(Integer, ForeignKey("menu_items.menu_item_id"), nullable=False)
+    choice_id = Column(Integer, ForeignKey("menu_choices.choice_id"), nullable=True)
+    accompaniment_id = Column(Integer, ForeignKey("menu_accompaniments.accompaniment_id"), nullable=True)
     quantity = Column(Integer, nullable=False, default=1)
     unit_price = Column(DECIMAL(10, 2), nullable=False)
     total_price = Column(DECIMAL(10, 2), nullable=False)
@@ -353,6 +388,8 @@ class OrderItem(Base):
     # Relationships
     order = relationship("RestaurantOrder", back_populates="items")
     menu_item = relationship("MenuItem", back_populates="order_items")
+    choice = relationship("MenuChoice", back_populates="order_items")
+    accompaniment = relationship("MenuAccompaniment", back_populates="order_items")
     extras = relationship("OrderItemExtra", back_populates="order_item", cascade="all, delete-orphan")
 
 

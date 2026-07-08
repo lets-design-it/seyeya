@@ -16,7 +16,7 @@ from app.repositories import (
 )
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.models import (
-    User, Customer, RestaurantOrder, OrderItem, MenuExtra, AccommodationReservation,
+    User, Customer, RestaurantOrder, OrderItem, MenuExtra, MenuChoice, MenuAccompaniment, AccommodationReservation,
     ConferenceReservation, ConferenceResourceBooking, ConferenceMealBooking, Payment,
     UserSession, ActivityLog, LoginLog, PasswordResetToken,
     Role, Permission, PermissionGroup, UserRole, RolePermission
@@ -434,13 +434,46 @@ class RestaurantOrderService:
                 if not menu_item:
                     raise ValueError(f"Menu item {item_data['menu_item_id']} not found")
                 
+                choice_id = item_data.get("choice_id")
+                if choice_id:
+                    result = await self.db.execute(
+                        select(MenuChoice).where(
+                            and_(
+                                MenuChoice.choice_id == choice_id,
+                                MenuChoice.menu_item_id == menu_item.menu_item_id
+                            )
+                        )
+                    )
+                    choice = result.scalar_one_or_none()
+                    if not choice:
+                        raise ValueError(f"Choice {choice_id} not found or does not belong to menu item {menu_item.menu_item_id}")
+
+                accompaniment_id = item_data.get("accompaniment_id")
+                accompaniment_price = Decimal(0)
+                if accompaniment_id:
+                    result = await self.db.execute(
+                        select(MenuAccompaniment).where(
+                            and_(
+                                MenuAccompaniment.accompaniment_id == accompaniment_id,
+                                MenuAccompaniment.menu_item_id == menu_item.menu_item_id
+                            )
+                        )
+                    )
+                    accompaniment = result.scalar_one_or_none()
+                    if not accompaniment:
+                        raise ValueError(f"Accompaniment {accompaniment_id} not found or does not belong to menu item {menu_item.menu_item_id}")
+                    if accompaniment.price:
+                        accompaniment_price = accompaniment.price
+
                 quantity = item_data.get("quantity", 1)
-                unit_price = menu_item.price
+                unit_price = menu_item.price + accompaniment_price
                 total_price = unit_price * quantity
                 
                 order_item = OrderItem(
                     order_id=order.order_id,
                     menu_item_id=menu_item.menu_item_id,
+                    choice_id=choice_id,
+                    accompaniment_id=accompaniment_id,
                     quantity=quantity,
                     unit_price=unit_price,
                     total_price=total_price,
@@ -459,6 +492,19 @@ class RestaurantOrderService:
                             extra_qty = extra_data.get("quantity", 1)
                             extra_total = extra.price * extra_qty
                             total_price += extra_total
+                            
+                            # Also link to the order item
+                            from app.models import OrderItemExtra
+                            order_item_extra = OrderItemExtra(
+                                extra_id=extra.extra_id,
+                                quantity=extra_qty,
+                                unit_price=extra.price,
+                                total_price=extra_total
+                            )
+                            order_item.extras.append(order_item_extra)
+                
+                # Update total price of order item after adding extras
+                order_item.total_price = total_price
                 
                 self.db.add(order_item)
                 total += total_price
