@@ -10,7 +10,7 @@ from decimal import Decimal
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
     ConferenceReservation, MenuItem, MenuCategory, Room, ConferenceHall,
-    Payment, CustomerReview, OrderItem, MenuExtra,
+    Payment, CustomerReview, OrderItem, MenuExtra, MenuChoice, MenuAccompaniment,
     Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken
 )
 
@@ -451,13 +451,23 @@ class MenuRepository:
                     MenuItem.is_active == True
                 )
             )
-            .options(selectinload(MenuItem.extras))
+            .options(
+                selectinload(MenuItem.extras),
+                selectinload(MenuItem.choices),
+                selectinload(MenuItem.accompaniments)
+            )
         )
         return result.scalars().all()
 
     async def get_all_items(self) -> List[MenuItem]:
         result = await self.db.execute(
-            select(MenuItem).where(MenuItem.is_active == True).options(selectinload(MenuItem.extras))
+            select(MenuItem)
+            .where(MenuItem.is_active == True)
+            .options(
+                selectinload(MenuItem.extras),
+                selectinload(MenuItem.choices),
+                selectinload(MenuItem.accompaniments)
+            )
         )
         return result.scalars().all()
 
@@ -481,7 +491,11 @@ class MenuRepository:
         result = await self.db.execute(
             select(MenuItem)
             .where(MenuItem.menu_item_id == item.menu_item_id)
-            .options(selectinload(MenuItem.extras))
+            .options(
+                selectinload(MenuItem.extras),
+                selectinload(MenuItem.choices),
+                selectinload(MenuItem.accompaniments)
+            )
         )
         return result.scalar_one()
 
@@ -501,9 +515,116 @@ class MenuRepository:
     async def get_menu_item(self, item_id: int) -> Optional[MenuItem]:
         """Get menu item by ID"""
         result = await self.db.execute(
-            select(MenuItem).where(MenuItem.menu_item_id == item_id).options(selectinload(MenuItem.extras))
+            select(MenuItem)
+            .where(MenuItem.menu_item_id == item_id)
+            .options(
+                selectinload(MenuItem.extras),
+                selectinload(MenuItem.choices),
+                selectinload(MenuItem.accompaniments)
+            )
         )
         return result.scalar_one_or_none()
+
+    async def create_menu_choice_for_item(self, menu_item_id: int, choice_name: str, is_available: bool = True) -> MenuChoice:
+        choice = MenuChoice(
+            choice_name=choice_name,
+            is_available=is_available,
+            menu_item_id=menu_item_id
+        )
+        self.db.add(choice)
+        await self.db.commit()
+        await self.db.refresh(choice)
+        return choice
+
+    async def get_menu_choice(self, choice_id: int) -> Optional[MenuChoice]:
+        result = await self.db.execute(
+            select(MenuChoice).where(MenuChoice.choice_id == choice_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_menu_choice(self, choice_id: int, updates: dict) -> Optional[MenuChoice]:
+        choice = await self.get_menu_choice(choice_id)
+        if not choice:
+            return None
+        for k, v in updates.items():
+            if hasattr(choice, k) and v is not None:
+                setattr(choice, k, v)
+        self.db.add(choice)
+        await self.db.commit()
+        await self.db.refresh(choice)
+        return choice
+
+    async def delete_menu_choice(self, choice_id: int) -> bool:
+        choice = await self.get_menu_choice(choice_id)
+        if choice:
+            await self.db.delete(choice)
+            await self.db.commit()
+            return True
+        return False
+
+    async def create_menu_accompaniment_for_item(self, menu_item_id: int, accompaniment_name: str, price: Optional[Decimal] = None, is_available: bool = True) -> MenuAccompaniment:
+        accompaniment = MenuAccompaniment(
+            accompaniment_name=accompaniment_name,
+            price=price,
+            is_available=is_available,
+            menu_item_id=menu_item_id
+        )
+        self.db.add(accompaniment)
+        await self.db.commit()
+        await self.db.refresh(accompaniment)
+        return accompaniment
+
+    async def get_menu_accompaniment(self, accompaniment_id: int) -> Optional[MenuAccompaniment]:
+        result = await self.db.execute(
+            select(MenuAccompaniment).where(MenuAccompaniment.accompaniment_id == accompaniment_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_menu_accompaniment(self, accompaniment_id: int, updates: dict) -> Optional[MenuAccompaniment]:
+        accompaniment = await self.get_menu_accompaniment(accompaniment_id)
+        if not accompaniment:
+            return None
+        for k, v in updates.items():
+            if hasattr(accompaniment, k) and v is not None:
+                setattr(accompaniment, k, v)
+        self.db.add(accompaniment)
+        await self.db.commit()
+        await self.db.refresh(accompaniment)
+        return accompaniment
+
+    async def delete_menu_accompaniment(self, accompaniment_id: int) -> bool:
+        accompaniment = await self.get_menu_accompaniment(accompaniment_id)
+        if accompaniment:
+            await self.db.delete(accompaniment)
+            await self.db.commit()
+            return True
+        return False
+
+    async def get_menu_extra(self, extra_id: int) -> Optional[MenuExtra]:
+        result = await self.db.execute(
+            select(MenuExtra).where(MenuExtra.extra_id == extra_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_menu_extra(self, extra_id: int, updates: dict) -> Optional[MenuExtra]:
+        extra = await self.get_menu_extra(extra_id)
+        if not extra:
+            return None
+        for k, v in updates.items():
+            if hasattr(extra, k) and v is not None:
+                setattr(extra, k, v)
+        self.db.add(extra)
+        await self.db.commit()
+        await self.db.refresh(extra)
+        return extra
+
+    async def delete_menu_extra(self, extra_id: int) -> bool:
+        extra = await self.get_menu_extra(extra_id)
+        if extra:
+            await self.db.delete(extra)
+            await self.db.commit()
+            return True
+        return False
 
 
 class RestaurantOrderRepository:
@@ -787,3 +908,8 @@ class PasswordResetRepository:
         token_obj.used_at = datetime.utcnow()
         self.db.add(token_obj)
         await self.db.commit()
+
+
+# Import new repository
+from app.repositories.payment_method import PaymentMethodRepository
+from app.repositories.hotel_details import HotelDetailsRepository

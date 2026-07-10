@@ -13,6 +13,10 @@ from app.api.v1.conference import router as conference_router
 from app.api.v1.payments import router as payments_router
 from app.api.v1.crm import router as crm_router
 from app.api.v1.roles import router as roles_router
+from fastapi.staticfiles import StaticFiles
+import os
+from app.api.v1.payment_methods import router as payment_methods_router
+from app.api.v1.hotel_details import router as hotel_details_router
 from app.db.database import engine, Base
 
 
@@ -20,6 +24,7 @@ from app.db.database import engine, Base
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown"""
     # Startup
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
@@ -55,6 +60,12 @@ app.include_router(conference_router)
 app.include_router(payments_router)
 app.include_router(crm_router)
 app.include_router(roles_router)
+app.include_router(payment_methods_router)
+app.include_router(hotel_details_router)
+
+# Mount upload directory to serve files statically
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
 @app.get("/")

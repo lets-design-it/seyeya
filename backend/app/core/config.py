@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
+    # Encryption key for PCI DSS compliant fields (must be a 32-byte url-safe base64-encoded key)
+    ENCRYPTION_KEY: str = "3k8B_KkP0vN_5Z9m2n_1sDF6g7h8J9k0L1m2N3o4P5Q="
+    
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
     
@@ -37,6 +40,11 @@ class Settings(BaseSettings):
     API_VERSION: str = "v1"
     DEBUG: bool = True
     ENVIRONMENT: str = "development"
+
+    # Uploads
+    UPLOAD_DIR: str = "uploads"
+    MAX_UPLOAD_SIZE: int = 5 * 1024 * 1024  # 5MB
+    ALLOWED_IMAGE_TYPES: list[str] = ["image/png", "image/jpeg", "image/jpg", "image/webp"]
     
     @model_validator(mode="after")
     def validate_database_urls(self) -> 'Settings':
