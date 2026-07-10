@@ -303,6 +303,7 @@ class MenuChoice(Base):
     
     choice_id = Column(Integer, primary_key=True)
     choice_name = Column(String(100), nullable=False)
+    price = Column(DECIMAL(10, 2), nullable=True)
     is_available = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     menu_item_id = Column(Integer, ForeignKey("menu_items.menu_item_id"), nullable=False)

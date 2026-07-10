@@ -7,7 +7,7 @@ from typing import Dict, Any, List
 from app.db.database import get_db
 from app.schemas import (
     UserRegisterRequest, UserLoginRequest, TokenResponse, 
-    RefreshTokenRequest, UserResponse, UserUpdate,
+    RefreshTokenRequest, LogoutRequest, UserResponse, UserUpdate,
     ForgotPasswordRequest, ResetPasswordConfirm
 )
 from app.services import AuthService, UserService
@@ -114,6 +114,23 @@ async def refresh(request: RefreshTokenRequest, db: AsyncSession = Depends(get_d
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e)
         )
+
+
+@router.post("/logout", status_code=status.HTTP_200_OK)
+async def logout(
+    request: LogoutRequest,
+    current_user: Dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Logout user and invalidate their session"""
+    auth_service = AuthService(db)
+    success = await auth_service.logout_user(request.refresh_token)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or already deactivated session."
+        )
+    return {"message": "Logged out successfully."}
 
 
 @router.get("/me", response_model=Dict[str, Any])
