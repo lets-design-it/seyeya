@@ -1,7 +1,21 @@
 import React, { useState } from 'react';
 import { useRestaurant, MenuItem } from '../../hooks/useRestaurant';
-import { Card } from '../../components/Card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/drawer";
 import { Button } from '../../components/Button';
+import { Button as ShadcnButton } from "@/components/ui/button";
 import { Plus, Edit2, Trash2, X, ChefHat, DollarSign } from 'lucide-react';
 
 export const MenuEditor: React.FC = () => {
@@ -140,19 +154,20 @@ export const MenuEditor: React.FC = () => {
           <p className="text-xs text-zinc-550">Create, adjust, and archive food or drink listings on the Nile Eatery checkout app.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
+          <ShadcnButton 
+            variant="outline"
             onClick={() => setIsCategoryModalOpen(true)}
-            className="flex items-center gap-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-full px-5 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
+            className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer h-10 shadow-sm"
           >
             Manage Categories
-          </Button>
-          <Button 
+          </ShadcnButton>
+          <ShadcnButton 
             onClick={openAddModal}
-            className="flex items-center gap-2 bg-primary hover:bg-zinc-800 text-white rounded-full px-5 py-2.5 text-xs font-bold shadow-sm"
+            className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none"
           >
             <Plus className="h-4 w-4" />
             Add Menu Item
-          </Button>
+          </ShadcnButton>
         </div>
       </div>
 
@@ -194,36 +209,48 @@ export const MenuEditor: React.FC = () => {
                 <p className="text-xs text-zinc-550 mt-1 max-w-xs mx-auto">
                   There are no dishes or drinks registered under "{activeCategory}" yet.
                 </p>
-                <Button 
+                <ShadcnButton 
                   onClick={openAddModal}
-                  className="mt-4 flex items-center gap-1.5 mx-auto bg-primary hover:bg-zinc-850 text-white rounded-full px-4.5 py-2 text-xs font-bold shadow-sm"
+                  className="mt-4 flex items-center gap-1.5 mx-auto bg-black! text-white! hover:bg-black/90! rounded-xl px-4.5 py-2 text-xs font-bold cursor-pointer h-9 shadow-sm border-none"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Add First Item
-                </Button>
+                </ShadcnButton>
               </div>
             );
           }
 
           return (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {itemsInActiveCat.map((item) => (
                 <Card 
                   key={item.id} 
                   onClick={() => setSelectedItem(item)}
-                  className="p-3 flex items-center gap-3 hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0 bg-white"
+                  className="overflow-hidden hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0 bg-white border border-zinc-150 flex flex-col justify-between"
                 >
-                  <img 
-                    src={item.image} 
-                    alt={item.name} 
-                    className="h-10 w-10 rounded-xl object-cover shrink-0 bg-zinc-100" 
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h5 className="text-xs font-bold text-foreground truncate leading-tight">{item.name}</h5>
-                    <p className="text-[11px] font-bold text-violet-500 mt-1">
-                      UGX {item.priceUGX.toLocaleString()}
-                    </p>
+                  <div>
+                    <img 
+                      src={item.image} 
+                      alt={item.name} 
+                      className="h-44 w-full object-cover bg-zinc-100" 
+                    />
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-sm font-bold text-zinc-900 line-clamp-1">{item.name}</CardTitle>
+                      <CardDescription className="text-xs text-zinc-450 line-clamp-2 mt-1 leading-normal">
+                        {item.description || "No description provided."}
+                      </CardDescription>
+                    </CardHeader>
                   </div>
+                  <CardContent className="p-4 pt-0">
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-100">
+                      <div className="text-xs font-extrabold text-zinc-900">
+                        UGX {item.priceUGX.toLocaleString()}
+                      </div>
+                      <div className="text-[10px] text-zinc-450 font-bold">
+                        ${item.priceUSD.toFixed(2)}
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               ))}
             </div>
@@ -231,176 +258,171 @@ export const MenuEditor: React.FC = () => {
         })()}
       </div>
 
-      {/* Add / Edit Drawer Modal */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 animate-fade-in backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-md bg-card rounded-[24px] p-6 shadow-2xl relative">
-            <div className="flex items-center justify-between pb-3 mb-5 border-b border-zinc-100/60">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
-                {editItem ? 'Edit Menu Item' : 'New Menu Listing'}
-              </h3>
-              <button 
-                onClick={() => setIsOpen(false)}
-                className="text-zinc-500 hover:text-foreground rounded-lg p-1"
-              >
-                <X className="h-4 w-4" />
-              </button>
+      {/* Add / Edit Drawer */}
+      <Drawer open={isOpen} onOpenChange={setIsOpen} direction="right">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+          <DrawerHeader className="border-b border-zinc-150 pb-4">
+            <DrawerTitle className="text-base font-bold">
+              {editItem ? 'Edit Menu Item' : 'New Menu Listing'}
+            </DrawerTitle>
+            <DrawerDescription className="text-xs text-zinc-500">
+              Set ingredients, price categories, and stock numbers.
+            </DrawerDescription>
+          </DrawerHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 p-5">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550 mb-1.5">Item Name *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Traditional Goat Stew"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-950"
+              />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Item Name</label>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Category *</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 cursor-pointer"
+              >
+                {categoryList.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Image URL</label>
+              <input
+                type="url"
+                placeholder="Unsplash image URL..."
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+              />
+              <p className="mt-1 text-[10px] text-zinc-400 leading-normal">
+                Recommended: Landscape 1.6:1 ratio (e.g. 1200×750px). Ensure the food subject is centered so it isn't cropped.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Price (UGX) *</label>
+              <input
+                type="number"
+                min={0}
+                required
+                placeholder="e.g. 15000"
+                value={priceUGX}
+                onChange={(e) => setPriceUGX(Number(e.target.value))}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Price (USD) *</label>
+              <input
+                type="number"
+                min={0}
+                step="0.1"
+                required
+                placeholder="e.g. 4"
+                value={priceUSD}
+                onChange={(e) => setPriceUSD(Number(e.target.value))}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Stock Quantity *</label>
+              <input
+                type="number"
+                min={0}
+                required
+                placeholder="e.g. 50"
+                value={quantity}
+                onChange={(e) => setQuantity(Number(e.target.value))}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Prep Time (mins)</label>
+              <input
+                type="number"
+                min={0}
+                placeholder="e.g. 20"
+                value={prepTime}
+                onChange={(e) => setPrepTime(Number(e.target.value))}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Allergen Info</label>
+              <input
+                type="text"
+                placeholder="e.g. Gluten, Nuts, Dairy"
+                value={allergenInfo}
+                onChange={(e) => setAllergenInfo(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Description</label>
+              <textarea
+                placeholder="Describe ingredients, portion sizes, preparation styles..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center gap-6 pt-1">
+              <label className="flex items-center gap-2 text-xs font-bold text-zinc-650 cursor-pointer select-none">
                 <input
-                  type="text"
-                  required
-                  placeholder="e.g. Traditional Goat Stew"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
+                  type="checkbox"
+                  checked={isAvailable}
+                  onChange={(e) => setIsAvailable(e.target.checked)}
+                  className="rounded border-zinc-300 text-black focus:ring-black cursor-pointer h-4 w-4"
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Category</label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500 cursor-pointer"
-                  >
-                    {categoryList.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Image URL</label>
-                  <input
-                    type="url"
-                    placeholder="Unsplash image URL..."
-                    value={image}
-                    onChange={(e) => setImage(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Price (UGX)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    placeholder="e.g. 15000"
-                    value={priceUGX}
-                    onChange={(e) => setPriceUGX(Number(e.target.value))}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Price (USD)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.1"
-                    required
-                    placeholder="e.g. 4"
-                    value={priceUSD}
-                    onChange={(e) => setPriceUSD(Number(e.target.value))}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Stock Quantity</label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    placeholder="e.g. 50"
-                    value={quantity}
-                    onChange={(e) => setQuantity(Number(e.target.value))}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Prep Time (mins)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="e.g. 20"
-                    value={prepTime}
-                    onChange={(e) => setPrepTime(Number(e.target.value))}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Allergen Info</label>
+                <span>Available for Order</span>
+              </label>
+              <label className="flex items-center gap-2 text-xs font-bold text-zinc-650 cursor-pointer select-none">
                 <input
-                  type="text"
-                  placeholder="e.g. Gluten, Nuts, Dairy"
-                  value={allergenInfo}
-                  onChange={(e) => setAllergenInfo(e.target.value)}
-                  className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  className="rounded border-zinc-300 text-black focus:ring-black cursor-pointer h-4 w-4"
                 />
-              </div>
+                <span>Active in Catalog</span>
+              </label>
+            </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Description</label>
-                <textarea
-                  placeholder="Describe ingredients, portion sizes, preparation styles..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500 resize-none"
-                />
-              </div>
-
-              <div className="flex items-center gap-6 pt-1">
-                <label className="flex items-center gap-2 text-xs font-bold text-zinc-650 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={isAvailable}
-                    onChange={(e) => setIsAvailable(e.target.checked)}
-                    className="rounded border-zinc-300 text-violet-500 focus:ring-violet-500 cursor-pointer h-4 w-4"
-                  />
-                  <span>Available for Order</span>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-bold text-zinc-650 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={isActive}
-                    onChange={(e) => setIsActive(e.target.checked)}
-                    className="rounded border-zinc-300 text-violet-500 focus:ring-violet-500 cursor-pointer h-4 w-4"
-                  />
-                  <span>Active in Catalog</span>
-                </label>
-              </div>
-
-              <div className="pt-2 flex justify-end gap-2.5">
-                <Button 
-                  type="button" 
-                  onClick={() => setIsOpen(false)}
-                  className="bg-transparent hover:bg-zinc-100 text-zinc-500 font-semibold px-4.5 py-2.5"
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit"
-                  className="bg-primary hover:bg-zinc-800 text-white font-bold px-6 py-2.5 shadow-sm"
-                >
-                  {editItem ? 'Save Updates' : 'Add Item'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+            <div className="pt-4 flex justify-end gap-2.5 border-t border-zinc-100">
+              <ShadcnButton 
+                type="button" 
+                variant="outline"
+                onClick={() => setIsOpen(false)}
+                className="font-semibold px-4.5 py-2.5 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </ShadcnButton>
+              <ShadcnButton 
+                type="submit"
+                className="bg-black! text-white! hover:bg-black/90! font-bold px-6 py-2.5 rounded-xl shadow-sm border-none cursor-pointer"
+              >
+                {editItem ? 'Save Updates' : 'Add Item'}
+              </ShadcnButton>
+            </div>
+          </form>
+        </DrawerContent>
+      </Drawer>
 
       {/* Sliding Details Drawer Backdrop Overlay */}
       {selectedItem && (
@@ -552,180 +574,182 @@ export const MenuEditor: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Category Manager Modal */}
-      {isCategoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 animate-fade-in backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-2xl bg-card rounded-[24px] p-6 shadow-2xl relative max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 mb-5 border-b border-zinc-100/60 shrink-0">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
-                Manage Menu Categories
-              </h3>
+      {/* Category Manager Drawer */}
+      <Drawer open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen} direction="right">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+          <DrawerHeader className="border-b border-zinc-150 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <DrawerTitle className="text-base font-bold">Manage Menu Categories</DrawerTitle>
+                <DrawerDescription className="text-xs text-zinc-500">Create, adjust, and archive menu groupings.</DrawerDescription>
+              </div>
               <button 
                 onClick={() => {
                   setIsCategoryModalOpen(false);
                   setCategoryError(null);
                   setEditingCategoryId(null);
                 }}
-                className="text-zinc-500 hover:text-foreground rounded-lg p-1 cursor-pointer"
+                className="text-zinc-400 hover:text-zinc-700 rounded-lg p-1.5 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4.5 w-4.5" />
               </button>
             </div>
+          </DrawerHeader>
 
+          <div className="p-5 space-y-6">
             {categoryError && (
-              <div className="mb-4 text-xs font-semibold text-red-600 bg-red-50 p-3.5 rounded-xl border border-red-150/50 flex items-center gap-2 shrink-0">
+              <div className="text-xs font-semibold text-red-600 bg-red-50 p-3.5 rounded-xl border border-red-150 flex items-center gap-2">
                 ⚠️ {categoryError}
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto space-y-6 pr-1">
-              {/* Add Category Section */}
-              <div className="bg-zinc-50/50 p-4 rounded-[18px] border border-zinc-100/50">
-                <h4 className="text-xs font-bold text-zinc-700 uppercase tracking-wider mb-3">Add New Category</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                  <input
-                    type="text"
-                    placeholder="Category Name (e.g. Local Desserts)"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    className="rounded-xl bg-white border border-zinc-200 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Description (optional)"
-                    value={newCategoryDesc}
-                    onChange={(e) => setNewCategoryDesc(e.target.value)}
-                    className="rounded-xl bg-white border border-zinc-200 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    onClick={async () => {
-                      if (!newCategoryName.trim()) return;
-                      setCategoryError(null);
-                      try {
-                        await addCategory(newCategoryName.trim(), newCategoryDesc.trim());
-                        setNewCategoryName('');
-                        setNewCategoryDesc('');
-                      } catch (err: any) {
-                        setCategoryError(err.message || 'Failed to create category');
-                      }
-                    }}
-                    className="bg-primary hover:bg-zinc-800 text-white rounded-full px-4 py-2 text-xs font-bold shadow-sm"
-                  >
-                    Add Category
-                  </Button>
-                </div>
+            {/* Add Category Section */}
+            <div className="bg-zinc-50/50 p-4 rounded-2xl border border-zinc-100/50 space-y-3.5">
+              <h4 className="text-xs font-bold text-zinc-700 uppercase tracking-wider">Add New Category</h4>
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text"
+                  placeholder="Category Name (e.g. Local Desserts)"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                />
+                <input
+                  type="text"
+                  placeholder="Description (optional)"
+                  value={newCategoryDesc}
+                  onChange={(e) => setNewCategoryDesc(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                />
               </div>
+              <div className="flex justify-end">
+                <ShadcnButton
+                  onClick={async () => {
+                    if (!newCategoryName.trim()) return;
+                    setCategoryError(null);
+                    try {
+                      await addCategory(newCategoryName.trim(), newCategoryDesc.trim());
+                      setNewCategoryName('');
+                      setNewCategoryDesc('');
+                    } catch (err: any) {
+                      setCategoryError(err.message || 'Failed to create category');
+                    }
+                  }}
+                  className="bg-black! text-white! hover:bg-black/90! font-bold px-4 py-2 rounded-xl text-xs shadow-sm border-none cursor-pointer"
+                >
+                  Add Category
+                </ShadcnButton>
+              </div>
+            </div>
 
-              {/* Categories List Section */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-bold text-zinc-700 uppercase tracking-wider">Existing Categories</h4>
-                <div className="divide-y divide-zinc-100/80">
-                  {categories.map((cat: any) => {
-                    const isEditing = editingCategoryId === cat.category_id;
-                    const itemsInCat = menu.filter((item) => Number(item.category_id) === cat.category_id || item.category === cat.category_name);
-                    const itemCount = itemsInCat.length;
+            {/* Categories List Section */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-zinc-700 uppercase tracking-wider">Existing Categories</h4>
+              <div className="divide-y divide-zinc-100/80">
+                {categories.map((cat: any) => {
+                  const isEditing = editingCategoryId === cat.category_id;
+                  const itemsInCat = menu.filter((item) => Number(item.category_id) === cat.category_id || item.category === cat.category_name);
+                  const itemCount = itemsInCat.length;
 
-                    return (
-                      <div key={cat.category_id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-0">
-                        {isEditing ? (
-                          <div className="flex-1 space-y-2">
-                            <input
-                              type="text"
-                              value={editingCategoryName}
-                              onChange={(e) => setEditingCategoryName(e.target.value)}
-                              className="w-full rounded-xl bg-zinc-50 border border-zinc-200 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500 font-semibold"
-                            />
-                            <input
-                              type="text"
-                              value={editingCategoryDesc}
-                              onChange={(e) => setEditingCategoryDesc(e.target.value)}
-                              className="w-full rounded-xl bg-zinc-50 border border-zinc-200 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500"
-                            />
+                  return (
+                    <div key={cat.category_id} className="py-3.5 flex flex-col gap-3 first:pt-0">
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={editingCategoryName}
+                            onChange={(e) => setEditingCategoryName(e.target.value)}
+                            className="w-full rounded-xl bg-white border border-zinc-200 px-3 py-2 text-xs text-foreground outline-hidden focus:border-zinc-955 font-semibold"
+                          />
+                          <input
+                            type="text"
+                            value={editingCategoryDesc}
+                            onChange={(e) => setEditingCategoryDesc(e.target.value)}
+                            className="w-full rounded-xl bg-white border border-zinc-200 px-3 py-2 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                          />
+                        </div>
+                      ) : (
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-foreground">{cat.category_name}</span>
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-zinc-100 text-zinc-500">
+                              {itemCount} items
+                            </span>
                           </div>
-                        ) : (
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-foreground">{cat.category_name}</span>
-                              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-zinc-100 text-zinc-500">
-                                {itemCount} items
-                              </span>
-                            </div>
-                            {cat.description && (
-                              <p className="text-[11px] text-zinc-450 mt-0.5 truncate">{cat.description}</p>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                          {isEditing ? (
-                            <>
-                              <Button
-                                onClick={() => setEditingCategoryId(null)}
-                                className="bg-transparent hover:bg-zinc-100 text-zinc-500 text-xs px-3 py-1.5 font-semibold"
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                onClick={async () => {
-                                  if (!editingCategoryName.trim()) return;
-                                  setCategoryError(null);
-                                  try {
-                                    await updateCategory(cat.category_id, editingCategoryName.trim(), editingCategoryDesc.trim());
-                                    setEditingCategoryId(null);
-                                  } catch (err: any) {
-                                    setCategoryError(err.message || 'Failed to update category');
-                                  }
-                                }}
-                                className="bg-violet-600 hover:bg-violet-700 text-white text-xs px-4 py-1.5 font-bold rounded-full"
-                              >
-                                Save
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                onClick={() => {
-                                  setEditingCategoryId(cat.category_id);
-                                  setEditingCategoryName(cat.category_name);
-                                  setEditingCategoryDesc(cat.description || '');
-                                  setCategoryError(null);
-                                }}
-                                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-650 text-xs px-3 py-1.5 font-bold rounded-full cursor-pointer"
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                onClick={async () => {
-                                  setCategoryError(null);
-                                  if (itemCount > 0) {
-                                    setCategoryError(`Cannot delete category "${cat.category_name}" because it contains active menu items. Please delete or move the items first.`);
-                                    return;
-                                  }
-                                  try {
-                                    await deleteCategory(cat.category_id);
-                                  } catch (err: any) {
-                                    setCategoryError(err.message || 'Failed to delete category');
-                                  }
-                                }}
-                                className="bg-red-550 hover:bg-red-100 text-red-600 text-xs px-3 py-1.5 font-bold rounded-full cursor-pointer"
-                              >
-                                Delete
-                              </Button>
-                            </>
+                          {cat.description && (
+                            <p className="text-[11px] text-zinc-450 mt-1 leading-relaxed">{cat.description}</p>
                           )}
                         </div>
+                      )}
+
+                      <div className="flex items-center gap-2 justify-end">
+                        {isEditing ? (
+                          <>
+                            <ShadcnButton
+                              variant="outline"
+                              onClick={() => setEditingCategoryId(null)}
+                              className="text-zinc-500 hover:bg-zinc-50 text-xs px-3 py-1.5 font-semibold rounded-xl cursor-pointer"
+                            >
+                              Cancel
+                            </ShadcnButton>
+                            <ShadcnButton
+                              onClick={async () => {
+                                if (!editingCategoryName.trim()) return;
+                                setCategoryError(null);
+                                try {
+                                  await updateCategory(cat.category_id, editingCategoryName.trim(), editingCategoryDesc.trim());
+                                  setEditingCategoryId(null);
+                                } catch (err: any) {
+                                  setCategoryError(err.message || 'Failed to update category');
+                                }
+                              }}
+                              className="bg-black! text-white! hover:bg-black/90! text-xs px-4 py-1.5 font-bold rounded-xl border-none cursor-pointer"
+                            >
+                              Save
+                            </ShadcnButton>
+                          </>
+                        ) : (
+                          <>
+                            <ShadcnButton
+                              variant="outline"
+                              onClick={() => {
+                                setEditingCategoryId(cat.category_id);
+                                setEditingCategoryName(cat.category_name);
+                                setEditingCategoryDesc(cat.description || '');
+                                setCategoryError(null);
+                              }}
+                              className="text-zinc-700 hover:bg-zinc-50 text-xs px-3.5 py-1.5 font-bold rounded-xl cursor-pointer border border-zinc-200"
+                            >
+                              Edit
+                            </ShadcnButton>
+                            <ShadcnButton
+                              onClick={async () => {
+                                setCategoryError(null);
+                                if (itemCount > 0) {
+                                  setCategoryError(`Cannot delete category "${cat.category_name}" because it contains active menu items. Please delete or move the items first.`);
+                                  return;
+                                }
+                                try {
+                                  await deleteCategory(cat.category_id);
+                                } catch (err: any) {
+                                  setCategoryError(err.message || 'Failed to delete category');
+                                }
+                              }}
+                              className="bg-red-500/10 hover:bg-red-500/20 text-red-600 text-xs px-3.5 py-1.5 font-bold rounded-xl cursor-pointer border border-red-500/20"
+                            >
+                              Delete
+                            </ShadcnButton>
+                          </>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };

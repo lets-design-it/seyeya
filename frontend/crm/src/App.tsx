@@ -3,6 +3,7 @@ import { AuthProvider, useAuth, ProtectedRoute } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ClientLayout } from './layouts/ClientLayout';
+import { TooltipProvider } from './components/ui/tooltip';
 
 // Staff Views
 import { Overview } from './pages/dashboard/Overview';
@@ -150,11 +151,13 @@ const CRMApp: React.FC = () => {
 
 function App() {
   return (
-    <NotificationProvider>
-      <AuthProvider>
-        <CRMApp />
-      </AuthProvider>
-    </NotificationProvider>
+    <TooltipProvider>
+      <NotificationProvider>
+        <AuthProvider>
+          <CRMApp />
+        </AuthProvider>
+      </NotificationProvider>
+    </TooltipProvider>
   );
 }
 

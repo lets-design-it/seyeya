@@ -5,6 +5,8 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Modal } from '../../components/Modal';
+import { Button as ShadcnButton } from "@/components/ui/button";
+import { Input as ShadcnInput } from "@/components/ui/input";
 import { 
   User as UserIcon, 
   Mail, 
@@ -19,8 +21,37 @@ import {
   Pencil,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   X
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/drawer";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  flexRender,
+  ColumnDef,
+} from "@tanstack/react-table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface BackendUser {
   user_id: number;
@@ -258,6 +289,135 @@ export const UserManagement: React.FC = () => {
     return 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30';
   };
 
+  const [columnVisibility, setColumnVisibility] = React.useState({});
+
+  const columns = React.useMemo<ColumnDef<BackendUser>[]>(() => [
+    {
+      accessorKey: "full_name",
+      header: "Name / Identity",
+      cell: ({ row }) => {
+        const u = row.original;
+        return (
+          <div className="flex items-center gap-3 pl-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-650 dark:bg-zinc-900 dark:text-zinc-450 font-bold uppercase transition-transform shrink-0">
+              {u.full_name.charAt(0)}
+            </div>
+            <div>
+              <p className="font-bold text-foreground text-xs leading-none">{u.full_name}</p>
+              <p className="text-[10px] text-zinc-450 font-semibold leading-none mt-1">User ID: #{u.user_id}</p>
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      accessorKey: "email",
+      header: "Contact",
+      cell: ({ row }) => {
+        const u = row.original;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="flex items-center gap-1.5 text-zinc-650 font-medium">
+              <Mail className="h-3.5 w-3.5 text-zinc-400" />
+              {u.email}
+            </span>
+            {u.phone_number && (
+              <span className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium">
+                <Phone className="h-3 w-3 text-zinc-400" />
+                {u.phone_number}
+              </span>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      accessorKey: "roles",
+      header: "System Roles",
+      cell: ({ row }) => {
+        const u = row.original;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {u.roles && u.roles.length > 0 ? (
+              u.roles.map(r => (
+                <span 
+                  key={r} 
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide leading-none capitalize ${getRoleStyle(u.roles)}`}
+                >
+                  {r}
+                </span>
+              ))
+            ) : (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide leading-none bg-zinc-150 text-zinc-550">
+                No Role Assigned
+              </span>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      accessorKey: "is_active",
+      header: "Account Status",
+      cell: ({ row }) => {
+        const u = row.original;
+        return u.is_active ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-500">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            Active
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-zinc-450">
+            <span className="h-1.5 w-1.5 rounded-full bg-zinc-450" />
+            Inactive
+          </span>
+        );
+      }
+    },
+    {
+      id: "actions",
+      header: () => <div className="text-right pr-2">Actions</div>,
+      cell: ({ row }) => {
+        const u = row.original;
+        if (u.user_id === Number(currentUser?.id)) return null;
+        return (
+          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => handleRowClick(u)}
+              className="p-1.5 rounded-lg text-zinc-500 hover:text-violet-550 hover:bg-violet-550/5 transition-all cursor-pointer"
+              title="Edit User"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+            <button
+              onClick={() => handleDeleteUser(u.user_id, u.full_name)}
+              className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
+              title="Deactivate account"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        );
+      }
+    }
+  ], [currentUser]);
+
+  const table = useReactTable({
+    data: filteredUsers,
+    columns,
+    state: {
+      columnVisibility,
+    },
+    onColumnVisibilityChange: setColumnVisibility,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 5,
+      }
+    }
+  });
+
   return (
     <div className="space-y-6 animate-fade-in relative h-full">
       {/* Top Banner/Title */}
@@ -266,13 +426,13 @@ export const UserManagement: React.FC = () => {
           <h3 className="text-xl font-bold text-dark dark:text-white tracking-tight">Identity & Provisioning</h3>
           <p className="text-xs text-zinc-500">Manage workspace identities, credentials, and system role access controls.</p>
         </div>
-        <Button 
+        <ShadcnButton 
           onClick={handleOpenModal}
-          className="flex items-center gap-1.5"
+          className="bg-black! text-white! hover:bg-black/90! font-bold px-4 py-5 rounded-xl border-none shadow-xs cursor-pointer flex items-center gap-1.5 h-11"
         >
-          <UserPlus className="h-4 w-4" />
+          <UserPlus className="h-4.5 w-4.5" />
           Provision Team Member
-        </Button>
+        </ShadcnButton>
       </div>
 
       {/* Global Alerts */}
@@ -292,23 +452,58 @@ export const UserManagement: React.FC = () => {
 
       {/* Main Grid */}
       <Card className="p-6">
-        {/* Table Filters */}
-        <div className="flex items-center gap-3 mb-6">
-          <div className="relative flex-1 max-w-md">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
-              <Search className="h-4 w-4" />
-            </span>
-            <input
-              type="text"
-              placeholder="Search users by name, email or phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-10 pr-4 text-xs text-zinc-800 placeholder-zinc-400 outline-none transition-all focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10 dark:border-zinc-800 dark:bg-zinc-950 dark:text-foreground dark:placeholder-zinc-600"
-            />
+        {/* Table Filters & Columns Toggle */}
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3 flex-1 max-w-lg">
+            <div className="relative flex-1">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
+                <Search className="h-4 w-4" />
+              </span>
+              <ShadcnInput
+                type="text"
+                placeholder="Search users by name, email or phone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full rounded-xl border border-zinc-200 bg-white h-10 pl-10 pr-4 text-xs placeholder-zinc-450 focus-visible:ring-1 focus-visible:ring-zinc-950 focus-visible:border-zinc-950 outline-hidden transition-all dark:border-zinc-800"
+              />
+            </div>
+            <ShadcnButton
+              onClick={() => setSearchTerm('')}
+              className="bg-black! text-white! hover:bg-black/90! font-bold px-4 rounded-xl cursor-pointer h-10 border-none flex items-center justify-center text-xs"
+            >
+              Reset
+            </ShadcnButton>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setSearchTerm('')} className="py-2.5">
-            Reset
-          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer text-xs font-semibold">
+                Columns
+                <ChevronDown className="h-4 w-4 text-zinc-500" />
+              </ShadcnButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[150px] bg-white border border-zinc-100 rounded-xl shadow-md p-1 mt-1 z-50">
+              {table
+                .getAllColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden flex items-center gap-2"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                    >
+                      {column.id === "full_name"
+                        ? "Name"
+                        : column.id === "is_active"
+                        ? "Status"
+                        : column.id}
+                    </DropdownMenuCheckboxItem>
+                  )
+                })}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Directory List / Table */}
@@ -324,156 +519,69 @@ export const UserManagement: React.FC = () => {
             <p className="text-xs text-zinc-500 mt-1">Try adjusting search parameters or create a new profile.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-border/60 text-zinc-500 text-[10px] uppercase font-bold tracking-wider">
-                  <th className="pb-3 pl-2">Name / Identity</th>
-                  <th className="pb-3">Contact</th>
-                  <th className="pb-3">System Roles</th>
-                  <th className="pb-3">Account Status</th>
-                  <th className="pb-3 pr-2 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40 text-xs">
-                {filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((u) => (
-                  <tr 
-                    key={u.user_id} 
-                    onClick={() => handleRowClick(u)}
-                    className="hover:bg-zinc-500/5 dark:hover:bg-zinc-900/40 transition-colors cursor-pointer group"
-                  >
-                    {/* User profile details */}
-                    <td className="py-3.5 pl-2 flex items-center gap-3">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400 font-semibold uppercase group-hover:scale-105 transition-transform">
-                        {u.full_name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground">{u.full_name}</p>
-                        <p className="text-[10px] text-zinc-500 font-medium">User ID: #{u.user_id}</p>
-                      </div>
-                    </td>
-                    
-                    {/* Contact Info */}
-                    <td className="py-3.5">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="flex items-center gap-1 text-zinc-600 dark:text-zinc-400">
-                          <Mail className="h-3.5 w-3.5 text-zinc-500" />
-                          {u.email}
-                        </span>
-                        {u.phone_number && (
-                          <span className="flex items-center gap-1 text-[10px] text-zinc-500">
-                            <Phone className="h-3 w-3 text-zinc-500" />
-                            {u.phone_number}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Assigned Roles */}
-                    <td className="py-3.5">
-                      <div className="flex flex-wrap gap-1">
-                        {u.roles && u.roles.length > 0 ? (
-                          u.roles.map(r => (
-                            <span 
-                              key={r} 
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide leading-none capitalize ${getRoleStyle(u.roles)}`}
-                            >
-                              {r}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide leading-none bg-zinc-150 text-zinc-500">
-                            No Role Assigned
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Status badge */}
-                    <td className="py-3.5">
-                      {u.is_active ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-400">
-                          <span className="h-1 w-1 rounded-full bg-emerald-400" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-zinc-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-zinc-450">
-                          <span className="h-1 w-1 rounded-full bg-zinc-450" />
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Operations */}
-                    <td className="py-3.5 pr-2 text-right" onClick={(e) => e.stopPropagation()}>
-                      {u.user_id !== Number(currentUser?.id) && (
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRowClick(u);
-                            }}
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-violet-500 hover:bg-violet-500/5 transition-all cursor-pointer"
-                            title="Edit User"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteUser(u.user_id, u.full_name);
-                            }}
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
-                            title="Deactivate account"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
+          <div className="rounded-2xl border border-zinc-150 bg-white overflow-hidden shadow-xs">
+            <Table>
+              <TableHeader className="bg-zinc-50/50 border-b border-zinc-150">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100">
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id} className="text-zinc-500 text-xs font-medium py-3.5 px-4 text-left">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </TableHead>
+                    ))}
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    onClick={() => handleRowClick(row.original)}
+                    className="cursor-pointer hover:bg-zinc-50/60 transition-colors border-zinc-100"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="py-3 px-4 text-xs">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
 
             {/* Pagination Controls */}
-            {Math.ceil(filteredUsers.length / itemsPerPage) > 1 && (
-              <div className="flex items-center justify-between border-t border-border/40 pt-4 mt-4" onClick={(e) => e.stopPropagation()}>
+            {table.getPageCount() > 1 && (
+              <div className="flex items-center justify-between border-t border-zinc-100 p-4 bg-zinc-50/20" onClick={(e) => e.stopPropagation()}>
                 <span className="text-[11px] text-zinc-500 font-medium">
-                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredUsers.length)} of {filteredUsers.length} entries
+                  Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredUsers.length)} of {filteredUsers.length} entries
                 </span>
                 <div className="flex items-center gap-1.5">
-                  <Button
+                  <ShadcnButton
                     variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="p-2 cursor-pointer"
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
+                    className="h-9 px-3.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer disabled:opacity-50 flex items-center text-xs font-semibold gap-1"
                   >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  
-                  {Array.from({ length: Math.ceil(filteredUsers.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? 'primary' : 'outline'}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                      className="min-w-8 h-8 flex items-center justify-center p-0 text-xs font-semibold cursor-pointer"
-                    >
-                      {page}
-                    </Button>
-                  ))}
-
-                  <Button
+                    <ChevronLeft className="h-4 w-4 shrink-0" />
+                    Previous
+                  </ShadcnButton>
+                  <ShadcnButton
                     variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredUsers.length / itemsPerPage)))}
-                    disabled={currentPage === Math.ceil(filteredUsers.length / itemsPerPage)}
-                    className="p-2 cursor-pointer"
+                    onClick={() => table.nextPage()}
+                    disabled={!table.getCanNextPage()}
+                    className="h-9 px-3.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer disabled:opacity-50 flex items-center text-xs font-semibold gap-1"
                   >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                    Next
+                    <ChevronRight className="h-4 w-4 shrink-0" />
+                  </ShadcnButton>
                 </div>
               </div>
             )}
@@ -481,25 +589,26 @@ export const UserManagement: React.FC = () => {
         )}
       </Card>
 
-      {/* Provision Member Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="Provision Team Member"
-        className="max-w-lg animate-scale-up"
-      >
-        <form onSubmit={handleProvisionUser} className="space-y-4">
-          {formError && (
-            <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 flex items-center gap-2">
-              <AlertCircle className="h-4.5 w-4.5 shrink-0" />
-              <span>{formError}</span>
-            </div>
-          )}
+      {/* Provision Member Drawer */}
+      <Drawer open={isModalOpen} onOpenChange={setIsModalOpen} direction="right">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+          <DrawerHeader className="border-b border-zinc-150 pb-4">
+            <DrawerTitle className="text-base font-bold">Provision Team Member</DrawerTitle>
+            <DrawerDescription className="text-xs text-zinc-500">
+              Create a new user identity and set credentials and workspace roles.
+            </DrawerDescription>
+          </DrawerHeader>
+          <form onSubmit={handleProvisionUser} className="space-y-4 p-5">
+            {formError && (
+              <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 flex items-center gap-2">
+                <AlertCircle className="h-4.5 w-4.5 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Full Name *"
-              placeholder="Sarah Jenkins"
+              placeholder="John Doe"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               required
@@ -509,15 +618,13 @@ export const UserManagement: React.FC = () => {
             <Input
               label="Email Address *"
               type="email"
-              placeholder="sarah@seyeyalodge.com"
+              placeholder="john@seyeya.com"
               value={formEmail}
               onChange={(e) => setFormEmail(e.target.value)}
               required
               leftIcon={<Mail className="h-4 w-4" />}
             />
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Phone Number"
               placeholder="+256 700 000 000"
@@ -528,7 +635,7 @@ export const UserManagement: React.FC = () => {
 
             {/* Role dropdown dynamically populated from API */}
             <div className="w-full space-y-1.5">
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550">
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555">
                 System Role *
               </label>
               <div className="relative">
@@ -539,7 +646,7 @@ export const UserManagement: React.FC = () => {
                   value={formRoleId}
                   onChange={(e) => setFormRoleId(e.target.value ? Number(e.target.value) : '')}
                   required
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-8 text-xs text-zinc-800 placeholder-zinc-600 outline-none transition-all focus:border-violet-500 focus:bg-card/60 focus:ring-2 focus:ring-violet-500/10 dark:border-zinc-800 dark:bg-zinc-950 dark:text-foreground appearance-none"
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-8 text-xs text-zinc-800 placeholder-zinc-650 outline-none transition-all focus:border-violet-500 focus:bg-card/60 focus:ring-2 focus:ring-violet-500/10 dark:border-zinc-800 dark:bg-zinc-950 dark:text-foreground appearance-none"
                 >
                   <option value="">Select Role</option>
                   {roles.map(r => (
@@ -555,9 +662,7 @@ export const UserManagement: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Choose Password *"
               type="password"
@@ -577,192 +682,187 @@ export const UserManagement: React.FC = () => {
               required
               leftIcon={<Lock className="h-4 w-4" />}
             />
-          </div>
 
-          {/* Staff Access Toggle */}
-          <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                Staff Status
-              </span>
-              <span className="text-[10px] text-zinc-450 dark:text-zinc-500">
-                Grant staff credentials to access administrative areas
-              </span>
+            {/* Staff Access Toggle */}
+            <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  Staff Status
+                </span>
+                <span className="text-[10px] text-zinc-450 dark:text-zinc-500">
+                  Grant staff credentials to access administrative areas
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formIsStaff}
+                  onChange={(e) => setFormIsStaff(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-9 h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full peer peer-focus:ring-2 peer-focus:ring-violet-500/10 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-500" />
+              </label>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formIsStaff}
-                onChange={(e) => setFormIsStaff(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-9 h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full peer peer-focus:ring-2 peer-focus:ring-violet-500/10 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-violet-500" />
-            </label>
-          </div>
 
-          <div className="flex items-center justify-end gap-3.5 pt-4 border-t border-border/40 mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsModalOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              isLoading={isSubmitting}
-            >
-              Confirm Provision
-            </Button>
-          </div>
-        </form>
-      </Modal>
+            <div className="flex items-center justify-end gap-3.5 pt-4 border-t border-border/40 mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsModalOpen(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-black text-white hover:bg-black/90 font-bold px-4 rounded-xl cursor-pointer h-10 border-none flex items-center justify-center text-xs"
+              >
+                {isSubmitting ? "Confirming..." : "Confirm Provision"}
+              </Button>
+            </div>
+          </form>
+        </DrawerContent>
+      </Drawer>
 
       {/* Details & Update Drawer */}
-      {isDrawerOpen && selectedUser && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          {/* Backdrop overlay */}
-          <div 
-            className="absolute inset-0 bg-black/35 backdrop-blur-xs transition-opacity duration-300 animate-fade-in"
-            onClick={() => setIsDrawerOpen(false)}
-          />
-          
-          {/* Drawer Content */}
-          <div className="relative w-full max-w-md h-full bg-card shadow-2xl flex flex-col border-l border-border/40 animate-slide-in">
-            {/* Drawer Header */}
-            <div className="flex items-center justify-between p-5 border-b border-border/40">
-              <div>
-                <h4 className="text-base font-bold text-dark dark:text-white">Identity Details</h4>
-                <p className="text-[10px] text-zinc-500 font-medium">Update credentials and access levels</p>
-              </div>
-              <button 
-                onClick={() => setIsDrawerOpen(false)}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all cursor-pointer"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
-
-            {/* Drawer Form Body */}
-            <form onSubmit={handleUpdateUser} className="flex-1 overflow-y-auto p-5 space-y-4">
-              {updateError && (
-                <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 flex items-center gap-2">
-                  <AlertCircle className="h-4.5 w-4.5 shrink-0" />
-                  <span>{updateError}</span>
-                </div>
-              )}
-
-              <Input
-                label="Full Name"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                required
-                leftIcon={<UserIcon className="h-4 w-4" />}
-              />
-
-              <Input
-                label="Email Address"
-                type="email"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                required
-                leftIcon={<Mail className="h-4 w-4" />}
-              />
-
-              <Input
-                label="Phone Number"
-                placeholder="+256 700 000 000"
-                value={editPhone}
-                onChange={(e) => setEditPhone(e.target.value)}
-                leftIcon={<Phone className="h-4 w-4" />}
-              />
-
-              {/* Role dropdown dynamically populated */}
-              <div className="w-full space-y-1.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550">
-                  System Role
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-500 pointer-events-none">
-                    <Shield className="h-4 w-4" />
-                  </span>
-                  <select
-                    value={editRoleId}
-                    onChange={(e) => setEditRoleId(e.target.value ? Number(e.target.value) : '')}
-                    required
-                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-8 text-xs text-zinc-800 outline-none transition-all focus:border-violet-500 focus:bg-card/60 appearance-none"
+      <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} direction="right">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+          {selectedUser && (
+            <>
+              <DrawerHeader className="border-b border-zinc-150 pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <DrawerTitle className="text-base font-bold">Identity Details</DrawerTitle>
+                    <DrawerDescription className="text-xs text-zinc-500">Update credentials and access levels</DrawerDescription>
+                  </div>
+                  <button 
+                    onClick={() => setIsDrawerOpen(false)}
+                    className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all cursor-pointer"
                   >
-                    <option value="">Select Role</option>
-                    {roles.map(r => (
-                      <option key={r.role_id} value={r.role_id}>
-                        {r.role_name}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-zinc-500">
-                    <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                    </svg>
-                  </div>
+                    <X className="h-4.5 w-4.5" />
+                  </button>
                 </div>
-              </div>
-
-              <Input
-                label="New Password (optional)"
-                type="password"
-                placeholder="Leave blank to keep current password"
-                value={editPassword}
-                onChange={(e) => setEditPassword(e.target.value)}
-                leftIcon={<Lock className="h-4 w-4" />}
-              />
-
-              {/* Staff Access Toggle */}
-              {selectedUser.user_id !== Number(currentUser?.id) && (
-                <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-550">
-                      Staff Status
-                    </span>
-                    <span className="text-[10px] text-zinc-450">
-                      Grant staff credentials to access administrative areas
-                    </span>
+              </DrawerHeader>
+              <form onSubmit={handleUpdateUser} className="space-y-4 p-5">
+                {updateError && (
+                  <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 flex items-center gap-2">
+                    <AlertCircle className="h-4.5 w-4.5 shrink-0" />
+                    <span>{updateError}</span>
                   </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={editIsStaff}
-                      onChange={(e) => setEditIsStaff(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-9 h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full peer peer-checked:bg-violet-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                )}
+
+                <Input
+                  label="Full Name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                  leftIcon={<UserIcon className="h-4 w-4" />}
+                />
+
+                <Input
+                  label="Email Address"
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  required
+                  leftIcon={<Mail className="h-4 w-4" />}
+                />
+
+                <Input
+                  label="Phone Number"
+                  placeholder="+256 700 000 000"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  leftIcon={<Phone className="h-4 w-4" />}
+                />
+
+                {/* Role dropdown dynamically populated */}
+                <div className="w-full space-y-1.5">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550">
+                    System Role
                   </label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-500 pointer-events-none">
+                      <Shield className="h-4 w-4" />
+                    </span>
+                    <select
+                      value={editRoleId}
+                      onChange={(e) => setEditRoleId(e.target.value ? Number(e.target.value) : '')}
+                      required
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-8 text-xs text-zinc-800 outline-none transition-all focus:border-violet-500 focus:bg-card/60 appearance-none"
+                    >
+                      <option value="">Select Role</option>
+                      {roles.map(r => (
+                        <option key={r.role_id} value={r.role_id}>
+                          {r.role_name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-zinc-500">
+                      <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
-              )}
 
-              {/* Footer Buttons */}
-              <div className="flex items-center gap-3 pt-6 border-t border-border/40 mt-8">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1 cursor-pointer"
-                  onClick={() => setIsDrawerOpen(false)}
-                  disabled={isUpdating}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="flex-1 cursor-pointer"
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? 'Saving...' : 'Update Details'}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                <Input
+                  label="New Password (optional)"
+                  type="password"
+                  placeholder="Leave blank to keep current password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  leftIcon={<Lock className="h-4 w-4" />}
+                />
+
+                {/* Staff Access Toggle */}
+                {selectedUser.user_id !== Number(currentUser?.id) && (
+                  <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-550">
+                        Staff Status
+                      </span>
+                      <span className="text-[10px] text-zinc-450">
+                        Grant staff credentials to access administrative areas
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editIsStaff}
+                        onChange={(e) => setEditIsStaff(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full peer peer-checked:bg-violet-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                    </label>
+                  </div>
+                )}
+
+                {/* Footer Buttons */}
+                <div className="flex items-center gap-3 pt-6 border-t border-border/40 mt-8">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 cursor-pointer"
+                    onClick={() => setIsDrawerOpen(false)}
+                    disabled={isUpdating}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1 cursor-pointer"
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? 'Saving...' : 'Update Details'}
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 };

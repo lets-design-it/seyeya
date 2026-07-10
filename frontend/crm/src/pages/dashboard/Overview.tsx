@@ -22,7 +22,14 @@ import {
   Bar,
   Cell
 } from 'recharts';
-import { Card } from '../../components/Card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export const Overview: React.FC = () => {
   const analytics = useAnalytics();
@@ -43,66 +50,78 @@ export const Overview: React.FC = () => {
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1 */}
-        <Card variant="glow" className="p-5 flex items-center justify-between">
-          <div className="space-y-1.5">
-            <span className="text-xs font-bold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Gross Income</span>
-            <h4 className="text-xl font-bold text-white light:text-zinc-900 leading-none">
+        <Card className="shadow-sm border-zinc-150">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-550">Gross Income</CardTitle>
+            <DollarSign className="h-4 w-4 text-zinc-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-lg font-extrabold text-zinc-900 leading-none">
               UGX {analytics.revenueUGX.toLocaleString()}
-            </h4>
-            <p className="text-xs text-zinc-450 mt-1">
-              ~ ${(analytics.revenueUSD).toLocaleString(undefined, { maximumFractionDigits: 0 })} USD
+            </div>
+            <p className="text-[10px] text-zinc-450 mt-1 font-medium">
+              ~ ${analytics.revenueUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })} USD
             </p>
-          </div>
-          <div className="h-11 w-11 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400">
-            <DollarSign className="h-5 w-5" />
-          </div>
+          </CardContent>
         </Card>
 
         {/* Metric 2 */}
-        <Card variant="glow" className="p-5 flex items-center justify-between">
-          <div className="space-y-1.5">
-            <span className="text-xs font-bold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Lodge Check-ins</span>
-            <h4 className="text-2xl font-bold text-white light:text-zinc-900 leading-none">{analytics.activeCheckins}</h4>
-            <span className="text-xs text-indigo-400 font-semibold mt-1 inline-block">✦ Active room keys active</span>
-          </div>
-          <div className="h-11 w-11 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-            <Bed className="h-5 w-5" />
-          </div>
+        <Card className="shadow-sm border-zinc-150">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-550">Lodge Check-ins</CardTitle>
+            <Bed className="h-4 w-4 text-zinc-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-zinc-900 leading-none">
+              {analytics.activeCheckins}
+            </div>
+            <p className="text-[10px] text-indigo-500 font-bold mt-1">
+              ✦ Active room keys
+            </p>
+          </CardContent>
         </Card>
 
         {/* Metric 3 */}
-        <Card variant="glow" className="p-5 flex items-center justify-between">
-          <div className="space-y-1.5">
-            <span className="text-xs font-bold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Active Food Orders</span>
-            <h4 className="text-2xl font-bold text-white light:text-zinc-900 leading-none">{analytics.pendingOrders}</h4>
-            <span className="text-xs text-rose-450 font-semibold mt-1 inline-block">✦ In kitchen queue</span>
-          </div>
-          <div className="h-11 w-11 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-450">
-            <ShoppingBag className="h-5 w-5" />
-          </div>
+        <Card className="shadow-sm border-zinc-150">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-550">Active Food Orders</CardTitle>
+            <ShoppingBag className="h-4 w-4 text-zinc-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-zinc-900 leading-none">
+              {analytics.pendingOrders}
+            </div>
+            <p className="text-[10px] text-rose-500 font-bold mt-1">
+              ✦ In kitchen queue
+            </p>
+          </CardContent>
         </Card>
 
         {/* Metric 4 */}
-        <Card variant="glow" className="p-5 flex items-center justify-between">
-          <div className="space-y-1.5">
-            <span className="text-xs font-bold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Pending Quotes</span>
-            <h4 className="text-2xl font-bold text-white light:text-zinc-900 leading-none">{analytics.pendingQuotes}</h4>
-            <span className="text-xs text-emerald-400 font-semibold mt-1 inline-block">✦ Conference requests</span>
-          </div>
-          <div className="h-11 w-11 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-450">
-            <CalendarRange className="h-5 w-5" />
-          </div>
+        <Card className="shadow-sm border-zinc-150">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-550">Pending Quotes</CardTitle>
+            <CalendarRange className="h-4 w-4 text-zinc-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-extrabold text-zinc-900 leading-none">
+              {analytics.pendingQuotes}
+            </div>
+            <p className="text-[10px] text-emerald-500 font-bold mt-1">
+              ✦ Conference requests
+            </p>
+          </CardContent>
         </Card>
       </div>
 
       {/* Analytics Graph Panels */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Chart 1: Projections Area Chart */}
-        <Card variant="glass" className="p-5 lg:col-span-2 flex flex-col justify-between min-h-[350px]">
-          <div className="flex items-center justify-between mb-4">
+        <Card className="lg:col-span-2 shadow-sm border-zinc-150">
+          <CardHeader className="flex flex-row items-start justify-between pb-4">
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground light:text-zinc-800">Revenue Stream Projections</h4>
-              <p className="text-xs text-zinc-500">Departmental earnings trends over the current semester (in UGX).</p>
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-800">Revenue Stream Projections</CardTitle>
+              <CardDescription className="text-xs text-zinc-500">Departmental earnings trends over the current semester (in UGX).</CardDescription>
             </div>
             <div className="flex items-center gap-3 text-xs">
               <div className="flex items-center gap-1">
@@ -118,8 +137,8 @@ export const Overview: React.FC = () => {
                 <span className="text-zinc-550">Food</span>
               </div>
             </div>
-          </div>
-          <div className="h-[250px] w-full">
+          </CardHeader>
+          <CardContent className="h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={analytics.monthlyTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                 <defs>
@@ -149,17 +168,17 @@ export const Overview: React.FC = () => {
                 <Area type="monotone" dataKey="Restaurant" stroke="#10b981" strokeWidth={1.5} fillOpacity={0} />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
+          </CardContent>
         </Card>
 
         {/* Chart 2: Revenue breakdown */}
-        <Card variant="glass" className="p-5 flex flex-col justify-between min-h-[350px]">
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground light:text-zinc-800">Operational Breakdown</h4>
-            <p className="text-xs text-zinc-500">Revenue share contribution per branch.</p>
-          </div>
+        <Card className="shadow-sm border-zinc-150 flex flex-col justify-between min-h-[350px]">
+          <CardHeader>
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-800">Operational Breakdown</CardTitle>
+            <CardDescription className="text-xs text-zinc-500">Revenue share contribution per branch.</CardDescription>
+          </CardHeader>
 
-          <div className="space-y-4 my-auto">
+          <CardContent className="space-y-4 my-auto">
             {analytics.distributionData.map((dept, index) => (
               <div key={dept.name} className="space-y-1">
                 <div className="flex items-center justify-between text-xs font-semibold">
@@ -179,11 +198,11 @@ export const Overview: React.FC = () => {
                 </div>
               </div>
             ))}
-          </div>
+          </CardContent>
 
-          <div className="text-xs text-zinc-550  pt-3 text-center">
+          <CardFooter className="text-xs text-zinc-450 justify-center pb-6 border-t border-zinc-100 pt-3">
             Consolidated from Seyeya operations ledger.
-          </div>
+          </CardFooter>
         </Card>
       </div>
     </div>
