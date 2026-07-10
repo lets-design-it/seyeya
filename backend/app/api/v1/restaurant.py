@@ -138,7 +138,7 @@ async def add_menu_item_choice(item_id: int, request: MenuChoiceCreate, db: Asyn
     item = await repo.get_menu_item(item_id)
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item not found")
-    choice = await repo.create_menu_choice_for_item(menu_item_id=item_id, choice_name=request.choice_name, is_available=request.is_available)
+    choice = await repo.create_menu_choice_for_item(menu_item_id=item_id, choice_name=request.choice_name, price=request.price, is_available=request.is_available)
     return choice
 
 

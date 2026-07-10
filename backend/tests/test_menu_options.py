@@ -44,6 +44,7 @@ def test_get_menu_item_choices_success(monkeypatch):
     mock_choice = MenuChoice(
         choice_id=10,
         choice_name="Rare",
+        price=Decimal("0.00"),
         is_available=True,
         menu_item_id=1
     )
@@ -60,6 +61,7 @@ def test_get_menu_item_choices_success(monkeypatch):
     assert len(data) == 1
     assert data[0]["choice_id"] == 10
     assert data[0]["choice_name"] == "Rare"
+    assert float(data[0]["price"]) == 0.00
     assert data[0]["is_available"] is True
     
     app.dependency_overrides.clear()
@@ -70,24 +72,26 @@ def test_add_menu_item_choice_success(monkeypatch):
     app.dependency_overrides[get_current_user] = lambda: {"user_id": 1, "role": "admin"}
     
     mock_item = MenuItem(menu_item_id=1, item_name="Steak", price=Decimal("15.00"))
-    mock_choice = MenuChoice(choice_id=11, choice_name="Medium", is_available=True, menu_item_id=1)
+    mock_choice = MenuChoice(choice_id=11, choice_name="Medium", price=Decimal("2.00"), is_available=True, menu_item_id=1)
     
     async def mock_get_menu_item(self, item_id):
         return mock_item
         
-    async def mock_create_choice(self, menu_item_id, choice_name, is_available):
+    async def mock_create_choice(self, menu_item_id, choice_name, price, is_available):
+        assert price == Decimal("2.00")
         return mock_choice
         
     monkeypatch.setattr(MenuRepository, "get_menu_item", mock_get_menu_item)
     monkeypatch.setattr(MenuRepository, "create_menu_choice_for_item", mock_create_choice)
     
-    payload = {"choice_name": "Medium", "is_available": True}
+    payload = {"choice_name": "Medium", "price": 2.00, "is_available": True}
     response = client.post("/api/v1/restaurant/menu/items/1/choices", json=payload)
     
     assert response.status_code == 201
     data = response.json()
     assert data["choice_id"] == 11
     assert data["choice_name"] == "Medium"
+    assert float(data["price"]) == 2.00
     
     app.dependency_overrides.clear()
 
@@ -96,17 +100,18 @@ def test_update_menu_choice_success(monkeypatch):
     app.dependency_overrides[get_db] = lambda: MagicMock()
     app.dependency_overrides[get_current_user] = lambda: {"user_id": 1}
     
-    mock_choice = MenuChoice(choice_id=11, choice_name="Medium Well", is_available=False, menu_item_id=1)
+    mock_choice = MenuChoice(choice_id=11, choice_name="Medium Well", price=Decimal("3.00"), is_available=False, menu_item_id=1)
     
     async def mock_update_choice(self, choice_id, updates):
         assert choice_id == 11
         assert updates["choice_name"] == "Medium Well"
         assert updates["is_available"] is False
+        assert updates["price"] == Decimal("3.00")
         return mock_choice
         
     monkeypatch.setattr(MenuRepository, "update_menu_choice", mock_update_choice)
     
-    payload = {"choice_name": "Medium Well", "is_available": False}
+    payload = {"choice_name": "Medium Well", "price": 3.00, "is_available": False}
     response = client.patch("/api/v1/restaurant/menu/choices/11", json=payload)
     
     assert response.status_code == 200
@@ -114,6 +119,7 @@ def test_update_menu_choice_success(monkeypatch):
     assert data["choice_id"] == 11
     assert data["choice_name"] == "Medium Well"
     assert data["is_available"] is False
+    assert float(data["price"]) == 3.00
     
     app.dependency_overrides.clear()
 
