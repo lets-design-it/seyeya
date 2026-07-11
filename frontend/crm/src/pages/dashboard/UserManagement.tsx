@@ -107,6 +107,7 @@ export const UserManagement: React.FC = () => {
   const [editPassword, setEditPassword] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
+  const [isFetchingUser, setIsFetchingUser] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -222,7 +223,7 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  const handleRowClick = (u: BackendUser) => {
+  const handleRowClick = async (u: BackendUser) => {
     setSelectedUser(u);
     setEditName(u.full_name);
     setEditEmail(u.email);
@@ -234,6 +235,25 @@ export const UserManagement: React.FC = () => {
     setEditPassword('');
     setUpdateError('');
     setIsDrawerOpen(true);
+    setIsFetchingUser(true);
+
+    try {
+      const res = await api.get(`/auth/users/${u.user_id}`);
+      const fullUser = res.data;
+      setSelectedUser(fullUser);
+      setEditName(fullUser.full_name);
+      setEditEmail(fullUser.email);
+      setEditPhone(fullUser.phone_number || '');
+      setEditIsStaff(fullUser.is_staff);
+      const fullUserRoleName = fullUser.roles && fullUser.roles.length > 0 ? fullUser.roles[0] : '';
+      const fullMatchingRole = roles.find(r => r.role_name === fullUserRoleName);
+      setEditRoleId(fullMatchingRole ? fullMatchingRole.role_id : '');
+    } catch (err: any) {
+      console.error("Failed to fetch full user details:", err);
+      setUpdateError(err.response?.data?.detail || err.message || 'Failed to fetch user details');
+    } finally {
+      setIsFetchingUser(false);
+    }
   };
 
   const handleUpdateUser = async (e: React.FormEvent) => {
@@ -744,121 +764,128 @@ export const UserManagement: React.FC = () => {
                   </button>
                 </div>
               </DrawerHeader>
-              <form onSubmit={handleUpdateUser} className="space-y-4 p-5">
-                {updateError && (
-                  <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 flex items-center gap-2">
-                    <AlertCircle className="h-4.5 w-4.5 shrink-0" />
-                    <span>{updateError}</span>
-                  </div>
-                )}
-
-                <Input
-                  label="Full Name"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  required
-                  leftIcon={<UserIcon className="h-4 w-4" />}
-                />
-
-                <Input
-                  label="Email Address"
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  required
-                  leftIcon={<Mail className="h-4 w-4" />}
-                />
-
-                <Input
-                  label="Phone Number"
-                  placeholder="+256 700 000 000"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  leftIcon={<Phone className="h-4 w-4" />}
-                />
-
-                {/* Role dropdown dynamically populated */}
-                <div className="w-full space-y-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550">
-                    System Role
-                  </label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-500 pointer-events-none">
-                      <Shield className="h-4 w-4" />
-                    </span>
-                    <select
-                      value={editRoleId}
-                      onChange={(e) => setEditRoleId(e.target.value ? Number(e.target.value) : '')}
-                      required
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-8 text-xs text-zinc-800 outline-none transition-all focus:border-violet-500 focus:bg-card/60 appearance-none"
-                    >
-                      <option value="">Select Role</option>
-                      {roles.map(r => (
-                        <option key={r.role_id} value={r.role_id}>
-                          {r.role_name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-zinc-500">
-                      <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                      </svg>
-                    </div>
-                  </div>
+              {isFetchingUser ? (
+                <div className="flex flex-col items-center justify-center py-24 gap-3">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-550 border-t-transparent" />
+                  <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider">Fetching details...</p>
                 </div>
-
-                <Input
-                  label="New Password (optional)"
-                  type="password"
-                  placeholder="Leave blank to keep current password"
-                  value={editPassword}
-                  onChange={(e) => setEditPassword(e.target.value)}
-                  leftIcon={<Lock className="h-4 w-4" />}
-                />
-
-                {/* Staff Access Toggle */}
-                {selectedUser.user_id !== Number(currentUser?.id) && (
-                  <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-550">
-                        Staff Status
-                      </span>
-                      <span className="text-[10px] text-zinc-450">
-                        Grant staff credentials to access administrative areas
-                      </span>
+              ) : (
+                <form onSubmit={handleUpdateUser} className="space-y-4 p-5">
+                  {updateError && (
+                    <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400 flex items-center gap-2">
+                      <AlertCircle className="h-4.5 w-4.5 shrink-0" />
+                      <span>{updateError}</span>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={editIsStaff}
-                        onChange={(e) => setEditIsStaff(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full peer peer-checked:bg-violet-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                  )}
+
+                  <Input
+                    label="Full Name"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                    leftIcon={<UserIcon className="h-4 w-4" />}
+                  />
+
+                  <Input
+                    label="Email Address"
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    required
+                    leftIcon={<Mail className="h-4 w-4" />}
+                  />
+
+                  <Input
+                    label="Phone Number"
+                    placeholder="+256 700 000 000"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    leftIcon={<Phone className="h-4 w-4" />}
+                  />
+
+                  {/* Role dropdown dynamically populated */}
+                  <div className="w-full space-y-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550">
+                      System Role
                     </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-500 pointer-events-none">
+                        <Shield className="h-4 w-4" />
+                      </span>
+                      <select
+                        value={editRoleId}
+                        onChange={(e) => setEditRoleId(e.target.value ? Number(e.target.value) : '')}
+                        required
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-8 text-xs text-zinc-800 outline-none transition-all focus:border-violet-500 focus:bg-card/60 appearance-none"
+                      >
+                        <option value="">Select Role</option>
+                        {roles.map(r => (
+                          <option key={r.role_id} value={r.role_id}>
+                            {r.role_name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-zinc-500">
+                        <svg className="fill-current h-3 w-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
-                )}
 
-                {/* Footer Buttons */}
-                <div className="flex items-center gap-3 pt-6 border-t border-border/40 mt-8">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="flex-1 cursor-pointer"
-                    onClick={() => setIsDrawerOpen(false)}
-                    disabled={isUpdating}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 cursor-pointer"
-                    disabled={isUpdating}
-                  >
-                    {isUpdating ? 'Saving...' : 'Update Details'}
-                  </Button>
-                </div>
-              </form>
+                  <Input
+                    label="New Password (optional)"
+                    type="password"
+                    placeholder="Leave blank to keep current password"
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                    leftIcon={<Lock className="h-4 w-4" />}
+                  />
+
+                  {/* Staff Access Toggle */}
+                  {selectedUser.user_id !== Number(currentUser?.id) && (
+                    <div className="flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/40">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-550">
+                          Staff Status
+                        </span>
+                        <span className="text-[10px] text-zinc-450">
+                          Grant staff credentials to access administrative areas
+                        </span>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={editIsStaff}
+                          onChange={(e) => setEditIsStaff(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-zinc-200 dark:bg-zinc-800 rounded-full peer peer-checked:bg-violet-500 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Footer Buttons */}
+                  <div className="flex items-center gap-3 pt-6 border-t border-border/40 mt-8">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 cursor-pointer"
+                      onClick={() => setIsDrawerOpen(false)}
+                      disabled={isUpdating}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1 cursor-pointer"
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? 'Saving...' : 'Update Details'}
+                    </Button>
+                  </div>
+                </form>
+              )}
             </>
           )}
         </DrawerContent>

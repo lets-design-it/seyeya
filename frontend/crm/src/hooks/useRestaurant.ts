@@ -2,6 +2,27 @@ import { useState, useEffect } from 'react';
 import { useNotification } from '../context/NotificationContext';
 import { api } from '../services/api';
 
+export interface MenuExtra {
+  extra_id?: number;
+  extra_name: string;
+  price: number;
+  is_available: boolean;
+  image_url?: string | null;
+}
+
+export interface MenuChoice {
+  choice_id?: number;
+  choice_name: string;
+  is_available: boolean;
+}
+
+export interface MenuAccompaniment {
+  accompaniment_id?: number;
+  accompaniment_name: string;
+  price?: number | null;
+  is_available: boolean;
+}
+
 export interface MenuItem {
   id: string;
   name: string;
@@ -16,6 +37,9 @@ export interface MenuItem {
   is_available?: boolean;
   is_active?: boolean;
   category_id?: number;
+  extras?: MenuExtra[];
+  choices?: MenuChoice[];
+  accompaniments?: MenuAccompaniment[];
 }
 
 export interface RestaurantOrder {
@@ -70,7 +94,25 @@ export const useRestaurant = () => {
         preparation_time: item.preparation_time || 0,
         is_available: item.is_available,
         is_active: item.is_active,
-        category_id: item.category_id
+        category_id: item.category_id,
+        extras: (item.extras || []).map((e: any) => ({
+          extra_id: e.extra_id,
+          extra_name: e.extra_name,
+          price: Number(e.price),
+          is_available: e.is_available,
+          image_url: e.image_url
+        })),
+        choices: (item.choices || []).map((c: any) => ({
+          choice_id: c.choice_id,
+          choice_name: c.choice_name,
+          is_available: c.is_available
+        })),
+        accompaniments: (item.accompaniments || []).map((a: any) => ({
+          accompaniment_id: a.accompaniment_id,
+          accompaniment_name: a.accompaniment_name,
+          price: a.price ? Number(a.price) : null,
+          is_available: a.is_available
+        }))
       }));
       setMenu(mappedMenu);
 
@@ -175,7 +217,43 @@ export const useRestaurant = () => {
         is_active: item.is_active ?? true
       };
 
-      await api.post('/restaurant/menu/items', payload);
+      const res = await api.post('/restaurant/menu/items', payload);
+      const createdItem = res.data;
+      const itemId = createdItem.menu_item_id;
+
+      // Create Extras
+      if (item.extras && item.extras.length > 0) {
+        for (const ext of item.extras) {
+          await api.post(`/restaurant/menu/items/${itemId}/extras`, {
+            extra_name: ext.extra_name,
+            price: ext.price,
+            is_available: ext.is_available,
+            image_url: ext.image_url || null
+          });
+        }
+      }
+
+      // Create Choices
+      if (item.choices && item.choices.length > 0) {
+        for (const choice of item.choices) {
+          await api.post(`/restaurant/menu/items/${itemId}/choices`, {
+            choice_name: choice.choice_name,
+            is_available: choice.is_available
+          });
+        }
+      }
+
+      // Create Accompaniments
+      if (item.accompaniments && item.accompaniments.length > 0) {
+        for (const acc of item.accompaniments) {
+          await api.post(`/restaurant/menu/items/${itemId}/accompaniments`, {
+            accompaniment_name: acc.accompaniment_name,
+            price: acc.price || null,
+            is_available: acc.is_available
+          });
+        }
+      }
+
       await fetchMenuAndOrders();
       addNotification('Restaurant Menu Updated', `Added new menu item: ${item.name}`, 'order');
     } catch (e) {
@@ -204,6 +282,103 @@ export const useRestaurant = () => {
       };
 
       await api.put(`/restaurant/menu/items/${item.id}`, payload);
+
+      // Find original item in the menu list to compare collections
+      const originalItem = menu.find(m => m.id === item.id);
+      const originalExtras = originalItem?.extras || [];
+      const originalChoices = originalItem?.choices || [];
+      const originalAccompaniments = originalItem?.accompaniments || [];
+
+      // Reconcile Extras
+      const newExtras = item.extras || [];
+      // 1. Delete extras that are not in the updated list
+      for (const orig of originalExtras) {
+        if (!newExtras.some(ne => ne.extra_id === orig.extra_id)) {
+          await api.delete(`/restaurant/menu/extras/${orig.extra_id}`);
+        }
+      }
+      // 2. Add or update extras
+      for (const ne of newExtras) {
+        if (!ne.extra_id) {
+          // Add new
+          await api.post(`/restaurant/menu/items/${item.id}/extras`, {
+            extra_name: ne.extra_name,
+            price: ne.price,
+            is_available: ne.is_available,
+            image_url: ne.image_url || null
+          });
+        } else {
+          // Check if modified
+          const orig = originalExtras.find(oe => oe.extra_id === ne.extra_id);
+          if (orig && (orig.extra_name !== ne.extra_name || orig.price !== ne.price || orig.is_available !== ne.is_available || orig.image_url !== ne.image_url)) {
+            await api.patch(`/restaurant/menu/extras/${ne.extra_id}`, {
+              extra_name: ne.extra_name,
+              price: ne.price,
+              is_available: ne.is_available,
+              image_url: ne.image_url || null
+            });
+          }
+        }
+      }
+
+      // Reconcile Choices
+      const newChoices = item.choices || [];
+      // 1. Delete choices that are not in the updated list
+      for (const orig of originalChoices) {
+        if (!newChoices.some(nc => nc.choice_id === orig.choice_id)) {
+          await api.delete(`/restaurant/menu/choices/${orig.choice_id}`);
+        }
+      }
+      // 2. Add or update choices
+      for (const nc of newChoices) {
+        if (!nc.choice_id) {
+          // Add new
+          await api.post(`/restaurant/menu/items/${item.id}/choices`, {
+            choice_name: nc.choice_name,
+            is_available: nc.is_available
+          });
+        } else {
+          // Check if modified
+          const orig = originalChoices.find(oc => oc.choice_id === nc.choice_id);
+          if (orig && (orig.choice_name !== nc.choice_name || orig.is_available !== nc.is_available)) {
+            await api.patch(`/restaurant/menu/choices/${nc.choice_id}`, {
+              choice_name: nc.choice_name,
+              is_available: nc.is_available
+            });
+          }
+        }
+      }
+
+      // Reconcile Accompaniments
+      const newAccomps = item.accompaniments || [];
+      // 1. Delete accompaniments that are not in the updated list
+      for (const orig of originalAccompaniments) {
+        if (!newAccomps.some(na => na.accompaniment_id === orig.accompaniment_id)) {
+          await api.delete(`/restaurant/menu/accompaniments/${orig.accompaniment_id}`);
+        }
+      }
+      // 2. Add or update accompaniments
+      for (const na of newAccomps) {
+        if (!na.accompaniment_id) {
+          // Add new
+          await api.post(`/restaurant/menu/items/${item.id}/accompaniments`, {
+            accompaniment_name: na.accompaniment_name,
+            price: na.price || null,
+            is_available: na.is_available
+          });
+        } else {
+          // Check if modified
+          const orig = originalAccompaniments.find(oa => oa.accompaniment_id === na.accompaniment_id);
+          if (orig && (orig.accompaniment_name !== na.accompaniment_name || orig.price !== na.price || orig.is_available !== na.is_available)) {
+            await api.patch(`/restaurant/menu/accompaniments/${na.accompaniment_id}`, {
+              accompaniment_name: na.accompaniment_name,
+              price: na.price || null,
+              is_available: na.is_available
+            });
+          }
+        }
+      }
+
       await fetchMenuAndOrders();
       addNotification('Restaurant Menu Updated', `Updated menu item: ${item.name}`, 'order');
     } catch (e) {
