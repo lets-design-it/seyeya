@@ -50,6 +50,10 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
+
 # =====================================================================
 # USER SCHEMAS
 # =====================================================================
@@ -309,11 +313,13 @@ class MenuExtraResponse(BaseModel):
 
 class MenuChoiceCreate(BaseModel):
     choice_name: str
+    price: Optional[Decimal] = None
     is_available: Optional[bool] = True
 
 
 class MenuChoiceUpdate(BaseModel):
     choice_name: Optional[str] = None
+    price: Optional[Decimal] = None
     is_available: Optional[bool] = None
 
 
@@ -321,6 +327,7 @@ class MenuChoiceResponse(BaseModel):
     choice_id: int
     menu_item_id: int
     choice_name: str
+    price: Optional[Decimal] = None
     is_available: bool
     
     class Config:

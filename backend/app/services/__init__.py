@@ -212,6 +212,26 @@ class AuthService:
         
         return user, access_token, new_refresh_token
 
+    async def logout_user(self, refresh_token: str) -> bool:
+        """Logout user by deactivating their session"""
+        result = await self.db.execute(
+            select(UserSession).where(
+                and_(
+                    UserSession.refresh_token == refresh_token,
+                    UserSession.is_active == True
+                )
+            )
+        )
+        session = result.scalar_one_or_none()
+        if not session:
+            return False
+        
+        session.is_active = False
+        session.revoked_at = datetime.utcnow()
+        self.db.add(session)
+        await self.db.commit()
+        return True
+
     async def request_password_reset(self, email: str) -> bool:
         """Request a password reset"""
         user = await self.user_repo.get_by_email(email)
@@ -450,6 +470,7 @@ class RestaurantOrderService:
                     raise ValueError(f"Menu item {item_data['menu_item_id']} not found")
                 
                 choice_id = item_data.get("choice_id")
+                choice_price = Decimal(0)
                 if choice_id:
                     result = await self.db.execute(
                         select(MenuChoice).where(
@@ -462,6 +483,8 @@ class RestaurantOrderService:
                     choice = result.scalar_one_or_none()
                     if not choice:
                         raise ValueError(f"Choice {choice_id} not found or does not belong to menu item {menu_item.menu_item_id}")
+                    if choice.price:
+                        choice_price = choice.price
 
                 accompaniment_id = item_data.get("accompaniment_id")
                 accompaniment_price = Decimal(0)
@@ -481,7 +504,7 @@ class RestaurantOrderService:
                         accompaniment_price = accompaniment.price
 
                 quantity = item_data.get("quantity", 1)
-                unit_price = menu_item.price + accompaniment_price
+                unit_price = menu_item.price + accompaniment_price + choice_price
                 total_price = unit_price * quantity
                 
                 order_item = OrderItem(

@@ -576,9 +576,10 @@ class MenuRepository:
         )
         return result.scalar_one_or_none()
 
-    async def create_menu_choice_for_item(self, menu_item_id: int, choice_name: str, is_available: bool = True) -> MenuChoice:
+    async def create_menu_choice_for_item(self, menu_item_id: int, choice_name: str, price: Optional[Decimal] = None, is_available: bool = True) -> MenuChoice:
         choice = MenuChoice(
             choice_name=choice_name,
+            price=price,
             is_available=is_available,
             menu_item_id=menu_item_id
         )
