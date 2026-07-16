@@ -516,7 +516,8 @@ CREATE TABLE conference_reservations (
   hall_id INTEGER NOT NULL REFERENCES conference_halls(hall_id),
   reservation_code VARCHAR(20) NOT NULL UNIQUE,
   event_name VARCHAR(200),
-  event_date DATE NOT NULL,
+  event_start_date DATE NOT NULL,
+  event_end_date DATE NOT NULL,
   start_time TIME NOT NULL,
   end_time TIME NOT NULL,
   num_participants INTEGER,
@@ -538,7 +539,8 @@ CREATE TABLE conference_reservations (
 
 CREATE INDEX ix_conference_reservations_customer_id ON conference_reservations(customer_id);
 CREATE INDEX ix_conference_reservations_hall_id ON conference_reservations(hall_id);
-CREATE INDEX ix_conference_reservations_event_date ON conference_reservations(event_date);
+CREATE INDEX ix_conference_reservations_event_start_date ON conference_reservations(event_start_date);
+CREATE INDEX ix_conference_reservations_event_end_date ON conference_reservations(event_end_date);
 ```
 
 ## Section 6: Payments
@@ -590,42 +592,82 @@ CREATE TABLE payment_refunds (
 
 ## Section 7: Notifications
 
-### notification_templates
+### notification_events
 ```sql
-CREATE TABLE notification_templates (
-  template_id SERIAL PRIMARY KEY,
-  template_name VARCHAR(100) NOT NULL UNIQUE,
-  subject VARCHAR(300),
-  body_template TEXT NOT NULL,
-  channel VARCHAR(20),
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE notification_events (
+  id UUID PRIMARY KEY,
+  event_type VARCHAR(100) NOT NULL,
+  reference_type VARCHAR(100),
+  reference_id VARCHAR(100),
+  triggered_by INTEGER REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
 );
+
+CREATE INDEX ix_notification_events_event_type ON notification_events(event_type);
 ```
 
 ### notifications
 ```sql
 CREATE TABLE notifications (
-  notification_id SERIAL PRIMARY KEY,
-  customer_id INTEGER REFERENCES customers(customer_id),
-  user_id INTEGER REFERENCES users(user_id),
-  template_id INTEGER REFERENCES notification_templates(template_id),
+  id UUID PRIMARY KEY,
+  event_id UUID REFERENCES notification_events(id) ON DELETE SET NULL,
+  recipient_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
   notification_type VARCHAR(50),
-  channel VARCHAR(20) NOT NULL,
-  title VARCHAR(300),
-  body TEXT,
-  recipient_address VARCHAR(300),
-  sent_status VARCHAR(20) DEFAULT 'Pending',
-  delivery_status VARCHAR(20) DEFAULT 'Unknown',
-  read_status BOOLEAN DEFAULT FALSE,
-  read_at TIMESTAMP,
-  sent_at TIMESTAMP,
-  provider_response TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  category VARCHAR(50) NOT NULL,
+  priority VARCHAR(20) NOT NULL DEFAULT 'NORMAL',
+  channel VARCHAR(20) NOT NULL DEFAULT 'IN_APP',
+  status VARCHAR(20) NOT NULL DEFAULT 'UNREAD',
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  read_at TIMESTAMP WITHOUT TIME ZONE,
+  action_url VARCHAR(255),
+  reference_type VARCHAR(100),
+  reference_id VARCHAR(100),
+  email_sent BOOLEAN NOT NULL DEFAULT FALSE,
+  email_sent_at TIMESTAMP WITHOUT TIME ZONE,
+  created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+  expires_at TIMESTAMP WITHOUT TIME ZONE
 );
 
-CREATE INDEX ix_notifications_customer_id ON notifications(customer_id);
-CREATE INDEX ix_notifications_sent_status ON notifications(sent_status);
+CREATE INDEX ix_notifications_recipient_id ON notifications(recipient_id);
+CREATE INDEX ix_notifications_status ON notifications(status);
+```
+
+### email_queue
+```sql
+CREATE TABLE email_queue (
+  id UUID PRIMARY KEY,
+  recipient_email VARCHAR(255) NOT NULL,
+  subject VARCHAR(255) NOT NULL,
+  body_html TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT,
+  created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+  processed_at TIMESTAMP WITHOUT TIME ZONE
+);
+
+CREATE INDEX ix_email_queue_status ON email_queue(status);
+```
+
+### notification_preferences
+```sql
+CREATE TABLE notification_preferences (
+  id UUID PRIMARY KEY,
+  user_id INTEGER NOT NULL UNIQUE REFERENCES users(user_id) ON DELETE CASCADE,
+  email_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  in_app_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  reservation_notifications BOOLEAN NOT NULL DEFAULT TRUE,
+  order_notifications BOOLEAN NOT NULL DEFAULT TRUE,
+  payment_notifications BOOLEAN NOT NULL DEFAULT TRUE,
+  security_notifications BOOLEAN NOT NULL DEFAULT TRUE,
+  marketing_notifications BOOLEAN NOT NULL DEFAULT TRUE,
+  system_notifications BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+);
+
+CREATE INDEX ix_notification_preferences_user_id ON notification_preferences(user_id);
 ```
 
 ## Section 8: Audit & Security

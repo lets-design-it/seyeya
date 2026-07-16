@@ -122,7 +122,8 @@ async def create_reservation(
             customer_id=request.customer_id,
             hall_id=request.hall_id,
             event_name=request.event_name,
-            event_date=request.event_date,
+            event_start_date=request.event_start_date,
+            event_end_date=request.event_end_date,
             start_time=request.start_time,
             end_time=request.end_time,
             num_participants=request.num_participants,
@@ -174,6 +175,19 @@ async def create_reservation(
         await db.commit()
         await db.refresh(reservation)
         
+        # Trigger notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(db)
+            await notif_service.create_event(
+                event_type="Reservation Created",
+                reference_type="ConferenceReservation",
+                reference_id=str(reservation.conference_res_id)
+            )
+        except Exception as e:
+            # Prevent notification issues from failing the reservation endpoint
+            pass
+            
         return reservation
     except Exception as e:
         raise HTTPException(
@@ -218,6 +232,7 @@ async def update_reservation(
             detail="Reservation not found"
         )
     
+    old_status = reservation.reservation_status
     if request.reservation_status:
         reservation.reservation_status = request.reservation_status
     
@@ -232,4 +247,17 @@ async def update_reservation(
     await db.commit()
     await db.refresh(reservation)
     
+    # Trigger notification if cancelled
+    if request.reservation_status == "Cancelled" and old_status != "Cancelled":
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(db)
+            await notif_service.create_event(
+                event_type="Reservation Cancelled",
+                reference_type="ConferenceReservation",
+                reference_id=str(reservation.conference_res_id)
+            )
+        except Exception as e:
+            pass
+            
     return reservation
