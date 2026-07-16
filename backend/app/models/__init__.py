@@ -40,6 +40,8 @@ class User(Base):
     device_tokens = relationship("DeviceToken", back_populates="user", cascade="all, delete-orphan")
     customer = relationship("Customer", back_populates="user", uselist=False)
     payment_methods = relationship("PaymentMethod", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="recipient", cascade="all, delete-orphan")
+    notification_preferences = relationship("NotificationPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     __table_args__ = (
         Index('ix_users_email', 'email'),
@@ -627,7 +629,8 @@ class ConferenceReservation(Base):
     hall_id = Column(Integer, ForeignKey("conference_halls.hall_id"), nullable=False)
     reservation_code = Column(String(20), nullable=False, unique=True)
     event_name = Column(String(200))
-    event_date = Column(Date, nullable=False)
+    event_start_date = Column(Date, nullable=False)
+    event_end_date = Column(Date, nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
     num_participants = Column(Integer)
@@ -655,7 +658,8 @@ class ConferenceReservation(Base):
     __table_args__ = (
         Index('ix_conference_reservations_customer_id', 'customer_id'),
         Index('ix_conference_reservations_hall_id', 'hall_id'),
-        Index('ix_conference_reservations_event_date', 'event_date'),
+        Index('ix_conference_reservations_event_start_date', 'event_start_date'),
+        Index('ix_conference_reservations_event_end_date', 'event_end_date'),
     )
 
 
@@ -791,49 +795,96 @@ class PaymentMethod(Base):
 # SECTION 7: NOTIFICATIONS
 # =====================================================================
 
-class NotificationTemplate(Base):
-    """Notification template model"""
-    __tablename__ = "notification_templates"
-    
-    template_id = Column(Integer, primary_key=True)
-    template_name = Column(String(100), nullable=False, unique=True)
-    subject = Column(String(300))
-    body_template = Column(Text, nullable=False)
-    channel = Column(String(20))  # Push | SMS | Email
-    is_active = Column(Boolean, default=True)
+class NotificationEvent(Base):
+    """Notification event tracker"""
+    __tablename__ = "notification_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_type = Column(String(100), nullable=False)
+    reference_type = Column(String(50))
+    reference_id = Column(String(50))
+    triggered_by = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # Relationships
-    notifications = relationship("Notification", back_populates="template", cascade="all, delete-orphan")
+    triggering_user = relationship("User", foreign_keys=[triggered_by])
 
 
 class Notification(Base):
     """Notification model"""
     __tablename__ = "notifications"
-    
-    notification_id = Column(Integer, primary_key=True)
-    customer_id = Column(Integer, ForeignKey("customers.customer_id"))
-    user_id = Column(Integer, ForeignKey("users.user_id"))
-    template_id = Column(Integer, ForeignKey("notification_templates.template_id"))
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(UUID(as_uuid=True), ForeignKey("notification_events.id", ondelete="SET NULL"), nullable=True)
+    recipient_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(300), nullable=False)
+    message = Column(Text, nullable=False)
     notification_type = Column(String(50))
-    # ReservationConfirmed | ReservationCancelled | PaymentReceived |
-    # PaymentApproved | OrderReceived | OrderReady | CheckInReminder | CheckOutReminder
-    channel = Column(String(20), nullable=False)  # Push | SMS | Email
-    title = Column(String(300))
-    body = Column(Text)
-    recipient_address = Column(String(300))
-    sent_status = Column(String(20), default="Pending")  # Pending | Sent | Failed
-    delivery_status = Column(String(20), default="Unknown")  # Unknown | Delivered | Failed
-    read_status = Column(Boolean, default=False)
-    read_at = Column(DateTime)
-    sent_at = Column(DateTime)
-    provider_response = Column(Text)
+    category = Column(String(50), nullable=False)  # Reservation, Orders, Payments, Account, Security, Promotions, Reports, Administration, System, General
+    priority = Column(String(20), default="NORMAL")  # LOW, NORMAL, HIGH, URGENT
+    channel = Column(String(20), nullable=False)  # IN_APP, EMAIL
+    status = Column(String(20), default="UNREAD")  # UNREAD, READ, ARCHIVED, DELETED
+    is_read = Column(Boolean, default=False)
+    read_at = Column(DateTime, nullable=True)
+    action_url = Column(String(300), nullable=True)
+    reference_type = Column(String(50), nullable=True)
+    reference_id = Column(String(50), nullable=True)
+    email_sent = Column(Boolean, default=False)
+    email_sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+    expires_at = Column(DateTime, nullable=True)
+
     # Relationships
-    customer = relationship("Customer", foreign_keys=[customer_id])
-    user = relationship("User", foreign_keys=[user_id])
-    template = relationship("NotificationTemplate", back_populates="notifications")
+    event = relationship("NotificationEvent")
+    recipient = relationship("User", back_populates="notifications", foreign_keys=[recipient_id])
+
+    __table_args__ = (
+        Index('ix_notifications_recipient_id', 'recipient_id'),
+        Index('ix_notifications_event_id', 'event_id'),
+        Index('ix_notifications_status', 'status'),
+        Index('ix_notifications_is_read', 'is_read'),
+        Index('ix_notifications_created_at', 'created_at'),
+    )
+
+
+class EmailQueue(Base):
+    """Email sending queue"""
+    __tablename__ = "email_queue"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    notification_id = Column(UUID(as_uuid=True), ForeignKey("notifications.id", ondelete="SET NULL"), nullable=True)
+    recipient_email = Column(String(255), nullable=False)
+    recipient_name = Column(String(255), nullable=True)
+    subject = Column(String(300), nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(String(20), default="Pending")  # Pending, Processing, Sent, Failed
+    retry_count = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    notification = relationship("Notification")
+
+
+class NotificationPreference(Base):
+    """User notification preferences"""
+    __tablename__ = "notification_preferences"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, unique=True)
+    email_enabled = Column(Boolean, default=True)
+    in_app_enabled = Column(Boolean, default=True)
+    reservation_notifications = Column(Boolean, default=True)
+    order_notifications = Column(Boolean, default=True)
+    payment_notifications = Column(Boolean, default=True)
+    security_notifications = Column(Boolean, default=True)
+    marketing_notifications = Column(Boolean, default=True)
+    system_notifications = Column(Boolean, default=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User", back_populates="notification_preferences", foreign_keys=[user_id])
 
 
 # =====================================================================

@@ -184,7 +184,8 @@ echo "  -d '{"
 echo "    \"customer_id\": 1,"
 echo "    \"hall_id\": 2,"
 echo "    \"event_name\": \"Annual Strategic Planning Meeting\","
-echo "    \"event_date\": \"2025-07-15\","
+echo "    \"event_start_date\": \"2025-07-15\","
+echo "    \"event_end_date\": \"2025-07-16\","
 echo "    \"start_time\": \"09:00\","
 echo "    \"end_time\": \"17:00\","
 echo "    \"num_participants\": 100,"
@@ -291,10 +292,85 @@ echo "  }'"
 echo ""
 
 # =====================================================
+# NOTIFICATION ENDPOINTS
+# =====================================================
+
+echo -e "${GREEN}7. NOTIFICATION ENDPOINTS${NC}"
+echo ""
+
+echo "List user notifications:"
+echo "curl -X GET \"\$API_V1/notifications\" \\"
+echo "  -H \"Authorization: Bearer \$ACCESS_TOKEN\""
+echo ""
+
+echo "Get unread count:"
+echo "curl -X GET \"\$API_V1/notifications/unread-count\" \\"
+echo "  -H \"Authorization: Bearer \$ACCESS_TOKEN\""
+echo ""
+
+echo "Mark notification as read (ID is a UUID):"
+echo "curl -X PATCH \"\$API_V1/notifications/<notification-uuid>/read\" \\"
+echo "  -H \"Authorization: Bearer \$ACCESS_TOKEN\""
+echo ""
+
+echo "Mark all notifications as read:"
+echo "curl -X PATCH \"\$API_V1/notifications/read-all\" \\"
+echo "  -H \"Authorization: Bearer \$ACCESS_TOKEN\""
+echo ""
+
+echo "Get user notification preferences:"
+echo "curl -X GET \"\$API_V1/notifications/preferences\" \\"
+echo "  -H \"Authorization: Bearer \$ACCESS_TOKEN\""
+echo ""
+
+echo "Update user notification preferences:"
+echo "curl -X PUT \"\$API_V1/notifications/preferences\" \\"
+echo "  -H \"Content-Type: application/json\" \\"
+echo "  -H \"Authorization: Bearer \$ACCESS_TOKEN\" \\"
+echo "  -d '{"
+echo "    \"email_enabled\": false,"
+echo "    \"in_app_enabled\": true,"
+echo "    \"order_notifications\": false"
+echo "  }'"
+echo ""
+
+echo "Admin: Send direct notification:"
+echo "curl -X POST \"\$API_V1/notifications/admin/send\" \\"
+echo "  -H \"Content-Type: application/json\" \\"
+echo "  -H \"Authorization: Bearer \$ADMIN_ACCESS_TOKEN\" \\"
+echo "  -d '{"
+echo "    \"recipient_id\": 2,"
+echo "    \"title\": \"Security Warning\","
+echo "    \"message\": \"We detected a login attempt from a new location.\","
+echo "    \"category\": \"Security\","
+echo "    \"priority\": \"HIGH\","
+echo "    \"channel\": \"BOTH\""
+echo "  }'"
+echo ""
+
+echo "Admin: Broadcast notification:"
+echo "curl -X POST \"\$API_V1/notifications/admin/broadcast\" \\"
+echo "  -H \"Content-Type: application/json\" \\"
+echo "  -H \"Authorization: Bearer \$ADMIN_ACCESS_TOKEN\" \\"
+echo "  -d '{"
+echo "    \"recipient_group\": \"all_customers\","
+echo "    \"title\": \"Weekend Offer!\","
+echo "    \"message\": \"Enjoy 20% off on all buffet orders this Sunday!\","
+echo "    \"category\": \"Marketing\","
+echo "    \"channel\": \"BOTH\""
+echo "  }'"
+echo ""
+
+echo "Admin: Get notification audit/statistics:"
+echo "curl -X GET \"\$API_V1/notifications/admin/statistics\" \\"
+echo "  -H \"Authorization: Bearer \$ADMIN_ACCESS_TOKEN\""
+echo ""
+
+# =====================================================
 # HEALTH CHECK
 # =====================================================
 
-echo -e "${GREEN}7. SYSTEM ENDPOINTS${NC}"
+echo -e "${GREEN}8. SYSTEM ENDPOINTS${NC}"
 echo ""
 
 echo "Health check:"

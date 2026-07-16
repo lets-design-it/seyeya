@@ -614,7 +614,8 @@ class ConferenceReservationCreate(BaseModel):
     customer_id: int
     hall_id: int
     event_name: str
-    event_date: date
+    event_start_date: date
+    event_end_date: date
     start_time: time
     end_time: time
     num_participants: int
@@ -636,7 +637,8 @@ class ConferenceReservationResponse(BaseModel):
     hall_id: int
     reservation_code: str
     event_name: str
-    event_date: date
+    event_start_date: date
+    event_end_date: date
     start_time: time
     end_time: time
     booking_type: str
@@ -1200,3 +1202,106 @@ class HotelDetailsUpdate(BaseModel):
         if not phone_regex.match(v):
             raise ValueError("Invalid phone number format")
         return v
+
+
+# =====================================================================
+# NOTIFICATION SCHEMAS
+# =====================================================================
+
+from uuid import UUID
+
+class NotificationEventResponse(BaseModel):
+    id: UUID
+    event_type: str
+    reference_type: Optional[str] = None
+    reference_id: Optional[str] = None
+    triggered_by: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationResponse(BaseModel):
+    id: UUID
+    event_id: Optional[UUID] = None
+    recipient_id: int
+    title: str
+    message: str
+    notification_type: Optional[str] = None
+    category: str
+    priority: str
+    channel: str
+    status: str
+    is_read: Optional[bool] = False
+    read_at: Optional[datetime] = None
+    action_url: Optional[str] = None
+    reference_type: Optional[str] = None
+    reference_id: Optional[str] = None
+    email_sent: Optional[bool] = False
+    email_sent_at: Optional[datetime] = None
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationPreferenceResponse(BaseModel):
+    id: UUID
+    user_id: int
+    email_enabled: Optional[bool] = True
+    in_app_enabled: Optional[bool] = True
+    reservation_notifications: Optional[bool] = True
+    order_notifications: Optional[bool] = True
+    payment_notifications: Optional[bool] = True
+    security_notifications: Optional[bool] = True
+    marketing_notifications: Optional[bool] = True
+    system_notifications: Optional[bool] = True
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationPreferenceUpdate(BaseModel):
+    email_enabled: Optional[bool] = None
+    in_app_enabled: Optional[bool] = None
+    reservation_notifications: Optional[bool] = None
+    order_notifications: Optional[bool] = None
+    payment_notifications: Optional[bool] = None
+    security_notifications: Optional[bool] = None
+    marketing_notifications: Optional[bool] = None
+    system_notifications: Optional[bool] = None
+
+
+class AdminSendNotificationRequest(BaseModel):
+    recipient_id: int
+    title: str
+    message: str
+    notification_type: Optional[str] = "AdminAlert"
+    category: Optional[str] = "General"
+    priority: Optional[str] = "NORMAL"
+    channel: Optional[str] = "IN_APP"  # IN_APP, EMAIL
+    action_url: Optional[str] = None
+
+
+class AdminBroadcastNotificationRequest(BaseModel):
+    recipient_group: str  # all_customers, all_managers, all_staff, all_admins, role_name
+    role_name: Optional[str] = None
+    title: str
+    message: str
+    category: Optional[str] = "General"
+    priority: Optional[str] = "NORMAL"
+    channel: Optional[str] = "IN_APP"  # IN_APP, EMAIL
+    action_url: Optional[str] = None
+
+
+class NotificationStatistics(BaseModel):
+    total_count: int
+    unread_count: int
+    read_count: int
+    archived_count: int
+    deleted_count: int
+    category_counts: dict
+
