@@ -3,48 +3,68 @@
 This document outlines how frontend developers (web or mobile app) should integrate with the new configurable Delivery Fee system.
 
 ## Overview
-The Seyeya backend now automatically calculates delivery fees based on distance (using the Haversine formula). The restaurant administrators configure the restaurant's origin coordinates (`latitude`, `longitude`), the cost per kilometer, and limits like maximum distance and minimum fees.
+The Seyeya backend provides a dedicated endpoint to calculate delivery fees based on distance (using the Haversine formula) and administrator configurations (like minimum fees and price per kilometer).
 
-As a frontend developer, you simply need to capture the customer's delivery coordinates and pass them to the backend when creating an order. The backend handles all calculations automatically.
+The integration requires a simple two-step process:
+1. **Calculate the Fee:** Send the customer's coordinates to the backend to get the delivery cost.
+2. **Place the Order:** Pass the calculated `delivery_charge` when creating the actual order.
 
 ---
 
-## 1. Fetching Active Delivery Rules (Optional but Recommended)
-Before allowing a user to place a delivery order, you may want to fetch the active delivery pricing configuration. This lets you:
-- Show the restaurant's location on a map.
-- Check the `maximum_delivery_distance_km` to prevent users outside the delivery radius from even attempting to order.
-- Provide a pricing estimate before they reach checkout.
+## Step 1: Calculate the Delivery Charge
+Before the user clicks "Place Order" (or when they drop a pin on the map), you must call the calculation endpoint to determine the exact delivery cost.
 
 **Endpoint:**
-`GET /api/v1/restaurant/delivery-pricing/active`
+`POST /api/v1/restaurant/delivery-pricing/calculate`
+
+**Payload Requirements:**
+- `delivery_lat` & `delivery_lng`: Decimal coordinates of the customer's delivery destination.
+
+**Example Request:**
+```json
+{
+  "delivery_lat": -1.3000,
+  "delivery_lng": 36.8200
+}
+```
 
 **Example Response:**
 ```json
 {
-  "pricing_id": 1,
-  "restaurant_lat": "-1.292100",
-  "restaurant_lng": "36.821900",
-  "price_per_km": "50.00",
-  "minimum_delivery_fee": "150.00",
-  "maximum_delivery_distance_km": "15.00",
-  "is_active": true,
-  "created_at": "2026-07-20T08:00:00.000Z",
-  "updated_at": "2026-07-20T08:00:00.000Z"
+  "is_deliverable": true,
+  "distance_km": "0.90",
+  "price_per_km": "1000.00",
+  "delivery_charge": "903.48",
+  "message": "Delivery available"
 }
 ```
+*Note: The backend securely reads the restaurant's origin coordinates and active pricing configurations from the database. It handles the math (`distance_km * price_per_km`) and enforces the admin-configured `minimum_delivery_fee` automatically. You simply use the returned `delivery_charge`.*
+
+**Error States:**
+If the destination is further than the admin-configured maximum distance, the endpoint will respond with `200 OK` but `is_deliverable` will be `false`:
+```json
+{
+  "is_deliverable": false,
+  "distance_km": "25.50",
+  "price_per_km": null,
+  "delivery_charge": null,
+  "message": "Delivery address is too far. Maximum delivery distance is 15.00 km"
+}
+```
+*(Your frontend should use this to block the user from continuing).*
 
 ---
 
-## 2. Creating a Delivery Order
-When the customer places an order and selects **"Delivery"** as their `delivery_option`, you **must** provide `delivery_lat` and `delivery_lng` in the JSON payload. 
+## Step 2: Creating the Order
+Once the customer confirms the order and you have the `delivery_charge` from Step 1, send it along with the order payload.
 
 **Endpoint:**
 `POST /api/v1/restaurant/orders`
 
 **Payload Requirements:**
 - `delivery_option`: Must be exactly `"Delivery"`.
-- `delivery_lat` & `delivery_lng`: Decimal coordinates of the customer's delivery location. (If these are omitted, the backend will return a `400 Bad Request` error).
-- `items`: The cart items (delivery fees are only calculated if the order has items).
+- `delivery_lat` & `delivery_lng`: The delivery coordinates.
+- `delivery_charge`: The exact decimal value returned from Step 1.
 
 **Example Request:**
 ```json
@@ -54,6 +74,7 @@ When the customer places an order and selects **"Delivery"** as their `delivery_
   "delivery_address": "123 Ngong Road, Nairobi",
   "delivery_lat": -1.300000,
   "delivery_lng": 36.820000,
+  "delivery_charge": 903.48,
   "items": [
     {
       "menu_item_id": 23,
@@ -63,37 +84,4 @@ When the customer places an order and selects **"Delivery"** as their `delivery_
 }
 ```
 
----
-
-## 3. Handling the Response
-Upon successful order creation, the backend will return the full order object, which now includes exactly how the delivery fee was calculated and applied.
-
-**Key New Response Fields:**
-- `delivery_distance_km`: The exact calculated straight-line distance.
-- `price_per_km_used`: The rate applied.
-- `delivery_charge`: The final delivery fee added to the order.
-- `total_amount`: The subtotal + `delivery_charge`.
-
-**Example Response Snippet:**
-```json
-{
-  "order_id": 18,
-  "order_number": "ORD-2026-2BC32705",
-  "delivery_option": "Delivery",
-  "delivery_distance_km": "0.90",
-  "price_per_km_used": "50.00",
-  "delivery_charge": "150.00",
-  "total_amount": "45150.00",
-  "order_status": "Pending"
-  ...
-}
-```
-*Note: In the above example, `0.90 km * 50 = 45`, but the admin-configured `minimum_delivery_fee` was `150.00`, so the backend clamped the delivery charge to 150.*
-
----
-
-## 4. Handling Errors
-The backend enforces constraints automatically. Your frontend should be prepared to catch and display the following `400 Bad Request` errors:
-- `"Delivery coordinates are required for delivery orders"`: Emitted if you send `"Delivery"` without `delivery_lat`/`delivery_lng`.
-- `"Delivery is currently unavailable (no active pricing)"`: Emitted if the admin has turned off delivery pricing entirely.
-- `"Delivery address is too far. Maximum delivery distance is X km"`: Emitted if the distance exceeds the configured radius.
+The backend will trust the `delivery_charge` provided, save it to the database, and automatically add it to the `total_amount` for the order.

@@ -10,7 +10,7 @@ from app.schemas import (
     RestaurantOrderCreate, RestaurantOrderResponse, RestaurantOrderUpdate,
     MenuCategoryResponse, MenuCategoryCreate, MenuItemResponse, MenuItemCreate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse,
     MenuChoiceCreate, MenuChoiceUpdate, MenuChoiceResponse, MenuAccompanimentCreate, MenuAccompanimentUpdate, MenuAccompanimentResponse, MenuExtraUpdate,
-    DeliveryPricingCreate, DeliveryPricingUpdate, DeliveryPricingResponse
+    DeliveryPricingCreate, DeliveryPricingUpdate, DeliveryPricingResponse, DeliveryCalculationRequest, DeliveryCalculationResponse
 )
 from app.services import RestaurantOrderService
 from app.repositories import MenuRepository, ReviewRepository
@@ -217,6 +217,7 @@ async def create_order(
             delivery_option=request.delivery_option,
             delivery_lat=request.delivery_lat,
             delivery_lng=request.delivery_lng,
+            delivery_charge=request.delivery_charge,
             delivery_address=request.delivery_address,
             preferred_time=request.preferred_time,
             special_instr=request.special_instr
@@ -361,6 +362,48 @@ async def get_active_delivery_pricing(db: AsyncSession = Depends(get_db)):
     if not pricing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active delivery pricing found")
     return pricing
+
+
+@router.post("/delivery-pricing/calculate", response_model=DeliveryCalculationResponse)
+async def calculate_delivery_pricing(request: DeliveryCalculationRequest, db: AsyncSession = Depends(get_db)):
+    """Calculate the delivery fee for a given location"""
+    from sqlalchemy.future import select
+    from app.models import DeliveryPricing
+    from app.utils.haversine import calculate_haversine_distance
+    from decimal import Decimal
+    
+    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True))
+    pricing = res.scalar_one_or_none()
+    
+    if not pricing:
+        return DeliveryCalculationResponse(
+            is_deliverable=False,
+            message="Delivery is currently unavailable (no active pricing)"
+        )
+        
+    distance_km = calculate_haversine_distance(
+        float(pricing.restaurant_lat), float(pricing.restaurant_lng),
+        float(request.delivery_lat), float(request.delivery_lng)
+    )
+    
+    if pricing.maximum_delivery_distance_km and Decimal(distance_km) > pricing.maximum_delivery_distance_km:
+        return DeliveryCalculationResponse(
+            is_deliverable=False,
+            distance_km=round(Decimal(distance_km), 2),
+            message=f"Delivery address is too far. Maximum delivery distance is {pricing.maximum_delivery_distance_km} km"
+        )
+        
+    calculated_fee = Decimal(distance_km) * pricing.price_per_km
+    if pricing.minimum_delivery_fee and calculated_fee < pricing.minimum_delivery_fee:
+        calculated_fee = pricing.minimum_delivery_fee
+        
+    return DeliveryCalculationResponse(
+        is_deliverable=True,
+        distance_km=round(Decimal(distance_km), 2),
+        price_per_km=pricing.price_per_km,
+        delivery_charge=round(calculated_fee, 2),
+        message="Delivery available"
+    )
 
 
 @router.get("/admin/delivery-pricing", response_model=List[DeliveryPricingResponse])

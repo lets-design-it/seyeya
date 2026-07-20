@@ -478,7 +478,7 @@ class RestaurantOrderService:
         self.order_repo = RestaurantOrderRepository(db)
         self.menu_repo = MenuRepository(db)
     
-    async def create_order(self, customer_id: Optional[int] = None, items_data: Optional[list] = None, delivery_option: str = "Premises", delivery_lat: Optional[Decimal] = None, delivery_lng: Optional[Decimal] = None, delivery_address: Optional[str] = None, preferred_time: Optional[datetime] = None, special_instr: Optional[str] = None) -> RestaurantOrder:
+    async def create_order(self, customer_id: Optional[int] = None, items_data: Optional[list] = None, delivery_option: str = "Premises", delivery_lat: Optional[Decimal] = None, delivery_lng: Optional[Decimal] = None, delivery_charge: Optional[Decimal] = None, delivery_address: Optional[str] = None, preferred_time: Optional[datetime] = None, special_instr: Optional[str] = None) -> RestaurantOrder:
         """Create a new restaurant order"""
         # Generate unique order number
         order_number = f"ORD-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
@@ -577,40 +577,16 @@ class RestaurantOrderService:
                 self.db.add(order_item)
                 total += total_price
             
-            # Delivery fee calculation
-            delivery_charge = Decimal(0)
+            # Delivery fee is handled directly from the request payload
+            charge = Decimal(0)
             if delivery_option == "Delivery":
-                if not delivery_lat or not delivery_lng:
-                    raise ValueError("Delivery coordinates are required for delivery orders")
+                if delivery_charge is not None:
+                    charge = delivery_charge
                 
-                from app.models import DeliveryPricing
-                from app.utils.haversine import calculate_haversine_distance
-                
-                res = await self.db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True))
-                pricing = res.scalar_one_or_none()
-                if not pricing:
-                    raise ValueError("Delivery is currently unavailable (no active pricing)")
-                
-                distance_km = calculate_haversine_distance(
-                    float(pricing.restaurant_lat), float(pricing.restaurant_lng),
-                    float(delivery_lat), float(delivery_lng)
-                )
-                
-                if pricing.maximum_delivery_distance_km and Decimal(distance_km) > pricing.maximum_delivery_distance_km:
-                    raise ValueError(f"Delivery address is too far. Maximum delivery distance is {pricing.maximum_delivery_distance_km} km")
-                
-                calculated_fee = Decimal(distance_km) * pricing.price_per_km
-                if pricing.minimum_delivery_fee and calculated_fee < pricing.minimum_delivery_fee:
-                    calculated_fee = pricing.minimum_delivery_fee
-                
-                delivery_charge = round(calculated_fee, 2)
-                
-                order.delivery_distance_km = round(Decimal(distance_km), 2)
-                order.price_per_km_used = pricing.price_per_km
-                order.delivery_charge = delivery_charge
+                order.delivery_charge = charge
                 
             order.sub_total = total
-            order.total_amount = total + delivery_charge
+            order.total_amount = total + charge
         
         self.db.add(order)
         await self.db.commit()
