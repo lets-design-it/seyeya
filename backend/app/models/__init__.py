@@ -343,6 +343,8 @@ class RestaurantOrder(Base):
     delivery_address = Column(String(300))
     delivery_lat = Column(DECIMAL(9, 6))
     delivery_lng = Column(DECIMAL(9, 6))
+    delivery_distance_km = Column(DECIMAL(10, 2), default=0)
+    price_per_km_used = Column(DECIMAL(10, 2), default=0)
     delivery_charge = Column(DECIMAL(10, 2), default=0)
     preferred_time = Column(DateTime)
     special_instr = Column(String(500))
@@ -426,6 +428,25 @@ class OrderStatusHistory(Base):
     
     # Relationships
     order = relationship("RestaurantOrder", back_populates="status_history")
+
+
+class DeliveryPricing(Base):
+    """Delivery pricing configuration"""
+    __tablename__ = "delivery_pricing"
+    
+    pricing_id = Column(Integer, primary_key=True)
+    restaurant_lat = Column(DECIMAL(9, 6), nullable=False)
+    restaurant_lng = Column(DECIMAL(9, 6), nullable=False)
+    price_per_km = Column(DECIMAL(10, 2), nullable=False)
+    minimum_delivery_fee = Column(DECIMAL(10, 2))
+    maximum_delivery_distance_km = Column(DECIMAL(10, 2))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('ix_delivery_pricing_is_active', 'is_active'),
+    )
 
 
 # =====================================================================

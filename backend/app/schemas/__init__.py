@@ -424,6 +424,8 @@ class RestaurantOrderCreate(BaseModel):
     seating_location: Optional[str] = None
     delivery_option: str = "Premises"
     delivery_address: Optional[str] = None
+    delivery_lat: Optional[Decimal] = None
+    delivery_lng: Optional[Decimal] = None
     preferred_time: Optional[datetime] = None
     special_instr: Optional[str] = None
     items: List[OrderItemCreate]
@@ -455,12 +457,48 @@ class RestaurantOrderResponse(BaseModel):
     order_number: str
     seating_location: Optional[str] = None
     delivery_option: str
+    delivery_distance_km: Decimal
+    price_per_km_used: Decimal
+    delivery_charge: Decimal
     total_amount: Decimal
     amount_paid: Decimal
     balance_due: Decimal
     order_status: str
     payment_status: str
     items: List[OrderItemResponse]
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class DeliveryPricingCreate(BaseModel):
+    restaurant_lat: Decimal
+    restaurant_lng: Decimal
+    price_per_km: Decimal
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: Optional[bool] = True
+
+
+class DeliveryPricingUpdate(BaseModel):
+    restaurant_lat: Optional[Decimal] = None
+    restaurant_lng: Optional[Decimal] = None
+    price_per_km: Optional[Decimal] = None
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: Optional[bool] = None
+
+
+class DeliveryPricingResponse(BaseModel):
+    pricing_id: int
+    restaurant_lat: Decimal
+    restaurant_lng: Decimal
+    price_per_km: Decimal
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: bool
     created_at: datetime
     updated_at: datetime
     

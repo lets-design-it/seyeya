@@ -139,6 +139,8 @@ All endpoints are prefixed with `/api/v1`.
 | **Conference** | `/api/v1/conference` | Hall directories, reservations, resource equipment bookings, and meal package options |
 | **Payments** | `/api/v1/payments` | Initiate mobile money/card payments and admin verification/propagation |
 
+> **Note for Frontend Developers:** If you are integrating the Restaurant Delivery module, please read the [DISTANCE_DELIVERY_GUIDE.md](./FRONTEND_DELIVERY_GUIDE.md) for details on order payloads and fee calculation.
+
 ---
 
 ## 🛠️ Modifying the Database Schema
