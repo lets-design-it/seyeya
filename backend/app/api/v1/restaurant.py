@@ -8,7 +8,7 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 from app.schemas import (
     RestaurantOrderCreate, RestaurantOrderResponse, RestaurantOrderUpdate,
-    MenuCategoryResponse, MenuCategoryCreate, MenuItemResponse, MenuItemCreate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse,
+    MenuCategoryResponse, MenuCategoryCreate, MenuCategoryUpdate, MenuItemResponse, MenuItemCreate, MenuItemUpdate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse,
     MenuChoiceCreate, MenuChoiceUpdate, MenuChoiceResponse, MenuAccompanimentCreate, MenuAccompanimentUpdate, MenuAccompanimentResponse, MenuExtraUpdate,
     DeliveryPricingCreate, DeliveryPricingUpdate, DeliveryPricingResponse, DeliveryCalculationRequest, DeliveryCalculationResponse
 )

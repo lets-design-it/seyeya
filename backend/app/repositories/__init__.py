@@ -746,16 +746,12 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.order_id == order_id)
-<<<<<<< HEAD
-            .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
-=======
             .options(
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
             )
->>>>>>> origin/main
         )
         return result.scalar_one_or_none()
     
@@ -764,16 +760,12 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.order_number == order_number)
-<<<<<<< HEAD
-            .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
-=======
             .options(
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
             )
->>>>>>> origin/main
         )
         return result.scalar_one_or_none()
     
@@ -782,16 +774,12 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.customer_id == customer_id)
-<<<<<<< HEAD
-            .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
-=======
             .options(
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
             )
->>>>>>> origin/main
             .offset(skip)
             .limit(limit)
         )

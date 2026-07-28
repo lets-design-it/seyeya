@@ -687,7 +687,12 @@ class RestaurantOrderService:
         """Get all restaurant orders"""
         result = await self.db.execute(
             select(RestaurantOrder)
-            .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
+            .options(
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
+            )
             .offset(skip)
             .limit(limit)
         )

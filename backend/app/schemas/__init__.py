@@ -526,14 +526,10 @@ class RestaurantOrderResponse(BaseModel):
     customer_id: Optional[int] = None
     order_number: str
     seating_location: Optional[str] = None
-<<<<<<< HEAD
-    delivery_option: Optional[str] = "Premises"
-=======
     delivery_option: str
     delivery_distance_km: Decimal
     price_per_km_used: Decimal
     delivery_charge: Decimal
->>>>>>> origin/main
     total_amount: Decimal
     amount_paid: Decimal
     balance_due: Decimal
