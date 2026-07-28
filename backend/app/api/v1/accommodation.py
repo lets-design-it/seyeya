@@ -9,10 +9,13 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 from app.schemas import (
     AccommodationReservationCreate, AccommodationReservationResponse, AccommodationReservationUpdate,
-    RoomResponse, GuestCheckInDetailCreate
+    RoomResponse, GuestCheckInDetailCreate, RoomCategoryResponse, RoomCategoryCreate,
+    RoomCategoryUpdate, RoomCreate, RoomUpdate
 )
 from app.services import AccommodationService
 from app.repositories import AccommodationRepository
+from sqlalchemy import select, and_
+
 
 router = APIRouter(prefix="/api/v1/accommodation", tags=["accommodation"])
 
@@ -27,6 +30,22 @@ async def get_available_rooms(
     repo = AccommodationRepository(db)
     rooms = await repo.get_available_rooms(str(check_in), str(check_out))
     return rooms
+
+
+@router.get("/rooms/all", response_model=List[RoomResponse])
+async def get_all_rooms_list(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Retrieve all rooms (both available and unavailable)"""
+    from app.models import Room
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(Room)
+        .options(selectinload(Room.photos))
+        .order_by(Room.room_number)
+    )
+    return result.scalars().all()
 
 
 @router.get("/rooms/{room_id}", response_model=RoomResponse)
@@ -55,6 +74,8 @@ async def create_reservation(
 ):
     """Create an accommodation reservation"""
     try:
+        from app.models import AccommodationReservation
+        from sqlalchemy.orm import selectinload
         service = AccommodationService(db)
         
         # Calculate number of nights and rate
@@ -68,6 +89,17 @@ async def create_reservation(
         room = await repo.get_room_by_id(request.room_id)
         if not room:
             raise ValueError("Room not found")
+        
+        # Validate capacity levels
+        adults_count = sum(1 for g in request.guests if not g.is_child)
+        children_count = sum(1 for g in request.guests if g.is_child)
+        
+        if not request.guests:
+            adults_count = request.num_adults
+            children_count = request.num_children
+            
+        if adults_count > room.max_occupancy:
+            raise ValueError(f"Room maximum capacity is {room.max_occupancy} adults. You cannot add {adults_count} adults.")
         
         rate_per_night = room.category.base_rate_usd
         total_amount = rate_per_night * num_nights
@@ -83,13 +115,70 @@ async def create_reservation(
         )
         
         # Set additional fields
-        reservation.num_adults = request.num_adults
-        reservation.num_children = request.num_children
+        reservation.num_adults = adults_count
+        reservation.num_children = children_count
         reservation.special_requests = request.special_requests
         
         db.add(reservation)
         await db.commit()
         await db.refresh(reservation)
+
+        # Save selected guests into guest_checkin_details
+        from app.models import GuestCheckInDetail, Customer
+        primary_saved = False
+        if request.guests:
+            for guest in request.guests:
+                c_res = await db.execute(select(Customer).where(Customer.customer_id == guest.customer_id))
+                customer_obj = c_res.scalar_one_or_none()
+                if customer_obj:
+                    is_primary = (customer_obj.customer_id == request.customer_id)
+                    if is_primary:
+                        primary_saved = True
+                    guest_detail = GuestCheckInDetail(
+                        reservation_id=reservation.reservation_id,
+                        customer_id=customer_obj.customer_id,
+                        guest_name=customer_obj.full_name,
+                        nationality=customer_obj.nationality,
+                        phone_number=customer_obj.phone_number,
+                        passport_number=customer_obj.passport_number,
+                        nin=customer_obj.nin,
+                        is_primary=is_primary,
+                        is_child=guest.is_child
+                    )
+                    db.add(guest_detail)
+        
+        if not primary_saved:
+            c_res = await db.execute(select(Customer).where(Customer.customer_id == request.customer_id))
+            customer_obj = c_res.scalar_one_or_none()
+            if customer_obj:
+                guest_detail = GuestCheckInDetail(
+                    reservation_id=reservation.reservation_id,
+                    customer_id=customer_obj.customer_id,
+                    guest_name=customer_obj.full_name,
+                    nationality=customer_obj.nationality,
+                    phone_number=customer_obj.phone_number,
+                    passport_number=customer_obj.passport_number,
+                    nin=customer_obj.nin,
+                    is_primary=True,
+                    is_child=False
+                )
+                db.add(guest_detail)
+                
+        await db.commit()
+        
+        # Reload with customer relation loaded
+        result = await db.execute(
+            select(AccommodationReservation)
+            .options(
+                selectinload(AccommodationReservation.customer),
+                selectinload(AccommodationReservation.guest_details)
+            )
+            .where(AccommodationReservation.reservation_id == reservation.reservation_id)
+        )
+        reservation = result.scalar_one()
+        if reservation.customer:
+            reservation.guest_name = reservation.customer.full_name
+            reservation.guest_email = reservation.customer.email
         
         return reservation
     except Exception as e:
@@ -106,8 +195,17 @@ async def get_reservation(
     current_user: dict = Depends(get_current_user)
 ):
     """Get reservation details"""
-    service = AccommodationService(db)
-    reservation = await service.get_reservation(reservation_id)
+    from app.models import AccommodationReservation
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(AccommodationReservation)
+        .options(
+            selectinload(AccommodationReservation.customer),
+            selectinload(AccommodationReservation.guest_details)
+        )
+        .where(AccommodationReservation.reservation_id == reservation_id)
+    )
+    reservation = result.scalar_one_or_none()
     
     if not reservation:
         raise HTTPException(
@@ -115,6 +213,10 @@ async def get_reservation(
             detail="Reservation not found"
         )
     
+    if reservation.customer:
+        reservation.guest_name = reservation.customer.full_name
+        reservation.guest_email = reservation.customer.email
+        
     return reservation
 
 
@@ -126,6 +228,8 @@ async def update_reservation(
     current_user: dict = Depends(get_current_user)
 ):
     """Update reservation status"""
+    from app.models import AccommodationReservation
+    from sqlalchemy.orm import selectinload
     service = AccommodationService(db)
     reservation = await service.get_reservation(reservation_id)
     
@@ -147,8 +251,21 @@ async def update_reservation(
     
     db.add(reservation)
     await db.commit()
-    await db.refresh(reservation)
     
+    # Reload with customer
+    result = await db.execute(
+        select(AccommodationReservation)
+        .options(
+            selectinload(AccommodationReservation.customer),
+            selectinload(AccommodationReservation.guest_details)
+        )
+        .where(AccommodationReservation.reservation_id == reservation_id)
+    )
+    reservation = result.scalar_one()
+    if reservation.customer:
+        reservation.guest_name = reservation.customer.full_name
+        reservation.guest_email = reservation.customer.email
+        
     return reservation
 
 
@@ -159,6 +276,8 @@ async def check_in(
     current_user: dict = Depends(get_current_user)
 ):
     """Check in guest"""
+    from app.models import AccommodationReservation
+    from sqlalchemy.orm import selectinload
     service = AccommodationService(db)
     reservation = await service.check_in(reservation_id, current_user["user_id"])
     
@@ -167,7 +286,21 @@ async def check_in(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Reservation not found"
         )
-    
+        
+    # Reload with customer
+    result = await db.execute(
+        select(AccommodationReservation)
+        .options(
+            selectinload(AccommodationReservation.customer),
+            selectinload(AccommodationReservation.guest_details)
+        )
+        .where(AccommodationReservation.reservation_id == reservation_id)
+    )
+    reservation = result.scalar_one()
+    if reservation.customer:
+        reservation.guest_name = reservation.customer.full_name
+        reservation.guest_email = reservation.customer.email
+        
     return reservation
 
 
@@ -178,7 +311,8 @@ async def check_out(
     current_user: dict = Depends(get_current_user)
 ):
     """Check out guest"""
-    from datetime import datetime
+    from app.models import AccommodationReservation
+    from sqlalchemy.orm import selectinload
     service = AccommodationService(db)
     reservation = await service.check_out(reservation_id, current_user["user_id"])
     
@@ -187,5 +321,274 @@ async def check_out(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Reservation not found"
         )
+    # Reload with customer & guest details
+    result = await db.execute(
+        select(AccommodationReservation)
+        .options(
+            selectinload(AccommodationReservation.customer),
+            selectinload(AccommodationReservation.guest_details)
+        )
+        .where(AccommodationReservation.reservation_id == reservation_id)
+    )
+    return result.scalar_one()
+
+
+# =====================================================================
+# ADDITIONAL ENDPOINTS FOR WORKSPACE CRUD & LISTING
+# =====================================================================
+
+@router.get("/categories", response_model=List[RoomCategoryResponse])
+async def get_all_categories(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Retrieve all room categories"""
+    from app.models import RoomCategory
+    result = await db.execute(select(RoomCategory).order_by(RoomCategory.room_category_id))
+    return result.scalars().all()
+
+
+@router.post("/categories", response_model=RoomCategoryResponse)
+async def create_room_category(
+    request: RoomCategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new room category"""
+    from app.models import RoomCategory
+    category = RoomCategory(
+        category_name=request.category_name,
+        description=request.description,
+        base_rate_usd=request.base_rate_usd,
+        is_active=request.is_active
+    )
+    db.add(category)
+    await db.commit()
+    await db.refresh(category)
+    return category
+
+
+@router.put("/categories/{category_id}", response_model=RoomCategoryResponse)
+async def update_room_category(
+    category_id: int,
+    request: RoomCategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update room category details"""
+    from app.models import RoomCategory
+    result = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
     
-    return reservation
+    if request.category_name is not None:
+        category.category_name = request.category_name
+    if request.description is not None:
+        category.description = request.description
+    if request.base_rate_usd is not None:
+        category.base_rate_usd = request.base_rate_usd
+    if request.is_active is not None:
+        category.is_active = request.is_active
+        
+    db.add(category)
+    await db.commit()
+    await db.refresh(category)
+    return category
+
+
+@router.delete("/categories/{category_id}")
+async def delete_room_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a room category"""
+    from app.models import RoomCategory, Room
+    result = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    # Check if category has rooms
+    rooms_check = await db.execute(select(Room).where(Room.room_category_id == category_id))
+    if rooms_check.scalars().first():
+        raise HTTPException(status_code=400, detail="Cannot delete category with active rooms assigned to it.")
+        
+    await db.delete(category)
+    await db.commit()
+    return {"message": "Category deleted successfully"}
+
+
+@router.post("/rooms", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
+async def create_room_unit(
+    request: RoomCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new room unit"""
+    from app.models import Room, RoomCategory
+    # Verify category exists
+    cat_check = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == request.room_category_id))
+    if not cat_check.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Room category not found")
+
+    room = Room(
+        room_category_id=request.room_category_id,
+        room_number=request.room_number,
+        floor=request.floor,
+        room_status=request.room_status,
+        max_occupancy=request.max_occupancy,
+        description=request.description,
+        amenities=request.amenities,
+        is_active=request.is_active
+    )
+    
+    from sqlalchemy.exc import IntegrityError
+    try:
+        db.add(room)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Room number '{room.room_number}' already exists. Please choose a unique room number."
+        )
+
+    await db.refresh(room)
+    # Refresh to load empty photos relationship
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(select(Room).where(Room.room_id == room.room_id).options(selectinload(Room.photos)))
+    return result.scalar_one()
+
+
+@router.put("/rooms/{room_id}", response_model=RoomResponse)
+async def update_room_unit(
+    room_id: int,
+    request: RoomUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update room unit details"""
+    from app.models import Room, RoomCategory
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(select(Room).where(Room.room_id == room_id).options(selectinload(Room.photos)))
+    room = result.scalar_one_or_none()
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+        
+    if request.room_category_id is not None:
+        cat_check = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == request.room_category_id))
+        if not cat_check.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Room category not found")
+        room.room_category_id = request.room_category_id
+        
+    if request.room_number is not None:
+        room.room_number = request.room_number
+    if request.floor is not None:
+        room.floor = request.floor
+    if request.room_status is not None:
+        room.room_status = request.room_status
+    if request.max_occupancy is not None:
+        room.max_occupancy = request.max_occupancy
+    if request.description is not None:
+        room.description = request.description
+    if request.amenities is not None:
+        room.amenities = request.amenities
+    if request.is_active is not None:
+        room.is_active = request.is_active
+        
+    from sqlalchemy.exc import IntegrityError
+    try:
+        db.add(room)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Room number '{room.room_number}' already exists. Please choose a unique room number."
+        )
+        
+    await db.refresh(room)
+    return room
+
+
+@router.delete("/rooms/{room_id}")
+async def delete_room_unit(
+    room_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a room unit"""
+    from app.models import Room, AccommodationReservation
+    result = await db.execute(select(Room).where(Room.room_id == room_id))
+    room = result.scalar_one_or_none()
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+        
+    # Check if there are active bookings
+    bookings_check = await db.execute(
+        select(AccommodationReservation)
+        .where(
+            and_(
+                AccommodationReservation.room_id == room_id,
+                AccommodationReservation.reservation_status.in_(["Pending", "Confirmed", "CheckedIn"])
+            )
+        )
+    )
+    if bookings_check.scalars().first():
+        raise HTTPException(status_code=400, detail="Cannot delete room with active reservations.")
+        
+    await db.delete(room)
+    await db.commit()
+    return {"message": "Room deleted successfully"}
+
+
+@router.get("/reservations", response_model=List[AccommodationReservationResponse])
+async def get_all_reservations(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Retrieve all reservations"""
+    from app.models import AccommodationReservation
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(AccommodationReservation)
+        .options(
+            selectinload(AccommodationReservation.customer),
+            selectinload(AccommodationReservation.guest_details)
+        )
+        .order_by(AccommodationReservation.created_at.desc())
+    )
+    reservations = result.scalars().all()
+    for res in reservations:
+        if res.customer:
+            res.guest_name = res.customer.full_name
+            res.guest_email = res.customer.email
+    return reservations
+
+
+@router.delete("/reservations/{reservation_id}")
+async def delete_reservation(
+    reservation_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete/cancel a reservation and free up room status"""
+    from app.models import AccommodationReservation, Room
+    result = await db.execute(select(AccommodationReservation).where(AccommodationReservation.reservation_id == reservation_id))
+    res = result.scalar_one_or_none()
+    if not res:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+        
+    # Re-release the room to Available if status was CheckedIn or Reserved
+    if res.reservation_status in ["Pending", "Confirmed", "CheckedIn"]:
+        room_check = await db.execute(select(Room).where(Room.room_id == res.room_id))
+        room = room_check.scalar_one_or_none()
+        if room:
+            room.room_status = "Available"
+            db.add(room)
+            
+    await db.delete(res)
+    await db.commit()
+    return {"message": "Reservation deleted successfully"}

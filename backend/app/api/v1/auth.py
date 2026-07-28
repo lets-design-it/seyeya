@@ -119,7 +119,6 @@ async def refresh(request: RefreshTokenRequest, db: AsyncSession = Depends(get_d
 @router.post("/logout", status_code=status.HTTP_200_OK)
 async def logout(
     request: LogoutRequest,
-    current_user: Dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Logout user and invalidate their session"""

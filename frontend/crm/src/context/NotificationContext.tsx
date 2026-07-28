@@ -18,36 +18,8 @@ interface NotificationContextType {
   markAllAsRead: () => void;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-// Sample simulated events
-const SIMULATED_EVENTS = [
-  {
-    title: 'New Restaurant Order',
-    message: 'Table 4 ordered 2x Rolex Rolls, 1x African Ginger Tea',
-    type: 'order' as const,
-  },
-  {
-    title: 'Room Booking Registered',
-    message: 'Room 204 reserved by Marcus Vance for 3 nights',
-    type: 'booking' as const,
-  },
-  {
-    title: 'Conference Quote Requested',
-    message: 'Compiler Fintech Inc requested pricing for 45 people',
-    type: 'event' as const,
-  },
-  {
-    title: 'New Restaurant Order',
-    message: 'Room 102 ordered 1x Grilled Tilapia, 1x Passion Juice',
-    type: 'order' as const,
-  },
-  {
-    title: 'Room Check-in Alert',
-    message: 'Alexandra Vance checked into Standard Cottage Room 102',
-    type: 'booking' as const,
-  }
-];
+const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -114,17 +86,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  // Launch simulated background event generator
-  useEffect(() => {
-    const timer = setInterval(() => {
-      // Pick a random event template
-      const eventIndex = Math.floor(Math.random() * SIMULATED_EVENTS.length);
-      const template = SIMULATED_EVENTS[eventIndex];
-      addNotification(template.title, template.message, template.type);
-    }, 28000); // Trigger every 28 seconds
 
-    return () => clearInterval(timer);
-  }, []);
 
   return (
     <NotificationContext.Provider value={{ 

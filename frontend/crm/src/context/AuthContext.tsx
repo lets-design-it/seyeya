@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api } from '../services/api';
 
 export type UserRole = 'admin' | 'manager' | 'agent';
 
@@ -9,13 +10,15 @@ export interface User {
   role: UserRole;
   avatar: string;
   joinedDate: string;
+  token?: string;
+  refreshToken?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, role?: UserRole) => Promise<boolean>;
+  login: (email: string, passwordOrRole?: string, role?: UserRole) => Promise<boolean>;
   logout: () => void;
   updateUserRole: (role: UserRole) => void;
 }
@@ -66,39 +69,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, selectedRole?: UserRole): Promise<boolean> => {
-    setIsLoading(true);
-    // Simulate brief network delay for realism
-    await new Promise((resolve) => setTimeout(resolve, 600));
+const mapBackendRolesToUserRole = (roles: string[] | undefined): UserRole => {
+  if (!roles || roles.length === 0) return 'agent';
+  if (roles.includes('Super Admin')) return 'admin';
+  if (roles.includes('Hotel Manager') || roles.includes('Restaurant Manager')) return 'manager';
+  return 'agent';
+};
 
-    // Simple matching:
-    // If selectedRole is directly provided (from quick-select), log in as that role
-    // Otherwise, match email string.
-    let targetRole: UserRole | null = null;
+  const login = async (email: string, passwordOrRole?: string, role?: UserRole): Promise<boolean> => {
+    setIsLoading(true);
     
-    if (selectedRole) {
-      targetRole = selectedRole;
+    let password = '';
+    let targetRole: UserRole | undefined = undefined;
+
+    if (passwordOrRole === 'admin' || passwordOrRole === 'manager' || passwordOrRole === 'agent') {
+      targetRole = passwordOrRole;
+      password = 'SecurePass123!';
     } else {
-      const emailLower = email.toLowerCase().trim();
-      if (emailLower.includes('admin')) targetRole = 'admin';
-      else if (emailLower.includes('manager')) targetRole = 'manager';
-      else if (emailLower.includes('agent')) targetRole = 'agent';
-      else {
-        // Fallback default
-        targetRole = 'agent';
-      }
+      password = passwordOrRole || '';
+      targetRole = role;
     }
 
-    const matchedUser = MOCK_USERS[targetRole];
-    setUser(matchedUser);
-    localStorage.setItem('seyeya_crm_user', JSON.stringify(matchedUser));
-    setIsLoading(false);
-    return true;
+    try {
+      const response = await api.post('/auth/login', {
+        email: email,
+        password: password
+      });
+
+      const data = response.data;
+      const mappedRole = mapBackendRolesToUserRole(data.roles);
+      const baseUser = MOCK_USERS[mappedRole];
+
+      const loggedInUser: User = {
+        id: String(data.user_id),
+        name: data.full_name || 'User',
+        email: data.email,
+        role: mappedRole,
+        avatar: baseUser?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+        joinedDate: baseUser?.joinedDate || new Date().toISOString().split('T')[0],
+        token: data.access_token,
+        refreshToken: data.refresh_token,
+      };
+
+      setUser(loggedInUser);
+      localStorage.setItem('seyeya_crm_user', JSON.stringify(loggedInUser));
+      setIsLoading(false);
+      return true;
+    } catch (err: any) {
+      setIsLoading(false);
+      const errMsg = err.response?.data?.detail || err.message || 'Invalid login credentials';
+      throw new Error(errMsg);
+    }
   };
 
   const logout = () => {
+    const savedUser = localStorage.getItem('seyeya_crm_user');
+    let refreshToken = '';
+    let accessToken = '';
+    
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        refreshToken = parsed.refreshToken;
+        accessToken = parsed.token;
+      } catch (e) {
+        // ignore
+      }
+    }
+
     setUser(null);
     localStorage.removeItem('seyeya_crm_user');
+
+    if (refreshToken) {
+      api.post('/auth/logout', 
+        { refresh_token: refreshToken },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken || 'mock-jwt-token'}`
+          }
+        }
+      ).catch((err) => {
+        console.error("API logout failed:", err);
+      });
+    }
   };
 
   const updateUserRole = (role: UserRole) => {
@@ -120,6 +173,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('seyeya_crm_user', JSON.stringify(MOCK_USERS[role]));
     }
   };
+
+  // Listen for 401 unauthorized errors to clear user state
+  useEffect(() => {
+    const handleAuthRequired = () => {
+      setUser(null);
+      localStorage.removeItem('seyeya_crm_user');
+    };
+    window.addEventListener('seyeya_auth_required', handleAuthRequired);
+    return () => {
+      window.removeEventListener('seyeya_auth_required', handleAuthRequired);
+    };
+  }, []);
+
+  // Inactivity auto-logout hook: automatically logs the user out after 15 minutes of inactivity
+  useEffect(() => {
+    if (!user) return;
+
+    let timeoutId: any;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        logout();
+      }, 15 * 60 * 1000); // 15 minutes
+    };
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    // Initialize timer
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUserRole }}>

@@ -3,6 +3,7 @@ import { AuthProvider, useAuth, ProtectedRoute } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ClientLayout } from './layouts/ClientLayout';
+import { TooltipProvider } from './components/ui/tooltip';
 
 // Staff Views
 import { Overview } from './pages/dashboard/Overview';
@@ -11,6 +12,7 @@ import { Rooms } from './pages/dashboard/Rooms';
 import { Conferences } from './pages/dashboard/Conferences';
 import { ClientsCRM } from './pages/dashboard/ClientsCRM';
 import { MenuEditor } from './pages/dashboard/MenuEditor';
+import { UserManagement } from './pages/dashboard/UserManagement';
 
 // Client Views
 import { Restaurant } from './pages/client/Restaurant';
@@ -121,6 +123,12 @@ const CRMApp: React.FC = () => {
             <MenuEditor />
           </ProtectedRoute>
         );
+      case 'users':
+        return (
+          <ProtectedRoute allowedRoles={['admin']}>
+            <UserManagement />
+          </ProtectedRoute>
+        );
       default:
         return (
           <ProtectedRoute>
@@ -143,11 +151,13 @@ const CRMApp: React.FC = () => {
 
 function App() {
   return (
-    <NotificationProvider>
-      <AuthProvider>
-        <CRMApp />
-      </AuthProvider>
-    </NotificationProvider>
+    <TooltipProvider>
+      <NotificationProvider>
+        <AuthProvider>
+          <CRMApp />
+        </AuthProvider>
+      </NotificationProvider>
+    </TooltipProvider>
   );
 }
 

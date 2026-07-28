@@ -63,11 +63,12 @@ class UserRepository:
         return user
     
     async def get_all_users(self, skip: int = 0, limit: int = 100) -> List[User]:
-        """Get all users except those with associated customer profiles"""
+        """Get all active users except those with associated customer profiles"""
         result = await self.db.execute(
             select(User)
             .outerjoin(Customer)
             .where(Customer.customer_id == None)
+            .where(User.is_active == True)
             .options(selectinload(User.roles).selectinload(UserRole.role))
             .offset(skip)
             .limit(limit)
@@ -81,13 +82,24 @@ class UserRepository:
         return await self.get_by_id(user.user_id)
 
     async def delete_user(self, user_id: int) -> bool:
-        """Soft-delete a user for relational integrity"""
+        """Attempt hard delete, fallback to soft delete for relational integrity"""
         user = await self.get_by_id(user_id)
         if user:
-            user.is_active = False
-            self.db.add(user)
-            await self.db.commit()
-            return True
+            try:
+                # Attempt to hard delete the user and cascade related roles/sessions/tokens
+                await self.db.delete(user)
+                await self.db.commit()
+                return True
+            except Exception:
+                # Fallback to soft delete if there are active references in other tables
+                await self.db.rollback()
+                # Re-fetch user in new transaction context and deactivate
+                user = await self.get_by_id(user_id)
+                if user:
+                    user.is_active = False
+                    self.db.add(user)
+                    await self.db.commit()
+                    return True
         return False
 
 
@@ -256,7 +268,9 @@ class CustomerRepository:
         total_spent: Decimal = Decimal(0),
         visit_count: int = 0,
         loyalty_points: int = 0,
-        is_active: bool = True
+        is_active: bool = True,
+        is_child: bool = False,
+        parent_id: Optional[int] = None
     ) -> Customer:
         """Create a new customer"""
         customer = Customer(
@@ -276,7 +290,9 @@ class CustomerRepository:
             total_spent=total_spent,
             visit_count=visit_count,
             loyalty_points=loyalty_points,
-            is_active=is_active
+            is_active=is_active,
+            is_child=is_child,
+            parent_id=parent_id
         )
         self.db.add(customer)
         await self.db.commit()
@@ -440,6 +456,45 @@ class MenuRepository:
         await self.db.commit()
         await self.db.refresh(category)
         return category
+
+    async def get_menu_category(self, category_id: int) -> Optional[MenuCategory]:
+        """Get a menu category by ID"""
+        result = await self.db.execute(
+            select(MenuCategory).where(MenuCategory.category_id == category_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_menu_category(self, category_id: int, **kwargs) -> Optional[MenuCategory]:
+        """Update a menu category"""
+        result = await self.db.execute(
+            select(MenuCategory).where(MenuCategory.category_id == category_id)
+        )
+        category = result.scalar_one_or_none()
+        if not category:
+            return None
+            
+        for key, value in kwargs.items():
+            if value is not None:
+                setattr(category, key, value)
+                
+        self.db.add(category)
+        await self.db.commit()
+        await self.db.refresh(category)
+        return category
+
+    async def delete_menu_category(self, category_id: int) -> bool:
+        """Deactivate a menu category (soft delete)"""
+        result = await self.db.execute(
+            select(MenuCategory).where(MenuCategory.category_id == category_id)
+        )
+        category = result.scalar_one_or_none()
+        if not category:
+            return False
+            
+        category.is_active = False
+        self.db.add(category)
+        await self.db.commit()
+        return True
     
     async def get_items_by_category(self, category_id: int) -> List[MenuItem]:
         """Get menu items by category"""
@@ -627,6 +682,46 @@ class MenuRepository:
             return True
         return False
 
+    async def update_menu_item(self, item_id: int, **kwargs) -> Optional[MenuItem]:
+        """Update a menu item"""
+        result = await self.db.execute(
+            select(MenuItem).where(MenuItem.menu_item_id == item_id)
+        )
+        item = result.scalar_one_or_none()
+        if not item:
+            return None
+        
+        for key, value in kwargs.items():
+            if value is not None:
+                setattr(item, key, value)
+                
+        self.db.add(item)
+        await self.db.commit()
+        await self.db.refresh(item)
+        
+        # Reload with extras preloaded
+        result = await self.db.execute(
+            select(MenuItem)
+            .where(MenuItem.menu_item_id == item_id)
+            .options(selectinload(MenuItem.extras))
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_menu_item(self, item_id: int) -> bool:
+        """Deactivate a menu item (soft delete)"""
+        result = await self.db.execute(
+            select(MenuItem).where(MenuItem.menu_item_id == item_id)
+        )
+        item = result.scalar_one_or_none()
+        if not item:
+            return False
+            
+        item.is_active = False
+        item.is_available = False
+        self.db.add(item)
+        await self.db.commit()
+        return True
+
 
 class RestaurantOrderRepository:
     """Repository for restaurant order operations"""
@@ -776,6 +871,32 @@ class ConferenceRepository:
         )
         return result.scalars().all()
     
+    async def create_hall(self, hall_name: str, capacity: int, hourly_rate, half_day_rate, full_day_rate, description: Optional[str] = None, amenities: Optional[str] = None) -> ConferenceHall:
+        """Create a new conference hall"""
+        hall = ConferenceHall(
+            hall_name=hall_name,
+            capacity=capacity,
+            hourly_rate=hourly_rate,
+            half_day_rate=half_day_rate,
+            full_day_rate=full_day_rate,
+            description=description,
+            amenities=amenities,
+            is_active=True
+        )
+        self.db.add(hall)
+        await self.db.commit()
+        await self.db.refresh(hall)
+        return hall
+    
+    async def get_all_reservations(self) -> List[ConferenceReservation]:
+        """Get all conference reservations"""
+        result = await self.db.execute(
+            select(ConferenceReservation)
+            .options(selectinload(ConferenceReservation.customer), selectinload(ConferenceReservation.hall))
+            .order_by(ConferenceReservation.created_at.desc())
+        )
+        return result.scalars().all()
+    
     async def get_hall_by_id(self, hall_id: int) -> Optional[ConferenceHall]:
         """Get hall by ID"""
         result = await self.db.execute(
@@ -808,7 +929,9 @@ class ConferenceRepository:
     async def get_reservation_by_id(self, conference_res_id: int) -> Optional[ConferenceReservation]:
         """Get reservation by ID"""
         result = await self.db.execute(
-            select(ConferenceReservation).where(ConferenceReservation.conference_res_id == conference_res_id)
+            select(ConferenceReservation)
+            .options(selectinload(ConferenceReservation.customer), selectinload(ConferenceReservation.hall))
+            .where(ConferenceReservation.conference_res_id == conference_res_id)
         )
         return result.scalar_one_or_none()
 

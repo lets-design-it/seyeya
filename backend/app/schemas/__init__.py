@@ -77,6 +77,7 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     is_staff: Optional[bool] = None
     is_active: Optional[bool] = None
+    role_ids: Optional[List[int]] = None
 
 
 class UserResponse(UserBase):
@@ -127,6 +128,8 @@ class CustomerBase(BaseModel):
     customer_type: Optional[str] = "Registered"
     is_contract_client: Optional[bool] = False
     is_active: Optional[bool] = True
+    is_child: Optional[bool] = False
+    parent_id: Optional[int] = None
 
 
 class CustomerCreate(CustomerBase):
@@ -149,6 +152,8 @@ class CustomerUpdate(BaseModel):
     customer_type: Optional[str] = None
     is_contract_client: Optional[bool] = None
     is_active: Optional[bool] = None
+    is_child: Optional[bool] = None
+    parent_id: Optional[int] = None
 
 
 class CustomerResponse(CustomerBase):
@@ -291,6 +296,14 @@ class MenuCategoryCreate(BaseModel):
     is_active: Optional[bool] = True
 
 
+class MenuCategoryUpdate(BaseModel):
+    category_name: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
 class MenuExtraResponse(BaseModel):
     extra_id: int
     extra_name: str
@@ -386,6 +399,19 @@ class MenuItemCreate(BaseModel):
     preparation_time: Optional[int] = None
     is_available: Optional[bool] = True
     is_active: Optional[bool] = True
+
+
+class MenuItemUpdate(BaseModel):
+    category_id: Optional[int] = None
+    item_name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[Decimal] = None
+    quantity: Optional[int] = None
+    image_url: Optional[str] = None
+    allergen_info: Optional[str] = None
+    preparation_time: Optional[int] = None
+    is_available: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 class MenuExtraCreate(BaseModel):
@@ -507,11 +533,13 @@ class RestaurantOrderResponse(BaseModel):
     total_amount: Decimal
     amount_paid: Decimal
     balance_due: Decimal
-    order_status: str
-    payment_status: str
+    order_status: Optional[str] = "Pending"
+    payment_status: Optional[str] = "Pending"
     items: List[OrderItemResponse]
     created_at: datetime
     updated_at: datetime
+    cancelled_at: Optional[datetime] = None
+    cancel_reason: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -599,6 +627,7 @@ class RoomPhotoResponse(BaseModel):
 
 class RoomResponse(BaseModel):
     room_id: int
+    room_category_id: int
     room_number: str
     floor: Optional[str] = None
     room_status: str
@@ -611,6 +640,48 @@ class RoomResponse(BaseModel):
         from_attributes = True
 
 
+class RoomCategoryCreate(BaseModel):
+    category_name: str
+    description: Optional[str] = None
+    base_rate_usd: Decimal
+    is_active: bool = True
+
+
+class RoomCategoryUpdate(BaseModel):
+    category_name: Optional[str] = None
+    description: Optional[str] = None
+    base_rate_usd: Optional[Decimal] = None
+    is_active: Optional[bool] = None
+
+
+class RoomCreate(BaseModel):
+    room_category_id: int
+    room_number: str
+    floor: Optional[str] = None
+    room_status: str = "Available"
+    max_occupancy: int = 2
+    description: Optional[str] = None
+    amenities: Optional[str] = None
+    is_active: bool = True
+
+
+class RoomUpdate(BaseModel):
+    room_category_id: Optional[int] = None
+    room_number: Optional[str] = None
+    floor: Optional[str] = None
+    room_status: Optional[str] = None
+    max_occupancy: Optional[int] = None
+    description: Optional[str] = None
+    amenities: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+
+class GuestReservationDetail(BaseModel):
+    customer_id: int
+    is_child: bool = False
+
+
 class AccommodationReservationCreate(BaseModel):
     customer_id: int
     room_id: int
@@ -619,6 +690,7 @@ class AccommodationReservationCreate(BaseModel):
     num_adults: int = 1
     num_children: int = 0
     special_requests: Optional[str] = None
+    guests: List[GuestReservationDetail] = []
 
 
 class GuestCheckInDetailCreate(BaseModel):
@@ -627,6 +699,21 @@ class GuestCheckInDetailCreate(BaseModel):
     phone_number: Optional[str] = None
     passport_number: Optional[str] = None
     is_primary: bool = False
+
+
+class GuestCheckInDetailResponse(BaseModel):
+    checkin_detail_id: int
+    guest_name: str
+    nationality: Optional[str] = None
+    phone_number: Optional[str] = None
+    passport_number: Optional[str] = None
+    nin: Optional[str] = None
+    is_primary: bool
+    is_child: bool
+    customer_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
 
 
 class AccommodationReservationUpdate(BaseModel):
@@ -650,6 +737,9 @@ class AccommodationReservationResponse(BaseModel):
     payment_status: str
     created_at: datetime
     updated_at: datetime
+    guest_name: Optional[str] = None
+    guest_email: Optional[str] = None
+    guest_details: List[GuestCheckInDetailResponse] = []
     
     class Config:
         from_attributes = True
@@ -658,6 +748,16 @@ class AccommodationReservationResponse(BaseModel):
 # =====================================================================
 # CONFERENCE SCHEMAS
 # =====================================================================
+
+class ConferenceHallCreate(BaseModel):
+    hall_name: str
+    capacity: int
+    hourly_rate: Optional[Decimal] = None
+    half_day_rate: Optional[Decimal] = None
+    full_day_rate: Optional[Decimal] = None
+    description: Optional[str] = None
+    amenities: Optional[str] = None
+
 
 class ConferenceHallResponse(BaseModel):
     hall_id: int
@@ -745,6 +845,8 @@ class ConferenceReservationResponse(BaseModel):
     payment_status: str
     created_at: datetime
     updated_at: datetime
+    customer: Optional[CustomerResponse] = None
+    hall: Optional[ConferenceHallResponse] = None
     
     class Config:
         from_attributes = True

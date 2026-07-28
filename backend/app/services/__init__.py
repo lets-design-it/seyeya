@@ -3,6 +3,7 @@ Service layer for business logic
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_
+from sqlalchemy.orm import selectinload
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
 from typing import Optional, Tuple, List
@@ -332,7 +333,9 @@ class CustomerService:
         total_spent: Decimal = Decimal(0),
         visit_count: int = 0,
         loyalty_points: int = 0,
-        is_active: bool = True
+        is_active: bool = True,
+        is_child: bool = False,
+        parent_id: Optional[int] = None
     ) -> Customer:
         """Create a new customer"""
         existing_customer = await self.repo.get_by_email_or_phone(email=email, phone_number=phone_number)
@@ -397,7 +400,9 @@ class CustomerService:
             total_spent=total_spent,
             visit_count=visit_count,
             loyalty_points=loyalty_points,
-            is_active=is_active
+            is_active=is_active,
+            is_child=is_child,
+            parent_id=parent_id
         )
         return customer
     
@@ -448,9 +453,25 @@ class CustomerService:
             "customer_id": cust.customer_id,
             "customer_code": cust.customer_code,
             "full_name": cust.full_name,
+            "email": cust.email,
+            "phone_number": cust.phone_number,
+            "gender": cust.gender,
+            "date_of_birth": cust.date_of_birth,
+            "nationality": cust.nationality,
+            "address": cust.address,
+            "nin": cust.nin,
+            "passport_number": cust.passport_number,
+            "customer_type": cust.customer_type,
+            "is_contract_client": cust.is_contract_client,
+            "is_active": cust.is_active,
+            "is_child": cust.is_child,
+            "parent_id": cust.parent_id,
             "total_spent": cust.total_spent,
             "visit_count": cust.visit_count,
             "loyalty_points": cust.loyalty_points,
+            "user_id": cust.user_id,
+            "created_at": cust.created_at,
+            "updated_at": cust.updated_at,
             "num_restaurant_orders": orders_count,
             "num_accommodation_reservations": acc_count,
             "num_conference_reservations": conf_count,
@@ -643,6 +664,21 @@ class RestaurantOrderService:
             
         return await self.get_order(order_id)
 
+    async def cancel_order(self, order_id: int, reason: Optional[str] = None) -> Optional[RestaurantOrder]:
+        """Cancel (soft delete) a restaurant order"""
+        order = await self.order_repo.get_by_id(order_id)
+        if not order:
+            return None
+            
+        order.order_status = "Cancelled"
+        order.cancelled_at = datetime.utcnow()
+        if reason:
+            order.cancel_reason = reason
+            
+        self.db.add(order)
+        await self.db.commit()
+        return await self.get_order(order_id)
+
     async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
         """Get orders for a customer"""
         return await self.order_repo.get_customer_orders(customer_id, skip=skip, limit=limit)
@@ -651,7 +687,12 @@ class RestaurantOrderService:
         """Get all restaurant orders"""
         result = await self.db.execute(
             select(RestaurantOrder)
-            .options(selectinload(RestaurantOrder.items))
+            .options(
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
+            )
             .offset(skip)
             .limit(limit)
         )
@@ -907,6 +948,20 @@ class UserService:
             if existing:
                 raise ValueError("User with this email already exists")
                 
+        # Update roles if role_ids are supplied
+        if "role_ids" in updates:
+            role_ids = updates.pop("role_ids")
+            if role_ids is not None:
+                current_role_ids = [r.role_id for r in user.roles]
+                if set(current_role_ids) != set(role_ids):
+                    # Clear roles and flush to avoid unique constraint conflict on insert
+                    user.roles = []
+                    await self.db.flush()
+                    # Re-assign new roles
+                    for role_id in role_ids:
+                        user_role = UserRole(user_id=user_id, role_id=role_id)
+                        user.roles.append(user_role)
+
         for field, value in updates.items():
             if value is not None:
                 if field == "password":

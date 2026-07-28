@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { useAuth, UserRole } from '../../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Briefcase, 
-  Settings, 
-  LogOut, 
-  Menu, 
-  X, 
-  ShieldAlert, 
-  ChevronLeft, 
+import {
+  LayoutDashboard,
+  Users,
+  Briefcase,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  ShieldAlert,
+  ChevronLeft,
   ChevronRight,
   Sun,
   Moon,
@@ -22,10 +22,10 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
-export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ 
-  activeTab, 
-  setActiveTab, 
-  children 
+export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
+  activeTab,
+  setActiveTab,
+  children
 }) => {
   const { user, logout, updateUserRole } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -88,10 +88,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   return (
     <div className="flex min-h-screen bg-card font-sans text-zinc-100 dark:bg-card light:bg-white light:text-zinc-900 transition-colors duration-250">
       {/* Sidebar */}
-      <aside 
-        className={`relative z-20 flex flex-col  light:border-zinc-200 bg-card/80 light:bg-zinc-50/80 backdrop-blur-xl transition-all duration-300 ${
-          isSidebarCollapsed ? 'w-[78px]' : 'w-[260px]'
-        }`}
+      <aside
+        className={`relative z-20 flex flex-col  light:border-zinc-200 bg-card/80 light:bg-zinc-50/80 backdrop-blur-xl transition-all duration-300 ${isSidebarCollapsed ? 'w-[78px]' : 'w-[260px]'
+          }`}
       >
         {/* Sidebar Header */}
         <div className="flex h-16 items-center justify-between px-4  light:border-zinc-200/60">
@@ -108,7 +107,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             )}
           </div>
 
-          <button 
+          <button
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
             className="hidden md:flex h-6 w-6 items-center justify-center rounded-md  light:border-zinc-300 hover:bg-zinc-100 light:hover:bg-zinc-150 text-zinc-550 hover:text-foreground transition-colors"
           >
@@ -125,15 +124,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`flex w-full items-center gap-3.5 rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-200 group relative ${
-                  isActive 
-                    ? 'bg-violet-600/10 text-violet-400 border-l-[3px] border-violet-500 pl-[11px]' 
-                    : 'text-zinc-550 hover:bg-zinc-100 hover:text-foreground light:text-zinc-600 light:hover:bg-zinc-100'
-                }`}
+                className={`flex w-full items-center gap-3.5 rounded-xl px-3.5 py-3 text-sm font-medium transition-all duration-200 group relative ${isActive
+                  ? 'bg-violet-600/10 text-violet-400 border-l-[3px] border-violet-500 pl-[11px]'
+                  : 'text-zinc-550 hover:bg-zinc-100 hover:text-foreground light:text-zinc-600 light:hover:bg-zinc-100'
+                  }`}
               >
                 <Icon className={`h-4.5 w-4.5 shrink-0 transition-transform duration-200 group-hover:scale-105 ${isActive ? 'text-violet-400' : 'text-zinc-500 light:text-zinc-550'}`} />
                 {!isSidebarCollapsed && <span>{item.label}</span>}
-                
+
                 {/* Collapsed Tooltip */}
                 {isSidebarCollapsed && (
                   <div className="pointer-events-none absolute left-16 z-30 rounded-md bg-zinc-100  px-2 py-1 text-xs text-zinc-100 opacity-0 shadow-md group-hover:opacity-100 transition-opacity whitespace-nowrap">
@@ -151,21 +149,21 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           {!isSidebarCollapsed && showRoleSwitcher && (
             <div className="mb-3 rounded-2xl  light:border-zinc-200 bg-card/90 light:bg-white p-2.5 shadow-xl animate-fade-in space-y-1">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 px-2 mb-1.5">Switch Identity</p>
-              <button 
+              <button
                 onClick={() => { updateUserRole('admin'); setShowRoleSwitcher(false); }}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground light:text-zinc-700 hover:bg-zinc-100 light:hover:bg-zinc-100 transition-colors"
               >
                 <div className="h-1.5 w-1.5 rounded-full bg-violet-400" />
                 Sarah Jenkins (Admin)
               </button>
-              <button 
+              <button
                 onClick={() => { updateUserRole('manager'); setShowRoleSwitcher(false); }}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground light:text-zinc-700 hover:bg-zinc-100 light:hover:bg-zinc-100 transition-colors"
               >
                 <div className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
                 Marcus Vance (Manager)
               </button>
-              <button 
+              <button
                 onClick={() => { updateUserRole('agent'); setShowRoleSwitcher(false); }}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground light:text-zinc-700 hover:bg-zinc-100 light:hover:bg-zinc-100 transition-colors"
               >
@@ -177,15 +175,15 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
           {/* User Card */}
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={() => !isSidebarCollapsed && setShowRoleSwitcher(!showRoleSwitcher)}
               className="relative shrink-0 group focus:outline-none"
               title="Click to Switch Roles"
             >
-              <img 
-                src={user.avatar} 
-                alt={user.name} 
-                className="h-9 w-9 rounded-xl  object-cover shadow-sm group-hover:border-violet-500 transition-colors" 
+              <img
+                src={user.avatar}
+                alt={user.name}
+                className="h-9 w-9 rounded-xl  object-cover shadow-sm group-hover:border-violet-500 transition-colors"
               />
               <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-zinc-950" />
             </button>
@@ -205,7 +203,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             )}
 
             {!isSidebarCollapsed && (
-              <button 
+              <button
                 onClick={logout}
                 className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-100 light:hover:bg-zinc-100 transition-colors focus:outline-none"
                 title="Logout Session"
@@ -235,7 +233,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           {/* Quick Actions Header */}
           <div className="flex items-center gap-3">
             {/* Theme Toggle */}
-            <button 
+            <button
               onClick={toggleTheme}
               className="h-9 w-9 rounded-xl  light:border-zinc-250 flex items-center justify-center text-zinc-550 hover:text-foreground light:hover:bg-zinc-100 transition-colors focus:outline-none"
               title="Toggle Light/Dark Theme"
