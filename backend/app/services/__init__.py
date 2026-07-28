@@ -87,6 +87,19 @@ class AuthService:
         self.db.add(session)
         await self.db.commit()
         
+        # Trigger notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.create_event(
+                event_type="Account Created",
+                reference_type="User",
+                reference_id=str(user.user_id),
+                triggered_by=user.user_id
+            )
+        except Exception as e:
+            pass
+            
         return user, access_token, refresh_token
     
     async def login_user(self, email: str, password: str, ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> Tuple[User, str, str]:
@@ -244,7 +257,20 @@ class AuthService:
         pwd_reset_repo = PasswordResetRepository(self.db)
         await pwd_reset_repo.create_token(user_id=user.user_id, token=token, expires_at=expires_at)
         
-        send_password_reset_email(email=user.email, full_name=user.full_name, reset_token=token)
+        # Trigger notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.create_event(
+                event_type="Password Reset Request",
+                reference_type="User",
+                reference_id=str(user.user_id),
+                triggered_by=user.user_id
+            )
+        except Exception as e:
+            # Fallback to old email send if notif service fails
+            send_password_reset_email(email=user.email, full_name=user.full_name, reset_token=token)
+            
         return True
 
     async def confirm_password_reset(self, token: str, new_password: str) -> bool:
@@ -266,6 +292,20 @@ class AuthService:
         self.db.add(user)
         
         await pwd_reset_repo.mark_used(token_obj)
+        
+        # Trigger notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.create_event(
+                event_type="Password Changed",
+                reference_type="User",
+                reference_id=str(user.user_id),
+                triggered_by=user.user_id
+            )
+        except Exception as e:
+            pass
+            
         return True
 
 
@@ -459,13 +499,18 @@ class RestaurantOrderService:
         self.order_repo = RestaurantOrderRepository(db)
         self.menu_repo = MenuRepository(db)
     
-    async def create_order(self, customer_id: Optional[int] = None, items_data: Optional[list] = None, delivery_option: str = "Premises") -> RestaurantOrder:
+    async def create_order(self, customer_id: Optional[int] = None, items_data: Optional[list] = None, delivery_option: str = "Premises", delivery_lat: Optional[Decimal] = None, delivery_lng: Optional[Decimal] = None, delivery_charge: Optional[Decimal] = None, delivery_address: Optional[str] = None, preferred_time: Optional[datetime] = None, special_instr: Optional[str] = None) -> RestaurantOrder:
         """Create a new restaurant order"""
         # Generate unique order number
         order_number = f"ORD-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
         
         order = await self.order_repo.create_order(order_number, customer_id)
         order.delivery_option = delivery_option
+        order.delivery_address = delivery_address
+        order.delivery_lat = delivery_lat
+        order.delivery_lng = delivery_lng
+        order.preferred_time = preferred_time
+        order.special_instr = special_instr
         
         # Add items to order
         if items_data:
@@ -553,11 +598,32 @@ class RestaurantOrderService:
                 self.db.add(order_item)
                 total += total_price
             
+            # Delivery fee is handled directly from the request payload
+            charge = Decimal(0)
+            if delivery_option == "Delivery":
+                if delivery_charge is not None:
+                    charge = delivery_charge
+                
+                order.delivery_charge = charge
+                
             order.sub_total = total
-            order.total_amount = total
+            order.total_amount = total + charge
         
         self.db.add(order)
         await self.db.commit()
+        
+        # Trigger notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.create_event(
+                event_type="Order Placed",
+                reference_type="RestaurantOrder",
+                reference_id=str(order.order_id)
+            )
+        except Exception as e:
+            pass
+            
         return await self.get_order(order.order_id)
     
     async def get_order(self, order_id: int) -> Optional[RestaurantOrder]:
@@ -573,6 +639,29 @@ class RestaurantOrderService:
         order.order_status = new_status
         self.db.add(order)
         await self.db.commit()
+        
+        # Trigger notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            event_type = f"Order {new_status}"
+            if new_status == "Processing":
+                event_type = "Order Being Prepared"
+            elif new_status == "Ready":
+                event_type = "Order Ready"
+            elif new_status in ["Completed", "Delivered"]:
+                event_type = "Order Delivered"
+            elif new_status == "Cancelled":
+                event_type = "Order Cancelled"
+                
+            await notif_service.create_event(
+                event_type=event_type,
+                reference_type="RestaurantOrder",
+                reference_id=str(order_id)
+            )
+        except Exception as e:
+            pass
+            
         return await self.get_order(order_id)
 
     async def cancel_order(self, order_id: int, reason: Optional[str] = None) -> Optional[RestaurantOrder]:
@@ -622,6 +711,18 @@ class AccommodationService:
             num_nights, rate_per_night, total_amount, reservation_code
         )
         
+        # Trigger notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.create_event(
+                event_type="Reservation Created",
+                reference_type="AccommodationReservation",
+                reference_id=str(reservation.reservation_id)
+            )
+        except Exception as e:
+            pass
+            
         return reservation
     
     async def get_reservation(self, reservation_id: int) -> Optional[AccommodationReservation]:
@@ -771,6 +872,20 @@ class PaymentService:
         self.db.add(payment)
         await self.db.commit()
         await self.db.refresh(payment)
+        
+        # Trigger notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.create_event(
+                event_type="Payment Successful",
+                reference_type="Payment",
+                reference_id=str(payment.payment_id),
+                triggered_by=verified_by
+            )
+        except Exception as e:
+            pass
+            
         return payment
 
 

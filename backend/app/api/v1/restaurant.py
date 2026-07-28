@@ -8,8 +8,9 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 from app.schemas import (
     RestaurantOrderCreate, RestaurantOrderResponse, RestaurantOrderUpdate,
-    MenuCategoryResponse, MenuCategoryCreate, MenuCategoryUpdate, MenuItemResponse, MenuItemCreate, MenuItemUpdate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse,
-    MenuChoiceCreate, MenuChoiceUpdate, MenuChoiceResponse, MenuAccompanimentCreate, MenuAccompanimentUpdate, MenuAccompanimentResponse, MenuExtraUpdate
+    MenuCategoryResponse, MenuCategoryCreate, MenuItemResponse, MenuItemCreate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse,
+    MenuChoiceCreate, MenuChoiceUpdate, MenuChoiceResponse, MenuAccompanimentCreate, MenuAccompanimentUpdate, MenuAccompanimentResponse, MenuExtraUpdate,
+    DeliveryPricingCreate, DeliveryPricingUpdate, DeliveryPricingResponse, DeliveryCalculationRequest, DeliveryCalculationResponse
 )
 from app.services import RestaurantOrderService
 from app.repositories import MenuRepository, ReviewRepository
@@ -309,14 +310,17 @@ async def create_order(
         order = await service.create_order(
             customer_id=request.customer_id,
             items_data=[item.model_dump() for item in request.items],
-            delivery_option=request.delivery_option
+            delivery_option=request.delivery_option,
+            delivery_lat=request.delivery_lat,
+            delivery_lng=request.delivery_lng,
+            delivery_charge=request.delivery_charge,
+            delivery_address=request.delivery_address,
+            preferred_time=request.preferred_time,
+            special_instr=request.special_instr
         )
         
         # Set additional fields
         order.seating_location = request.seating_location
-        order.delivery_address = request.delivery_address
-        order.preferred_time = request.preferred_time
-        order.special_instr = request.special_instr
         
         db.add(order)
         await db.commit()
@@ -462,3 +466,135 @@ async def get_order_reviews(
     repo = ReviewRepository(db)
     reviews = await repo.get_for_reference("Restaurant", order_id)
     return reviews
+
+
+# =====================================================================
+# Delivery Pricing Endpoints
+# =====================================================================
+
+@router.get("/delivery-pricing/active", response_model=DeliveryPricingResponse)
+async def get_active_delivery_pricing(db: AsyncSession = Depends(get_db)):
+    """Get the active delivery pricing configuration (public/app endpoint)"""
+    from sqlalchemy.future import select
+    from app.models import DeliveryPricing
+    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True))
+    pricing = res.scalar_one_or_none()
+    if not pricing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active delivery pricing found")
+    return pricing
+
+
+@router.post("/delivery-pricing/calculate", response_model=DeliveryCalculationResponse)
+async def calculate_delivery_pricing(request: DeliveryCalculationRequest, db: AsyncSession = Depends(get_db)):
+    """Calculate the delivery fee for a given location"""
+    from sqlalchemy.future import select
+    from app.models import DeliveryPricing
+    from app.utils.haversine import calculate_haversine_distance
+    from decimal import Decimal
+    
+    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True))
+    pricing = res.scalar_one_or_none()
+    
+    if not pricing:
+        return DeliveryCalculationResponse(
+            is_deliverable=False,
+            message="Delivery is currently unavailable (no active pricing)"
+        )
+        
+    distance_km = calculate_haversine_distance(
+        float(pricing.restaurant_lat), float(pricing.restaurant_lng),
+        float(request.delivery_lat), float(request.delivery_lng)
+    )
+    
+    if pricing.maximum_delivery_distance_km and Decimal(distance_km) > pricing.maximum_delivery_distance_km:
+        return DeliveryCalculationResponse(
+            is_deliverable=False,
+            distance_km=round(Decimal(distance_km), 2),
+            message=f"Delivery address is too far. Maximum delivery distance is {pricing.maximum_delivery_distance_km} km"
+        )
+        
+    calculated_fee = Decimal(distance_km) * pricing.price_per_km
+    if pricing.minimum_delivery_fee and calculated_fee < pricing.minimum_delivery_fee:
+        calculated_fee = pricing.minimum_delivery_fee
+        
+    return DeliveryCalculationResponse(
+        is_deliverable=True,
+        distance_km=round(Decimal(distance_km), 2),
+        price_per_km=pricing.price_per_km,
+        delivery_charge=round(calculated_fee, 2),
+        message="Delivery available"
+    )
+
+
+@router.get("/admin/delivery-pricing", response_model=List[DeliveryPricingResponse])
+async def get_all_delivery_pricing(db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Get all delivery pricing configurations (admin)"""
+    from sqlalchemy.future import select
+    from app.models import DeliveryPricing
+    res = await db.execute(select(DeliveryPricing).order_by(DeliveryPricing.pricing_id.desc()))
+    return res.scalars().all()
+
+
+@router.post("/admin/delivery-pricing", response_model=DeliveryPricingResponse, status_code=status.HTTP_201_CREATED)
+async def create_delivery_pricing(request: DeliveryPricingCreate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Create a new delivery pricing configuration (admin)"""
+    from sqlalchemy.future import select
+    from sqlalchemy import update
+    from app.models import DeliveryPricing
+    
+    # If this is active, deactivate all others
+    if request.is_active:
+        await db.execute(
+            update(DeliveryPricing).values(is_active=False)
+        )
+        
+    pricing = DeliveryPricing(**request.model_dump())
+    db.add(pricing)
+    await db.commit()
+    await db.refresh(pricing)
+    return pricing
+
+
+@router.put("/admin/delivery-pricing/{pricing_id}", response_model=DeliveryPricingResponse)
+async def update_delivery_pricing(pricing_id: int, request: DeliveryPricingUpdate, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Update a delivery pricing configuration (admin)"""
+    from sqlalchemy.future import select
+    from sqlalchemy import update
+    from app.models import DeliveryPricing
+    
+    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.pricing_id == pricing_id))
+    pricing = res.scalar_one_or_none()
+    
+    if not pricing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Delivery pricing not found")
+        
+    # If making this active, deactivate all others
+    update_data = request.model_dump(exclude_unset=True)
+    if update_data.get('is_active') is True:
+        await db.execute(
+            update(DeliveryPricing).where(DeliveryPricing.pricing_id != pricing_id).values(is_active=False)
+        )
+        
+    for key, value in update_data.items():
+        setattr(pricing, key, value)
+        
+    await db.commit()
+    await db.refresh(pricing)
+    return pricing
+
+
+@router.delete("/admin/delivery-pricing/{pricing_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_delivery_pricing(pricing_id: int, db: AsyncSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    """Delete a delivery pricing configuration (admin)"""
+    from sqlalchemy.future import select
+    from app.models import DeliveryPricing
+    
+    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.pricing_id == pricing_id))
+    pricing = res.scalar_one_or_none()
+    
+    if not pricing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Delivery pricing not found")
+        
+    await db.delete(pricing)
+    await db.commit()
+

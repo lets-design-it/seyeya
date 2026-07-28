@@ -746,7 +746,16 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.order_id == order_id)
+<<<<<<< HEAD
             .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
+=======
+            .options(
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
+            )
+>>>>>>> origin/main
         )
         return result.scalar_one_or_none()
     
@@ -755,7 +764,16 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.order_number == order_number)
+<<<<<<< HEAD
             .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
+=======
+            .options(
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
+            )
+>>>>>>> origin/main
         )
         return result.scalar_one_or_none()
     
@@ -764,7 +782,16 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.customer_id == customer_id)
+<<<<<<< HEAD
             .options(selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item))
+=======
+            .options(
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
+            )
+>>>>>>> origin/main
             .offset(skip)
             .limit(limit)
         )
@@ -889,13 +916,14 @@ class ConferenceRepository:
         )
         return result.scalar_one_or_none()
     
-    async def create_reservation(self, customer_id: int, hall_id: int, event_name: str, event_date, start_time, end_time, num_participants: int, booking_type: str, reservation_code: str, total_amount) -> ConferenceReservation:
+    async def create_reservation(self, customer_id: int, hall_id: int, event_name: str, event_start_date, event_end_date, start_time, end_time, num_participants: int, booking_type: str, reservation_code: str, total_amount) -> ConferenceReservation:
         """Create a new conference reservation"""
         reservation = ConferenceReservation(
             customer_id=customer_id,
             hall_id=hall_id,
             event_name=event_name,
-            event_date=event_date,
+            event_start_date=event_start_date,
+            event_end_date=event_end_date,
             start_time=start_time,
             end_time=end_time,
             num_participants=num_participants,

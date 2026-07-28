@@ -450,6 +450,9 @@ class RestaurantOrderCreate(BaseModel):
     seating_location: Optional[str] = None
     delivery_option: str = "Premises"
     delivery_address: Optional[str] = None
+    delivery_lat: Optional[Decimal] = None
+    delivery_lng: Optional[Decimal] = None
+    delivery_charge: Optional[Decimal] = None
     preferred_time: Optional[datetime] = None
     special_instr: Optional[str] = None
     items: List[OrderItemCreate]
@@ -459,6 +462,44 @@ class RestaurantOrderUpdate(BaseModel):
     order_status: Optional[str] = None
     payment_status: Optional[str] = None
     amount_paid: Optional[Decimal] = None
+
+
+class OrderItemExtraResponse(BaseModel):
+    order_item_extra_id: int
+    extra_id: int
+    quantity: int
+    unit_price: Decimal
+    total_price: Decimal
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuItemSummary(BaseModel):
+    menu_item_id: int
+    name: str
+    price: Decimal
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuChoiceSummary(BaseModel):
+    choice_id: int
+    name: str
+    price: Optional[Decimal] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuAccompanimentSummary(BaseModel):
+    accompaniment_id: int
+    name: str
+    price: Optional[Decimal] = None
+    
+    class Config:
+        from_attributes = True
 
 
 class OrderItemResponse(BaseModel):
@@ -471,6 +512,11 @@ class OrderItemResponse(BaseModel):
     choice_id: Optional[int] = None
     accompaniment_id: Optional[int] = None
     
+    menu_item: Optional[MenuItemSummary] = None
+    choice: Optional[MenuChoiceSummary] = None
+    accompaniment: Optional[MenuAccompanimentSummary] = None
+    extras: List[OrderItemExtraResponse] = []
+    
     class Config:
         from_attributes = True
 
@@ -480,7 +526,14 @@ class RestaurantOrderResponse(BaseModel):
     customer_id: Optional[int] = None
     order_number: str
     seating_location: Optional[str] = None
+<<<<<<< HEAD
     delivery_option: Optional[str] = "Premises"
+=======
+    delivery_option: str
+    delivery_distance_km: Decimal
+    price_per_km_used: Decimal
+    delivery_charge: Decimal
+>>>>>>> origin/main
     total_amount: Decimal
     amount_paid: Decimal
     balance_due: Decimal
@@ -494,6 +547,52 @@ class RestaurantOrderResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class DeliveryPricingCreate(BaseModel):
+    restaurant_lat: Decimal
+    restaurant_lng: Decimal
+    price_per_km: Decimal
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: Optional[bool] = True
+
+
+class DeliveryPricingUpdate(BaseModel):
+    restaurant_lat: Optional[Decimal] = None
+    restaurant_lng: Optional[Decimal] = None
+    price_per_km: Optional[Decimal] = None
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: Optional[bool] = None
+
+
+class DeliveryPricingResponse(BaseModel):
+    pricing_id: int
+    restaurant_lat: Decimal
+    restaurant_lng: Decimal
+    price_per_km: Decimal
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class DeliveryCalculationRequest(BaseModel):
+    delivery_lat: Decimal
+    delivery_lng: Decimal
+
+
+class DeliveryCalculationResponse(BaseModel):
+    is_deliverable: bool
+    distance_km: Optional[Decimal] = None
+    price_per_km: Optional[Decimal] = None
+    delivery_charge: Optional[Decimal] = None
+    message: str
 
 
 class CustomerOrdersResponse(BaseModel):
@@ -714,7 +813,8 @@ class ConferenceReservationCreate(BaseModel):
     customer_id: int
     hall_id: int
     event_name: str
-    event_date: date
+    event_start_date: date
+    event_end_date: date
     start_time: time
     end_time: time
     num_participants: int
@@ -736,7 +836,8 @@ class ConferenceReservationResponse(BaseModel):
     hall_id: int
     reservation_code: str
     event_name: str
-    event_date: date
+    event_start_date: date
+    event_end_date: date
     start_time: time
     end_time: time
     booking_type: str
@@ -1302,3 +1403,106 @@ class HotelDetailsUpdate(BaseModel):
         if not phone_regex.match(v):
             raise ValueError("Invalid phone number format")
         return v
+
+
+# =====================================================================
+# NOTIFICATION SCHEMAS
+# =====================================================================
+
+from uuid import UUID
+
+class NotificationEventResponse(BaseModel):
+    id: UUID
+    event_type: str
+    reference_type: Optional[str] = None
+    reference_id: Optional[str] = None
+    triggered_by: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationResponse(BaseModel):
+    id: UUID
+    event_id: Optional[UUID] = None
+    recipient_id: int
+    title: str
+    message: str
+    notification_type: Optional[str] = None
+    category: str
+    priority: str
+    channel: str
+    status: str
+    is_read: Optional[bool] = False
+    read_at: Optional[datetime] = None
+    action_url: Optional[str] = None
+    reference_type: Optional[str] = None
+    reference_id: Optional[str] = None
+    email_sent: Optional[bool] = False
+    email_sent_at: Optional[datetime] = None
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationPreferenceResponse(BaseModel):
+    id: UUID
+    user_id: int
+    email_enabled: Optional[bool] = True
+    in_app_enabled: Optional[bool] = True
+    reservation_notifications: Optional[bool] = True
+    order_notifications: Optional[bool] = True
+    payment_notifications: Optional[bool] = True
+    security_notifications: Optional[bool] = True
+    marketing_notifications: Optional[bool] = True
+    system_notifications: Optional[bool] = True
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationPreferenceUpdate(BaseModel):
+    email_enabled: Optional[bool] = None
+    in_app_enabled: Optional[bool] = None
+    reservation_notifications: Optional[bool] = None
+    order_notifications: Optional[bool] = None
+    payment_notifications: Optional[bool] = None
+    security_notifications: Optional[bool] = None
+    marketing_notifications: Optional[bool] = None
+    system_notifications: Optional[bool] = None
+
+
+class AdminSendNotificationRequest(BaseModel):
+    recipient_id: int
+    title: str
+    message: str
+    notification_type: Optional[str] = "AdminAlert"
+    category: Optional[str] = "General"
+    priority: Optional[str] = "NORMAL"
+    channel: Optional[str] = "IN_APP"  # IN_APP, EMAIL
+    action_url: Optional[str] = None
+
+
+class AdminBroadcastNotificationRequest(BaseModel):
+    recipient_group: str  # all_customers, all_managers, all_staff, all_admins, role_name
+    role_name: Optional[str] = None
+    title: str
+    message: str
+    category: Optional[str] = "General"
+    priority: Optional[str] = "NORMAL"
+    channel: Optional[str] = "IN_APP"  # IN_APP, EMAIL
+    action_url: Optional[str] = None
+
+
+class NotificationStatistics(BaseModel):
+    total_count: int
+    unread_count: int
+    read_count: int
+    archived_count: int
+    deleted_count: int
+    category_counts: dict
+
