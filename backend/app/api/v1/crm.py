@@ -16,7 +16,7 @@ from app.services import CustomerService, RestaurantOrderService, AuthService
 router = APIRouter(prefix="/api/v1/crm", tags=["crm"])
 
 
-@router.post("/customers", response_model=CustomerResponse)
+@router.post("/customers", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
 async def create_customer(
     request: CustomerCreate,
     db: AsyncSession = Depends(get_db),
@@ -40,7 +40,9 @@ async def create_customer(
             total_spent=request.total_spent,
             visit_count=request.visit_count,
             loyalty_points=request.loyalty_points,
-            is_active=request.is_active
+            is_active=request.is_active,
+            is_child=request.is_child,
+            parent_id=request.parent_id
         )
         return customer
     except Exception as e:
@@ -106,14 +108,28 @@ async def update_customer(
         )
     
     # Update only provided fields
-    if request.full_name:
+    if request.full_name is not None:
         customer.full_name = request.full_name
-    if request.phone_number:
+    if request.phone_number is not None:
         customer.phone_number = request.phone_number
-    if request.email:
+    if request.email is not None:
         customer.email = request.email
-    if request.address:
+    if request.address is not None:
         customer.address = request.address
+    if request.is_child is not None:
+        customer.is_child = request.is_child
+    if request.nationality is not None:
+        customer.nationality = request.nationality
+    if request.nin is not None:
+        customer.nin = request.nin
+    if request.passport_number is not None:
+        customer.passport_number = request.passport_number
+    if request.gender is not None:
+        customer.gender = request.gender
+    if request.date_of_birth is not None:
+        customer.date_of_birth = request.date_of_birth
+    if request.parent_id is not None:
+        customer.parent_id = request.parent_id
     
     db.add(customer)
     await db.commit()

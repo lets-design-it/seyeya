@@ -293,7 +293,9 @@ class CustomerService:
         total_spent: Decimal = Decimal(0),
         visit_count: int = 0,
         loyalty_points: int = 0,
-        is_active: bool = True
+        is_active: bool = True,
+        is_child: bool = False,
+        parent_id: Optional[int] = None
     ) -> Customer:
         """Create a new customer"""
         existing_customer = await self.repo.get_by_email_or_phone(email=email, phone_number=phone_number)
@@ -358,7 +360,9 @@ class CustomerService:
             total_spent=total_spent,
             visit_count=visit_count,
             loyalty_points=loyalty_points,
-            is_active=is_active
+            is_active=is_active,
+            is_child=is_child,
+            parent_id=parent_id
         )
         return customer
     
@@ -420,6 +424,8 @@ class CustomerService:
             "customer_type": cust.customer_type,
             "is_contract_client": cust.is_contract_client,
             "is_active": cust.is_active,
+            "is_child": cust.is_child,
+            "parent_id": cust.parent_id,
             "total_spent": cust.total_spent,
             "visit_count": cust.visit_count,
             "loyalty_points": cust.loyalty_points,

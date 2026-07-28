@@ -7,16 +7,16 @@ import { Input } from '../../components/Input';
 import { Modal } from '../../components/Modal';
 import { Button as ShadcnButton } from "@/components/ui/button";
 import { Input as ShadcnInput } from "@/components/ui/input";
-import { 
-  User as UserIcon, 
-  Mail, 
-  Phone, 
-  Lock, 
-  UserPlus, 
-  Shield, 
-  Check, 
-  Search, 
-  Trash2, 
+import {
+  User as UserIcon,
+  Mail,
+  Phone,
+  Lock,
+  UserPlus,
+  Shield,
+  Check,
+  Search,
+  Trash2,
   AlertCircle,
   Pencil,
   ChevronLeft,
@@ -71,7 +71,7 @@ interface BackendRole {
 
 export const UserManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
-  
+
   // States
   const [users, setUsers] = useState<BackendUser[]>([]);
   const [roles, setRoles] = useState<BackendRole[]>([]);
@@ -81,8 +81,10 @@ export const UserManagement: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState('');
 
   // Pagination states
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5); // Show 5 users per page
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
 
   // Provision modal form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -110,7 +112,7 @@ export const UserManagement: React.FC = () => {
   const [isFetchingUser, setIsFetchingUser] = useState(false);
 
   useEffect(() => {
-    setCurrentPage(1);
+    setPagination(p => ({ ...p, pageIndex: 0 }));
   }, [searchTerm]);
 
   // Fetch initial data
@@ -192,13 +194,13 @@ export const UserManagement: React.FC = () => {
       };
 
       await api.post('/auth/register', payload);
-      
+
       setSuccessMsg(`Successfully provisioned user "${formName}"`);
       setIsModalOpen(false);
-      
+
       // Auto-clear success message
       setTimeout(() => setSuccessMsg(''), 5000);
-      
+
       // Refresh list
       fetchData();
     } catch (err: any) {
@@ -360,8 +362,8 @@ export const UserManagement: React.FC = () => {
           <div className="flex flex-wrap gap-1">
             {u.roles && u.roles.length > 0 ? (
               u.roles.map(r => (
-                <span 
-                  key={r} 
+                <span
+                  key={r}
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide leading-none capitalize ${getRoleStyle(u.roles)}`}
                 >
                   {r}
@@ -427,15 +429,12 @@ export const UserManagement: React.FC = () => {
     columns,
     state: {
       columnVisibility,
+      pagination,
     },
     onColumnVisibilityChange: setColumnVisibility,
+    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 5,
-      }
-    }
   });
 
   return (
@@ -443,10 +442,10 @@ export const UserManagement: React.FC = () => {
       {/* Top Banner/Title */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-dark dark:text-white tracking-tight">Identity & Provisioning</h3>
+          <h3 className="text-xl font-bold text-dark dark:text-white tracking-tight">Staff</h3>
           <p className="text-xs text-zinc-500">Manage workspace identities, credentials, and system role access controls.</p>
         </div>
-        <ShadcnButton 
+        <ShadcnButton
           onClick={handleOpenModal}
           className="bg-black! text-white! hover:bg-black/90! font-bold px-4 py-5 rounded-xl border-none shadow-xs cursor-pointer flex items-center gap-1.5 h-11"
         >
@@ -517,8 +516,8 @@ export const UserManagement: React.FC = () => {
                       {column.id === "full_name"
                         ? "Name"
                         : column.id === "is_active"
-                        ? "Status"
-                        : column.id}
+                          ? "Status"
+                          : column.id}
                     </DropdownMenuCheckboxItem>
                   )
                 })}
@@ -549,9 +548,9 @@ export const UserManagement: React.FC = () => {
                         {header.isPlaceholder
                           ? null
                           : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -756,7 +755,7 @@ export const UserManagement: React.FC = () => {
                     <DrawerTitle className="text-base font-bold">Identity Details</DrawerTitle>
                     <DrawerDescription className="text-xs text-zinc-500">Update credentials and access levels</DrawerDescription>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setIsDrawerOpen(false)}
                     className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all cursor-pointer"
                   >

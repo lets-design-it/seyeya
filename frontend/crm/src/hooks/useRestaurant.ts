@@ -13,6 +13,7 @@ export interface MenuExtra {
 export interface MenuChoice {
   choice_id?: number;
   choice_name: string;
+  price?: number | null;
   is_available: boolean;
 }
 
@@ -44,6 +45,7 @@ export interface MenuItem {
 
 export interface RestaurantOrder {
   id: string;
+  orderNumber: string;
   table: string;
   items: string;
   status: 'Pending' | 'Preparing' | 'Ready' | 'Completed';
@@ -105,6 +107,7 @@ export const useRestaurant = () => {
         choices: (item.choices || []).map((c: any) => ({
           choice_id: c.choice_id,
           choice_name: c.choice_name,
+          price: c.price ? Number(c.price) : null,
           is_available: c.is_available
         })),
         accompaniments: (item.accompaniments || []).map((a: any) => ({
@@ -136,6 +139,7 @@ export const useRestaurant = () => {
 
         return {
           id: String(o.order_id),
+          orderNumber: o.order_number || String(o.order_id),
           table: o.seating_location || 'Table',
           items: itemsStr,
           status: o.order_status || 'Pending',
@@ -238,6 +242,7 @@ export const useRestaurant = () => {
         for (const choice of item.choices) {
           await api.post(`/restaurant/menu/items/${itemId}/choices`, {
             choice_name: choice.choice_name,
+            price: choice.price ? Number(choice.price) : null,
             is_available: choice.is_available
           });
         }
@@ -335,14 +340,20 @@ export const useRestaurant = () => {
           // Add new
           await api.post(`/restaurant/menu/items/${item.id}/choices`, {
             choice_name: nc.choice_name,
+            price: nc.price ? Number(nc.price) : null,
             is_available: nc.is_available
           });
         } else {
           // Check if modified
           const orig = originalChoices.find(oc => oc.choice_id === nc.choice_id);
-          if (orig && (orig.choice_name !== nc.choice_name || orig.is_available !== nc.is_available)) {
+          if (orig && (
+            orig.choice_name !== nc.choice_name || 
+            orig.is_available !== nc.is_available ||
+            orig.price !== nc.price
+          )) {
             await api.patch(`/restaurant/menu/choices/${nc.choice_id}`, {
               choice_name: nc.choice_name,
+              price: nc.price ? Number(nc.price) : null,
               is_available: nc.is_available
             });
           }

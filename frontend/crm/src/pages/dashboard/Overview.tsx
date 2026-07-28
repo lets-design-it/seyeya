@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAnalytics } from '../../hooks/useAnalytics';
 import {
   TrendingUp,
@@ -33,6 +33,11 @@ import {
 
 export const Overview: React.FC = () => {
   const analytics = useAnalytics();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const COLORS = ['#1771F1', '#3b82f6', '#10b981', '#ec4899'];
 
@@ -139,35 +144,37 @@ export const Overview: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={analytics.monthlyTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorLodge" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1771F1" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#1771F1" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" opacity={0.25} />
-                <XAxis dataKey="name" stroke="#71717a" fontSize={9} tickLine={false} />
-                <YAxis stroke="#71717a" fontSize={9} tickLine={false} tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
-                <Tooltip
-                  formatter={(value: any) => [`UGX ${value.toLocaleString()}`]}
-                  contentStyle={{
-                    backgroundColor: 'rgba(9, 9, 11, 0.95)',
-                    borderColor: 'rgba(255, 255, 255, 0.08)',
-                    borderRadius: '12px',
-                    fontSize: '10px'
-                  }}
-                />
-                <Area type="monotone" dataKey="Lodge" stroke="#1771F1" strokeWidth={2} fillOpacity={1} fill="url(#colorLodge)" />
-                <Area type="monotone" dataKey="Events" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorEvents)" />
-                <Area type="monotone" dataKey="Restaurant" stroke="#10b981" strokeWidth={1.5} fillOpacity={0} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isMounted && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <AreaChart data={analytics.monthlyTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorLodge" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#1771F1" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#1771F1" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorEvents" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" opacity={0.25} />
+                  <XAxis dataKey="name" stroke="#71717a" fontSize={9} tickLine={false} />
+                  <YAxis stroke="#71717a" fontSize={9} tickLine={false} tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
+                  <Tooltip
+                    formatter={(value: any) => [`UGX ${value.toLocaleString()}`]}
+                    contentStyle={{
+                      backgroundColor: 'rgba(9, 9, 11, 0.95)',
+                      borderColor: 'rgba(255, 255, 255, 0.08)',
+                      borderRadius: '12px',
+                      fontSize: '10px'
+                    }}
+                  />
+                  <Area type="monotone" dataKey="Lodge" stroke="#1771F1" strokeWidth={2} fillOpacity={1} fill="url(#colorLodge)" />
+                  <Area type="monotone" dataKey="Events" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorEvents)" />
+                  <Area type="monotone" dataKey="Restaurant" stroke="#10b981" strokeWidth={1.5} fillOpacity={0} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 

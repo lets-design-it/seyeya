@@ -68,10 +68,10 @@ import {
 } from 'lucide-react';
 
 export const MenuEditor: React.FC = () => {
-  const { 
-    menu, 
-    addMenuItem, 
-    updateMenuItem, 
+  const {
+    menu,
+    addMenuItem,
+    updateMenuItem,
     deleteMenuItem,
     categories,
     addCategory,
@@ -171,7 +171,7 @@ export const MenuEditor: React.FC = () => {
   };
 
   const handleAddChoice = () => {
-    setChoices([...choices, { choice_name: '', is_available: true }]);
+    setChoices([...choices, { choice_name: '', price: null, is_available: true }]);
   };
 
   const handleChoiceChange = (index: number, field: string, value: any) => {
@@ -266,7 +266,7 @@ export const MenuEditor: React.FC = () => {
   const filteredMenu = React.useMemo(() => {
     return menu.filter(item => {
       const matchSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          item.description.toLowerCase().includes(searchTerm.toLowerCase());
+        item.description.toLowerCase().includes(searchTerm.toLowerCase());
       const matchCategory = filterCategory === 'ALL' || item.category === filterCategory;
       const matchAvailability = filterAvailability === 'ALL' ||
         (filterAvailability === 'AVAILABLE' && item.is_available) ||
@@ -354,12 +354,11 @@ export const MenuEditor: React.FC = () => {
       accessorKey: 'is_available',
       header: 'Availability',
       cell: ({ row }) => (
-        <Badge 
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            row.original.is_available 
-              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
+        <Badge
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.original.is_available
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+            }`}
         >
           {row.original.is_available ? 'Available' : 'Sold Out'}
         </Badge>
@@ -370,12 +369,11 @@ export const MenuEditor: React.FC = () => {
       accessorKey: 'is_active',
       header: 'Catalog Status',
       cell: ({ row }) => (
-        <Badge 
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            row.original.is_active 
-              ? 'bg-zinc-100 text-zinc-700 border border-zinc-300' 
-              : 'bg-amber-50 text-amber-700 border border-amber-300'
-          }`}
+        <Badge
+          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.original.is_active
+            ? 'bg-zinc-100 text-zinc-700 border border-zinc-300'
+            : 'bg-amber-50 text-amber-700 border border-amber-300'
+            }`}
         >
           {row.original.is_active ? 'Active' : 'Archived'}
         </Badge>
@@ -434,18 +432,18 @@ export const MenuEditor: React.FC = () => {
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-dark tracking-tight">Restaurant Menu Manager</h3>
-          <p className="text-xs text-zinc-550">Create, adjust, and archive food or drink listings on the Nile Eatery checkout app.</p>
+          <h3 className="text-xl font-bold text-dark tracking-tight">Menu</h3>
+          <p className="text-xs text-zinc-550">Create, adjust, and archive food or drink listings on the Seyeya Courts Mobile app.</p>
         </div>
         <div className="flex items-center gap-2">
-          <ShadcnButton 
+          <ShadcnButton
             variant="outline"
             onClick={() => setIsCategoryModalOpen(true)}
             className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer h-10 shadow-sm"
           >
             Manage Categories
           </ShadcnButton>
-          <ShadcnButton 
+          <ShadcnButton
             onClick={openAddModal}
             className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none"
           >
@@ -546,14 +544,14 @@ export const MenuEditor: React.FC = () => {
                         {column.id === 'priceUGX'
                           ? 'Price (UGX)'
                           : column.id === 'priceUSD'
-                          ? 'Price (USD)'
-                          : column.id === 'preparation_time'
-                          ? 'Prep Time'
-                          : column.id === 'is_available'
-                          ? 'Availability'
-                          : column.id === 'is_active'
-                          ? 'Active Status'
-                          : column.id}
+                            ? 'Price (USD)'
+                            : column.id === 'preparation_time'
+                              ? 'Prep Time'
+                              : column.id === 'is_available'
+                                ? 'Availability'
+                                : column.id === 'is_active'
+                                  ? 'Active Status'
+                                  : column.id}
                       </DropdownMenuCheckboxItem>
                     )
                   })}
@@ -577,7 +575,7 @@ export const MenuEditor: React.FC = () => {
             <p className="text-xs text-zinc-500 mt-1 max-w-xs mx-auto">
               We couldn't find any dishes or drinks matching the active filter parameters.
             </p>
-            <ShadcnButton 
+            <ShadcnButton
               onClick={openAddModal}
               className="mt-4 flex items-center gap-1.5 mx-auto bg-black! text-white! hover:bg-black/90! rounded-xl px-4.5 py-2 text-xs font-bold cursor-pointer h-9 shadow-sm border-none"
             >
@@ -596,9 +594,9 @@ export const MenuEditor: React.FC = () => {
                         {header.isPlaceholder
                           ? null
                           : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -818,9 +816,9 @@ export const MenuEditor: React.FC = () => {
               <div className="space-y-3 p-3 bg-zinc-50/70 rounded-2xl border border-zinc-150 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-zinc-700">Choices / Options</span>
-                  <ShadcnButton 
-                    type="button" 
-                    variant="ghost" 
+                  <ShadcnButton
+                    type="button"
+                    variant="ghost"
                     onClick={handleAddChoice}
                     className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs"
                   >
@@ -832,31 +830,46 @@ export const MenuEditor: React.FC = () => {
                 ) : (
                   <div className="space-y-2.5">
                     {choices.map((choice, idx) => (
-                      <div key={idx} className="flex items-center gap-2 bg-white p-2.5 rounded-xl border border-zinc-150 shadow-2xs">
-                        <input
-                          type="text"
-                          placeholder="e.g. Medium Rare"
-                          value={choice.choice_name}
-                          onChange={(e) => handleChoiceChange(idx, 'choice_name', e.target.value)}
-                          className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-foreground outline-hidden focus:border-zinc-950 font-medium"
-                          required
-                        />
-                        <label className="flex items-center gap-1 text-[10px] text-zinc-500 font-bold select-none cursor-pointer">
+                      <div key={idx} className="space-y-2 bg-white p-2.5 rounded-xl border border-zinc-150 shadow-2xs">
+                        <div className="flex items-center gap-2">
                           <input
-                            type="checkbox"
-                            checked={choice.is_available}
-                            onChange={(e) => handleChoiceChange(idx, 'is_available', e.target.checked)}
-                            className="rounded border-zinc-300 text-black cursor-pointer h-3.5 w-3.5"
+                            type="text"
+                            placeholder="e.g. Medium Rare"
+                            value={choice.choice_name}
+                            onChange={(e) => handleChoiceChange(idx, 'choice_name', e.target.value)}
+                            className="flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs text-foreground outline-hidden focus:border-zinc-950 font-medium"
+                            required
                           />
-                          Available
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveChoice(idx)}
-                          className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveChoice(idx)}
+                            className="text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-zinc-450 font-bold shrink-0">Price UGX</span>
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="Free"
+                              value={choice.price ?? ''}
+                              onChange={(e) => handleChoiceChange(idx, 'price', e.target.value ? Number(e.target.value) : null)}
+                              className="w-24 rounded-lg border border-zinc-200 bg-white px-2 py-0.5 text-[10px] text-foreground outline-hidden focus:border-zinc-950"
+                            />
+                          </div>
+                          <label className="flex items-center gap-1 text-[10px] text-zinc-550 font-bold select-none cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={choice.is_available}
+                              onChange={(e) => handleChoiceChange(idx, 'is_available', e.target.checked)}
+                              className="rounded border-zinc-300 text-black cursor-pointer h-3.5 w-3.5"
+                            />
+                            Available
+                          </label>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -867,9 +880,9 @@ export const MenuEditor: React.FC = () => {
               <div className="space-y-3 p-3 bg-zinc-50/70 rounded-2xl border border-zinc-150 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-zinc-700">Accompaniments (Sides)</span>
-                  <ShadcnButton 
-                    type="button" 
-                    variant="ghost" 
+                  <ShadcnButton
+                    type="button"
+                    variant="ghost"
                     onClick={handleAddAccompaniment}
                     className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs"
                   >
@@ -931,9 +944,9 @@ export const MenuEditor: React.FC = () => {
               <div className="space-y-3 p-3 bg-zinc-50/70 rounded-2xl border border-zinc-150 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-zinc-700">Extras / Add-ons</span>
-                  <ShadcnButton 
-                    type="button" 
-                    variant="ghost" 
+                  <ShadcnButton
+                    type="button"
+                    variant="ghost"
                     onClick={handleAddExtra}
                     className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs"
                   >
@@ -1004,15 +1017,15 @@ export const MenuEditor: React.FC = () => {
             </div>
 
             <div className="pt-4 flex justify-end gap-2.5 border-t border-zinc-150">
-              <ShadcnButton 
-                type="button" 
+              <ShadcnButton
+                type="button"
                 variant="outline"
                 onClick={() => setIsOpen(false)}
                 className="font-semibold px-4.5 py-2.5 rounded-xl cursor-pointer"
               >
                 Cancel
               </ShadcnButton>
-              <ShadcnButton 
+              <ShadcnButton
                 type="submit"
                 className="bg-black! text-white! hover:bg-black/90! font-bold px-6 py-2.5 rounded-xl shadow-sm border-none cursor-pointer"
               >
@@ -1025,7 +1038,7 @@ export const MenuEditor: React.FC = () => {
 
       {/* Sliding Details Drawer Backdrop Overlay */}
       {selectedItem && (
-        <div 
+        <div
           className="fixed inset-0 z-30 bg-zinc-950/15 backdrop-blur-xs transition-opacity duration-300"
           onClick={() => setSelectedItem(null)}
         />
@@ -1033,9 +1046,8 @@ export const MenuEditor: React.FC = () => {
 
       {/* Sliding Details Drawer */}
       <div
-        className={`fixed inset-y-0 right-0 z-40 w-full sm:max-w-md bg-card shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col border-l border-zinc-100 ${
-          selectedItem ? 'translate-x-0' : 'translate-x-full'
-        }`}
+        className={`fixed inset-y-0 right-0 z-40 w-full sm:max-w-md bg-card shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col border-l border-zinc-100 ${selectedItem ? 'translate-x-0' : 'translate-x-full'
+          }`}
       >
         {selectedItem && (
           <div className="flex flex-col h-full font-sans">
@@ -1128,7 +1140,14 @@ export const MenuEditor: React.FC = () => {
                     <div className="mt-1.5 space-y-1.5">
                       {selectedItem.choices.map((c, i) => (
                         <div key={i} className="flex justify-between items-center bg-zinc-50 p-2.5 rounded-xl border border-zinc-150 text-xs shadow-2xs">
-                          <span className="font-semibold text-zinc-700">{c.choice_name}</span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold text-zinc-700">{c.choice_name}</span>
+                            {c.price ? (
+                              <span className="text-[10px] text-zinc-450 font-bold">+UGX {c.price.toLocaleString()}</span>
+                            ) : (
+                              <span className="text-[10px] text-zinc-450 font-semibold">Free option</span>
+                            )}
+                          </div>
                           <span className={`text-[10px] font-bold ${c.is_available ? 'text-emerald-600' : 'text-red-500'}`}>
                             {c.is_available ? 'Available' : 'Sold Out'}
                           </span>
@@ -1246,7 +1265,7 @@ export const MenuEditor: React.FC = () => {
                 <DrawerTitle className="text-base font-bold">Manage Menu Categories</DrawerTitle>
                 <DrawerDescription className="text-xs text-zinc-500">Create, adjust, and archive menu groupings.</DrawerDescription>
               </div>
-              <button 
+              <button
                 onClick={() => {
                   setIsCategoryModalOpen(false);
                   setCategoryError(null);

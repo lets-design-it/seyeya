@@ -11,6 +11,7 @@ export interface User {
   avatar: string;
   joinedDate: string;
   token?: string;
+  refreshToken?: string;
 }
 
 interface AuthContextType {
@@ -107,6 +108,7 @@ const mapBackendRolesToUserRole = (roles: string[] | undefined): UserRole => {
         avatar: baseUser?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
         joinedDate: baseUser?.joinedDate || new Date().toISOString().split('T')[0],
         token: data.access_token,
+        refreshToken: data.refresh_token,
       };
 
       setUser(loggedInUser);
@@ -121,8 +123,35 @@ const mapBackendRolesToUserRole = (roles: string[] | undefined): UserRole => {
   };
 
   const logout = () => {
+    const savedUser = localStorage.getItem('seyeya_crm_user');
+    let refreshToken = '';
+    let accessToken = '';
+    
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        refreshToken = parsed.refreshToken;
+        accessToken = parsed.token;
+      } catch (e) {
+        // ignore
+      }
+    }
+
     setUser(null);
     localStorage.removeItem('seyeya_crm_user');
+
+    if (refreshToken) {
+      api.post('/auth/logout', 
+        { refresh_token: refreshToken },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken || 'mock-jwt-token'}`
+          }
+        }
+      ).catch((err) => {
+        console.error("API logout failed:", err);
+      });
+    }
   };
 
   const updateUserRole = (role: UserRole) => {
@@ -144,6 +173,48 @@ const mapBackendRolesToUserRole = (roles: string[] | undefined): UserRole => {
       localStorage.setItem('seyeya_crm_user', JSON.stringify(MOCK_USERS[role]));
     }
   };
+
+  // Listen for 401 unauthorized errors to clear user state
+  useEffect(() => {
+    const handleAuthRequired = () => {
+      setUser(null);
+      localStorage.removeItem('seyeya_crm_user');
+    };
+    window.addEventListener('seyeya_auth_required', handleAuthRequired);
+    return () => {
+      window.removeEventListener('seyeya_auth_required', handleAuthRequired);
+    };
+  }, []);
+
+  // Inactivity auto-logout hook: automatically logs the user out after 15 minutes of inactivity
+  useEffect(() => {
+    if (!user) return;
+
+    let timeoutId: any;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        logout();
+      }, 15 * 60 * 1000); // 15 minutes
+    };
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+
+    activityEvents.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    // Initialize timer
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      activityEvents.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUserRole }}>

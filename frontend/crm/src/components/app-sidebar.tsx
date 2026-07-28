@@ -35,13 +35,13 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
   if (!user) return null;
 
   const menuItems = [
-    { id: 'overview', label: 'Executive Hub', icon: LayoutDashboard, roles: ['admin', 'manager'] },
-    { id: 'orders', label: 'Kitchen Queue', icon: ShoppingBag, roles: ['admin', 'manager', 'agent'] },
-    { id: 'rooms', label: 'Rooms Grid', icon: Bed, roles: ['admin', 'manager', 'agent'] },
-    { id: 'conferences', label: 'Event Planner', icon: CalendarRange, roles: ['admin', 'manager'] },
-    { id: 'clients', label: 'Guests CRM', icon: Users, roles: ['admin', 'manager', 'agent'] },
-    { id: 'menu-editor', label: 'Restaurant Menu', icon: Utensils, roles: ['admin', 'manager'] },
-    { id: 'users', label: 'User Provisioning', icon: Shield, roles: ['admin'] },
+    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager'] },
+    { id: 'orders', label: 'Orders', icon: ShoppingBag, roles: ['admin', 'manager', 'agent'] },
+    { id: 'rooms', label: 'Rooms', icon: Bed, roles: ['admin', 'manager', 'agent'] },
+    { id: 'conferences', label: 'Conferences', icon: CalendarRange, roles: ['admin', 'manager'] },
+    { id: 'clients', label: 'Guests', icon: Users, roles: ['admin', 'manager', 'agent'] },
+    { id: 'menu-editor', label: 'Menu', icon: Utensils, roles: ['admin', 'manager'] },
+    { id: 'users', label: 'Staff', icon: Shield, roles: ['admin'] },
   ];
 
   const allowedMenuItems = menuItems.filter(item => item.roles.includes(user.role));

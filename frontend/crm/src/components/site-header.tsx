@@ -8,13 +8,13 @@ interface SiteHeaderProps {
 export function SiteHeader({ activeTab }: SiteHeaderProps) {
   const getTabLabel = (tab: string) => {
     switch (tab) {
-      case 'overview': return 'Executive Hub'
-      case 'orders': return 'Kitchen Queue'
-      case 'rooms': return 'Rooms Grid'
-      case 'conferences': return 'Event Planner'
-      case 'clients': return 'Guests CRM'
-      case 'menu-editor': return 'Restaurant Menu'
-      case 'users': return 'User Provisioning'
+      case 'overview': return 'Dashboard'
+      case 'orders': return 'Orders'
+      case 'rooms': return 'Rooms'
+      case 'conferences': return 'Conferences'
+      case 'clients': return 'Guests'
+      case 'menu-editor': return 'Menu'
+      case 'users': return 'Staff'
       default: return 'Seyeya CRM'
     }
   }

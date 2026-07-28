@@ -211,6 +211,8 @@ class Customer(Base):
     nationality = Column(String(100))
     address = Column(String(300))
     is_active = Column(Boolean, default=True)
+    is_child = Column(Boolean, default=False)
+    parent_id = Column(Integer, ForeignKey("customers.customer_id"), nullable=True)
     is_contract_client = Column(Boolean, default=False)
     total_spent = Column(DECIMAL(18, 2), default=0)
     loyalty_points = Column(Integer, default=0)
@@ -534,6 +536,7 @@ class GuestCheckInDetail(Base):
     
     checkin_detail_id = Column(Integer, primary_key=True)
     reservation_id = Column(Integer, ForeignKey("accommodation_reservations.reservation_id"), nullable=False)
+    customer_id = Column(Integer, ForeignKey("customers.customer_id"), nullable=True)
     guest_name = Column(String(200), nullable=False)
     nationality = Column(String(100))
     phone_number = Column(String(20))
@@ -542,6 +545,7 @@ class GuestCheckInDetail(Base):
     passport_number = Column(String(30))
     nin = Column(String(20))
     is_primary = Column(Boolean, default=False)
+    is_child = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships

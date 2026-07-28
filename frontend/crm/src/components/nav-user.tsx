@@ -19,13 +19,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/context/AuthContext"
-import { 
-  EllipsisVerticalIcon, 
-  LogOutIcon, 
-  Shield, 
-  Users, 
-  Briefcase, 
-  UserCircle 
+import {
+  EllipsisVerticalIcon,
+  LogOutIcon,
+  Shield,
+  Users,
+  Briefcase,
+  UserCircle
 } from "lucide-react"
 
 export function NavUser() {
@@ -95,9 +95,9 @@ export function NavUser() {
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuGroup>
+            {/* <DropdownMenuSeparator /> */}
+
+            {/* <DropdownMenuGroup>
               <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                 Switch Identity
               </div>
@@ -113,8 +113,8 @@ export function NavUser() {
                 <Briefcase className="mr-2 h-4 w-4 text-rose-500" />
                 <span>Elena Rostova (Agent)</span>
               </DropdownMenuItem>
-            </DropdownMenuGroup>
-            
+            </DropdownMenuGroup> */}
+
             <DropdownMenuSeparator />
             <DropdownMenuItem className="cursor-pointer text-red-500 focus:text-red-600 focus:bg-red-50" onClick={logout}>
               <LogOutIcon className="mr-2 h-4 w-4" />

@@ -10,12 +10,44 @@ from app.db.database import get_db
 from app.core.security import get_current_user
 from app.schemas import (
     ConferenceReservationCreate, ConferenceReservationResponse, ConferenceReservationUpdate,
-    ConferenceHallResponse, ConferenceResourceResponse, ConferenceMealPackageResponse
+    ConferenceHallResponse, ConferenceResourceResponse, ConferenceMealPackageResponse,
+    ConferenceHallCreate
 )
 from app.repositories import ConferenceRepository
 from app.models import ConferenceHall, ConferenceResource, ConferenceMealPackage, ConferenceResourceBooking, ConferenceMealBooking
 
 router = APIRouter(prefix="/api/v1/conference", tags=["conference"])
+
+
+@router.post("/halls", response_model=ConferenceHallResponse, status_code=status.HTTP_201_CREATED)
+async def create_hall(
+    request: ConferenceHallCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new conference hall"""
+    repo = ConferenceRepository(db)
+    hall = await repo.create_hall(
+        hall_name=request.hall_name,
+        capacity=request.capacity,
+        hourly_rate=request.hourly_rate,
+        half_day_rate=request.half_day_rate,
+        full_day_rate=request.full_day_rate,
+        description=request.description,
+        amenities=request.amenities
+    )
+    return hall
+
+
+@router.get("/reservations", response_model=List[ConferenceReservationResponse])
+async def list_reservations(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all conference reservations"""
+    repo = ConferenceRepository(db)
+    reservations = await repo.get_all_reservations()
+    return reservations
 
 
 @router.get("/halls", response_model=List[ConferenceHallResponse])

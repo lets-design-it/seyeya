@@ -2,25 +2,25 @@ import React, { useState } from 'react';
 import { useRestaurant, RestaurantOrder, MenuItem } from '../../hooks/useRestaurant';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
-import { 
-  ShoppingBag, 
-  ChevronRight, 
-  Clock, 
-  ChefHat, 
-  CheckSquare, 
-  Plus, 
-  X, 
-  DollarSign 
+import {
+  ShoppingBag,
+  ChevronRight,
+  Clock,
+  ChefHat,
+  CheckSquare,
+  Plus,
+  X,
+  DollarSign
 } from 'lucide-react';
 
 const COLUMNS: RestaurantOrder['status'][] = ['Pending', 'Preparing', 'Ready', 'Completed'];
 
 export const Orders: React.FC = () => {
-  const { 
-    orders, 
-    updateOrderStatus, 
-    menu, 
-    createRestaurantOrder, 
+  const {
+    orders,
+    updateOrderStatus,
+    menu,
+    createRestaurantOrder,
     updateRestaurantOrder,
     cancelRestaurantOrder
   } = useRestaurant();
@@ -68,11 +68,11 @@ export const Orders: React.FC = () => {
     if (existing) {
       setCartItems(cartItems.map(c => c.menu_item_id === itemId ? { ...c, quantity: c.quantity + 1 } : c));
     } else {
-      setCartItems([...cartItems, { 
-        menu_item_id: itemId, 
-        quantity: 1, 
-        name: item.name, 
-        price: item.priceUGX 
+      setCartItems([...cartItems, {
+        menu_item_id: itemId,
+        quantity: 1,
+        name: item.name,
+        price: item.priceUGX
       }]);
     }
   };
@@ -95,8 +95,8 @@ export const Orders: React.FC = () => {
       return;
     }
 
-    const finalTable = deliveryOption === 'Delivery' 
-      ? 'Delivery' 
+    const finalTable = deliveryOption === 'Delivery'
+      ? 'Delivery'
       : (table === 'Other' ? customTable.trim() : table);
 
     if (deliveryOption === 'Premises' && !finalTable) {
@@ -160,7 +160,7 @@ export const Orders: React.FC = () => {
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-dark tracking-tight">Kitchen & Restaurant Queue</h3>
+          <h3 className="text-xl font-bold text-dark tracking-tight">Orders</h3>
           <p className="text-xs text-zinc-550">Monitor and progress culinary ticket orders submitted by guests.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -266,7 +266,7 @@ export const Orders: React.FC = () => {
               <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
                 Create New Restaurant Order
               </h3>
-              <button 
+              <button
                 onClick={() => {
                   setIsCreateOpen(false);
                   setCreateError(null);
@@ -390,8 +390,8 @@ export const Orders: React.FC = () => {
                       {menu
                         .filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()) && item.is_available !== false)
                         .map(item => (
-                          <div 
-                            key={item.id} 
+                          <div
+                            key={item.id}
                             onClick={() => addToCart(item)}
                             className="p-2 rounded-xl border border-zinc-100 hover:border-violet-400 cursor-pointer transition-colors flex items-center justify-between gap-2"
                           >
@@ -418,7 +418,7 @@ export const Orders: React.FC = () => {
                         </div>
                       ) : (
                         cartItems.map(item => (
-                          <div 
+                          <div
                             key={item.menu_item_id}
                             className="p-2 rounded-xl border border-zinc-100/60 bg-white flex items-center justify-between gap-2"
                           >
@@ -427,7 +427,7 @@ export const Orders: React.FC = () => {
                               <p className="text-[10px] text-zinc-450 font-bold mt-0.5">UGX {(item.price * item.quantity).toLocaleString()}</p>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => removeFromCart(item.menu_item_id)}
                                 className="w-5 h-5 rounded-lg border border-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-500 hover:bg-zinc-50 cursor-pointer"
@@ -437,7 +437,7 @@ export const Orders: React.FC = () => {
                               <span className="text-xs font-bold text-foreground min-w-[12px] text-center">
                                 {item.quantity}
                               </span>
-                              <button 
+                              <button
                                 type="button"
                                 onClick={() => addToCart({ id: String(item.menu_item_id), name: item.name, priceUGX: item.price } as MenuItem)}
                                 className="w-5 h-5 rounded-lg border border-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-500 hover:bg-zinc-50 cursor-pointer"
@@ -469,10 +469,10 @@ export const Orders: React.FC = () => {
                     Ticket Details
                   </h3>
                   <p className="text-[10px] font-bold text-zinc-400 uppercase mt-0.5">
-                    Order ID: #{selectedOrder.id}
+                    Order Number: {selectedOrder.orderNumber}
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     setSelectedOrder(null);
                     setEditError(null);
@@ -544,7 +544,7 @@ export const Orders: React.FC = () => {
 
                 <div className="border-t border-zinc-100/60 pt-4 space-y-4">
                   <h4 className="text-[11px] font-bold text-zinc-700 uppercase tracking-wider">Status & Payment Adjustments</h4>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 mb-1.5">Ticket Status</label>
@@ -616,7 +616,7 @@ export const Orders: React.FC = () => {
                 <button
                   type="button"
                   onClick={async () => {
-                    if (window.confirm(`Are you sure you want to cancel Order #${selectedOrder.id}?`)) {
+                    if (window.confirm(`Are you sure you want to cancel Order ${selectedOrder.orderNumber}?`)) {
                       try {
                         await cancelRestaurantOrder(selectedOrder.id);
                         setSelectedOrder(null);
