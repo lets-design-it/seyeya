@@ -478,13 +478,18 @@ class RestaurantOrderService:
         self.order_repo = RestaurantOrderRepository(db)
         self.menu_repo = MenuRepository(db)
     
-    async def create_order(self, customer_id: Optional[int] = None, items_data: Optional[list] = None, delivery_option: str = "Premises") -> RestaurantOrder:
+    async def create_order(self, customer_id: Optional[int] = None, items_data: Optional[list] = None, delivery_option: str = "Premises", delivery_lat: Optional[Decimal] = None, delivery_lng: Optional[Decimal] = None, delivery_charge: Optional[Decimal] = None, delivery_address: Optional[str] = None, preferred_time: Optional[datetime] = None, special_instr: Optional[str] = None) -> RestaurantOrder:
         """Create a new restaurant order"""
         # Generate unique order number
         order_number = f"ORD-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
         
         order = await self.order_repo.create_order(order_number, customer_id)
         order.delivery_option = delivery_option
+        order.delivery_address = delivery_address
+        order.delivery_lat = delivery_lat
+        order.delivery_lng = delivery_lng
+        order.preferred_time = preferred_time
+        order.special_instr = special_instr
         
         # Add items to order
         if items_data:
@@ -572,8 +577,16 @@ class RestaurantOrderService:
                 self.db.add(order_item)
                 total += total_price
             
+            # Delivery fee is handled directly from the request payload
+            charge = Decimal(0)
+            if delivery_option == "Delivery":
+                if delivery_charge is not None:
+                    charge = delivery_charge
+                
+                order.delivery_charge = charge
+                
             order.sub_total = total
-            order.total_amount = total
+            order.total_amount = total + charge
         
         self.db.add(order)
         await self.db.commit()

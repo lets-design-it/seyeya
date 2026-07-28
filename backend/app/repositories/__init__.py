@@ -651,7 +651,12 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.order_id == order_id)
-            .options(selectinload(RestaurantOrder.items))
+            .options(
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
+            )
         )
         return result.scalar_one_or_none()
     
@@ -660,7 +665,12 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.order_number == order_number)
-            .options(selectinload(RestaurantOrder.items))
+            .options(
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
+            )
         )
         return result.scalar_one_or_none()
     
@@ -669,7 +679,12 @@ class RestaurantOrderRepository:
         result = await self.db.execute(
             select(RestaurantOrder)
             .where(RestaurantOrder.customer_id == customer_id)
-            .options(selectinload(RestaurantOrder.items))
+            .options(
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
+            )
             .offset(skip)
             .limit(limit)
         )

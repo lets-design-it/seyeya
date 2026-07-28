@@ -424,6 +424,9 @@ class RestaurantOrderCreate(BaseModel):
     seating_location: Optional[str] = None
     delivery_option: str = "Premises"
     delivery_address: Optional[str] = None
+    delivery_lat: Optional[Decimal] = None
+    delivery_lng: Optional[Decimal] = None
+    delivery_charge: Optional[Decimal] = None
     preferred_time: Optional[datetime] = None
     special_instr: Optional[str] = None
     items: List[OrderItemCreate]
@@ -433,6 +436,44 @@ class RestaurantOrderUpdate(BaseModel):
     order_status: Optional[str] = None
     payment_status: Optional[str] = None
     amount_paid: Optional[Decimal] = None
+
+
+class OrderItemExtraResponse(BaseModel):
+    order_item_extra_id: int
+    extra_id: int
+    quantity: int
+    unit_price: Decimal
+    total_price: Decimal
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuItemSummary(BaseModel):
+    menu_item_id: int
+    name: str
+    price: Decimal
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuChoiceSummary(BaseModel):
+    choice_id: int
+    name: str
+    price: Optional[Decimal] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuAccompanimentSummary(BaseModel):
+    accompaniment_id: int
+    name: str
+    price: Optional[Decimal] = None
+    
+    class Config:
+        from_attributes = True
 
 
 class OrderItemResponse(BaseModel):
@@ -445,6 +486,11 @@ class OrderItemResponse(BaseModel):
     choice_id: Optional[int] = None
     accompaniment_id: Optional[int] = None
     
+    menu_item: Optional[MenuItemSummary] = None
+    choice: Optional[MenuChoiceSummary] = None
+    accompaniment: Optional[MenuAccompanimentSummary] = None
+    extras: List[OrderItemExtraResponse] = []
+    
     class Config:
         from_attributes = True
 
@@ -455,6 +501,9 @@ class RestaurantOrderResponse(BaseModel):
     order_number: str
     seating_location: Optional[str] = None
     delivery_option: str
+    delivery_distance_km: Decimal
+    price_per_km_used: Decimal
+    delivery_charge: Decimal
     total_amount: Decimal
     amount_paid: Decimal
     balance_due: Decimal
@@ -466,6 +515,52 @@ class RestaurantOrderResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class DeliveryPricingCreate(BaseModel):
+    restaurant_lat: Decimal
+    restaurant_lng: Decimal
+    price_per_km: Decimal
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: Optional[bool] = True
+
+
+class DeliveryPricingUpdate(BaseModel):
+    restaurant_lat: Optional[Decimal] = None
+    restaurant_lng: Optional[Decimal] = None
+    price_per_km: Optional[Decimal] = None
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: Optional[bool] = None
+
+
+class DeliveryPricingResponse(BaseModel):
+    pricing_id: int
+    restaurant_lat: Decimal
+    restaurant_lng: Decimal
+    price_per_km: Decimal
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class DeliveryCalculationRequest(BaseModel):
+    delivery_lat: Decimal
+    delivery_lng: Decimal
+
+
+class DeliveryCalculationResponse(BaseModel):
+    is_deliverable: bool
+    distance_km: Optional[Decimal] = None
+    price_per_km: Optional[Decimal] = None
+    delivery_charge: Optional[Decimal] = None
+    message: str
 
 
 class CustomerOrdersResponse(BaseModel):
