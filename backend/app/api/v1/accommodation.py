@@ -42,7 +42,14 @@ async def get_all_rooms_list(
     from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(Room)
-        .options(selectinload(Room.photos))
+        .options(
+            selectinload(Room.category),
+            selectinload(Room.beds),
+            selectinload(Room.views),
+            selectinload(Room.bathroom_features),
+            selectinload(Room.room_facilities),
+            selectinload(Room.images)
+        )
         .order_by(Room.room_number)
     )
     return result.scalars().all()
@@ -426,39 +433,96 @@ async def create_room_unit(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Create a new room unit"""
-    from app.models import Room, RoomCategory
+    """Create a new room unit with beds, views, bathroom features, facilities, and images"""
+    from app.models import Room, RoomCategory, RoomBed, RoomView, RoomBathroomFeature, RoomFacility, RoomImage
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import selectinload
+
     # Verify category exists
     cat_check = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == request.room_category_id))
     if not cat_check.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Room category not found")
 
-    room = Room(
-        room_category_id=request.room_category_id,
-        room_number=request.room_number,
-        floor=request.floor,
-        room_status=request.room_status,
-        max_occupancy=request.max_occupancy,
-        description=request.description,
-        amenities=request.amenities,
-        is_active=request.is_active
-    )
-    
-    from sqlalchemy.exc import IntegrityError
+    # Check room_number uniqueness
+    existing = await db.execute(select(Room).where(Room.room_number == request.room_number))
+    if existing.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Room number '{request.room_number}' already exists. Please choose a unique room number."
+        )
+
     try:
+        room = Room(
+            room_category_id=request.room_category_id,
+            room_number=request.room_number,
+            room_name=request.room_name,
+            building=request.building,
+            wing=request.wing,
+            floor=request.floor,
+            room_size=request.room_size,
+            room_size_unit=request.room_size_unit,
+            room_status=request.room_status,
+            max_occupancy=request.max_occupancy,
+            description=request.description,
+            amenities=request.amenities,
+            is_active=request.is_active
+        )
         db.add(room)
+        await db.flush()
+
+        # Save beds
+        for bed in request.beds:
+            db.add(RoomBed(room_id=room.room_id, bed_type=bed.type, quantity=bed.quantity))
+
+        # Save views
+        for view_name in request.views:
+            db.add(RoomView(room_id=room.room_id, view_name=view_name))
+
+        # Save bathroom features
+        for feature_name in request.bathroom_features:
+            db.add(RoomBathroomFeature(room_id=room.room_id, feature_name=feature_name))
+
+        # Save facilities
+        for facility_name in request.room_facilities:
+            db.add(RoomFacility(room_id=room.room_id, facility_name=facility_name))
+
+        # Save images
+        for idx, img in enumerate(request.images):
+            if isinstance(img, str):
+                image_url = img
+                is_primary = (idx == 0)
+            else:
+                image_url = img.url
+                is_primary = img.is_primary if hasattr(img, 'is_primary') else (idx == 0)
+            db.add(RoomImage(room_id=room.room_id, image_url=image_url, display_order=idx, is_primary=is_primary))
+
         await db.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Room number '{room.room_number}' already exists. Please choose a unique room number."
+            detail=f"Integrity error creating room: {str(e.orig) if hasattr(e, 'orig') else str(e)}"
+        )
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to create room: {str(e)}"
         )
 
-    await db.refresh(room)
-    # Refresh to load empty photos relationship
-    from sqlalchemy.orm import selectinload
-    result = await db.execute(select(Room).where(Room.room_id == room.room_id).options(selectinload(Room.photos)))
+    # Reload with full options
+    result = await db.execute(
+        select(Room)
+        .where(Room.room_id == room.room_id)
+        .options(
+            selectinload(Room.category),
+            selectinload(Room.beds),
+            selectinload(Room.views),
+            selectinload(Room.bathroom_features),
+            selectinload(Room.room_facilities),
+            selectinload(Room.images)
+        )
+    )
     return result.scalar_one()
 
 
@@ -469,24 +533,54 @@ async def update_room_unit(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update room unit details"""
-    from app.models import Room, RoomCategory
+    """Update room unit details and child collections"""
+    from app.models import Room, RoomCategory, RoomBed, RoomView, RoomBathroomFeature, RoomFacility, RoomImage
+    from sqlalchemy import delete
+    from sqlalchemy.exc import IntegrityError
     from sqlalchemy.orm import selectinload
-    result = await db.execute(select(Room).where(Room.room_id == room_id).options(selectinload(Room.photos)))
+
+    result = await db.execute(
+        select(Room)
+        .where(Room.room_id == room_id)
+        .options(
+            selectinload(Room.beds),
+            selectinload(Room.views),
+            selectinload(Room.bathroom_features),
+            selectinload(Room.room_facilities),
+            selectinload(Room.images)
+        )
+    )
     room = result.scalar_one_or_none()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
-        
+
     if request.room_category_id is not None:
         cat_check = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == request.room_category_id))
         if not cat_check.scalar_one_or_none():
             raise HTTPException(status_code=404, detail="Room category not found")
         room.room_category_id = request.room_category_id
-        
-    if request.room_number is not None:
+
+    if request.room_number is not None and request.room_number != room.room_number:
+        dup_check = await db.execute(select(Room).where(Room.room_number == request.room_number))
+        if dup_check.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Room number '{request.room_number}' already exists. Please choose a unique room number."
+            )
         room.room_number = request.room_number
+
+    if request.room_name is not None:
+        room.room_name = request.room_name
+    if request.building is not None:
+        room.building = request.building
+    if request.wing is not None:
+        room.wing = request.wing
     if request.floor is not None:
         room.floor = request.floor
+    if request.room_size is not None:
+        room.room_size = request.room_size
+    if request.room_size_unit is not None:
+        room.room_size_unit = request.room_size_unit
     if request.room_status is not None:
         room.room_status = request.room_status
     if request.max_occupancy is not None:
@@ -497,20 +591,67 @@ async def update_room_unit(
         room.amenities = request.amenities
     if request.is_active is not None:
         room.is_active = request.is_active
-        
-    from sqlalchemy.exc import IntegrityError
+
     try:
+        if request.beds is not None:
+            room.beds.clear()
+            for bed in request.beds:
+                room.beds.append(RoomBed(room_id=room_id, bed_type=bed.type, quantity=bed.quantity))
+
+        if request.views is not None:
+            room.views.clear()
+            for view_name in request.views:
+                room.views.append(RoomView(room_id=room_id, view_name=view_name))
+
+        if request.bathroom_features is not None:
+            room.bathroom_features.clear()
+            for feature_name in request.bathroom_features:
+                room.bathroom_features.append(RoomBathroomFeature(room_id=room_id, feature_name=feature_name))
+
+        if request.room_facilities is not None:
+            room.room_facilities.clear()
+            for facility_name in request.room_facilities:
+                room.room_facilities.append(RoomFacility(room_id=room_id, facility_name=facility_name))
+
+        if request.images is not None:
+            room.images.clear()
+            for idx, img in enumerate(request.images):
+                if isinstance(img, str):
+                    image_url = img
+                    is_primary = (idx == 0)
+                else:
+                    image_url = img.url
+                    is_primary = img.is_primary if hasattr(img, 'is_primary') else (idx == 0)
+                room.images.append(RoomImage(room_id=room_id, image_url=image_url, display_order=idx, is_primary=is_primary))
+
         db.add(room)
         await db.commit()
-    except IntegrityError:
+    except IntegrityError as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Room number '{room.room_number}' already exists. Please choose a unique room number."
+            detail=f"Integrity error updating room: {str(e.orig) if hasattr(e, 'orig') else str(e)}"
         )
-        
-    await db.refresh(room)
-    return room
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to update room: {str(e)}"
+        )
+
+    res = await db.execute(
+        select(Room)
+        .where(Room.room_id == room_id)
+        .options(
+            selectinload(Room.category),
+            selectinload(Room.beds),
+            selectinload(Room.views),
+            selectinload(Room.bathroom_features),
+            selectinload(Room.room_facilities),
+            selectinload(Room.images)
+        )
+    )
+    return res.scalar_one()
 
 
 @router.delete("/rooms/{room_id}")

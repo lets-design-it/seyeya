@@ -477,35 +477,94 @@ class Room(Base):
     room_id = Column(Integer, primary_key=True)
     room_category_id = Column(Integer, ForeignKey("room_categories.room_category_id"), nullable=False)
     room_number = Column(String(20), nullable=False, unique=True)
-    floor = Column(String(10))
-    room_status = Column(String(20), default="Available")
-    # Available | Reserved | Occupied | Maintenance
+    room_name = Column(String(150), nullable=True)
+    building = Column(String(100), nullable=True)
+    wing = Column(String(100), nullable=True)
+    floor = Column(String(50), nullable=True)
+    room_size = Column(Float, nullable=True)
+    room_size_unit = Column(String(20), default="m²")
+    room_status = Column(String(30), default="Available")
+    # Available | Reserved | Occupied | Maintenance | Out of Service
     max_occupancy = Column(Integer, default=2)
     description = Column(String(500))
-    amenities = Column(String(500))
+    amenities = Column(String(500), nullable=True)  # Retained for legacy data
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     category = relationship("RoomCategory", back_populates="rooms")
-    photos = relationship("RoomPhoto", back_populates="room", cascade="all, delete-orphan")
+    beds = relationship("RoomBed", back_populates="room", cascade="all, delete-orphan")
+    views = relationship("RoomView", back_populates="room", cascade="all, delete-orphan")
+    bathroom_features = relationship("RoomBathroomFeature", back_populates="room", cascade="all, delete-orphan")
+    room_facilities = relationship("RoomFacility", back_populates="room", cascade="all, delete-orphan")
+    images = relationship("RoomImage", back_populates="room", cascade="all, delete-orphan")
+    photos = relationship("RoomImage", back_populates="room", cascade="all, delete-orphan", viewonly=True)
     reservations = relationship("AccommodationReservation", back_populates="room", cascade="all, delete-orphan")
 
 
-class RoomPhoto(Base):
-    """Room photo model"""
-    __tablename__ = "room_photos"
-    
-    photo_id = Column(Integer, primary_key=True)
+class RoomBed(Base):
+    """Room bed model"""
+    __tablename__ = "room_beds"
+
+    id = Column(Integer, primary_key=True)
     room_id = Column(Integer, ForeignKey("rooms.room_id", ondelete="CASCADE"), nullable=False)
-    photo_url = Column(String(500), nullable=False)
-    caption = Column(String(200))
-    sort_order = Column(Integer, default=0)
+    bed_type = Column(String(100), nullable=False)
+    quantity = Column(Integer, default=1)
+
+    room = relationship("Room", back_populates="beds")
+
+
+class RoomView(Base):
+    """Room view model"""
+    __tablename__ = "room_views"
+
+    id = Column(Integer, primary_key=True)
+    room_id = Column(Integer, ForeignKey("rooms.room_id", ondelete="CASCADE"), nullable=False)
+    view_name = Column(String(100), nullable=False)
+
+    room = relationship("Room", back_populates="views")
+
+
+class RoomBathroomFeature(Base):
+    """Room bathroom feature model"""
+    __tablename__ = "room_bathroom_features"
+
+    id = Column(Integer, primary_key=True)
+    room_id = Column(Integer, ForeignKey("rooms.room_id", ondelete="CASCADE"), nullable=False)
+    feature_name = Column(String(100), nullable=False)
+
+    room = relationship("Room", back_populates="bathroom_features")
+
+
+class RoomFacility(Base):
+    """Room facility model"""
+    __tablename__ = "room_facilities"
+
+    id = Column(Integer, primary_key=True)
+    room_id = Column(Integer, ForeignKey("rooms.room_id", ondelete="CASCADE"), nullable=False)
+    facility_name = Column(String(100), nullable=False)
+
+    room = relationship("Room", back_populates="room_facilities")
+
+
+class RoomImage(Base):
+    """Room image model (renamed from room_photos)"""
+    __tablename__ = "room_images"
+    
+    id = Column(Integer, primary_key=True)
+    room_id = Column(Integer, ForeignKey("rooms.room_id", ondelete="CASCADE"), nullable=False)
+    image_url = Column(String(500), nullable=False)
+    display_order = Column(Integer, default=0)
+    is_primary = Column(Boolean, default=False)
+    caption = Column(String(200), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Relationships
-    room = relationship("Room", back_populates="photos")
+    room = relationship("Room", back_populates="images")
+
+
+# Alias for backward compatibility if code imports RoomPhoto
+RoomPhoto = RoomImage
 
 
 class AccommodationReservation(Base):
