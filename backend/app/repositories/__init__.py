@@ -798,7 +798,11 @@ class AccommodationRepository:
             select(Room)
             .options(
                 selectinload(Room.category),
-                selectinload(Room.photos)
+                selectinload(Room.beds),
+                selectinload(Room.views),
+                selectinload(Room.bathroom_features),
+                selectinload(Room.room_facilities),
+                selectinload(Room.images)
             )
             .where(
                 and_(
@@ -815,7 +819,11 @@ class AccommodationRepository:
             select(Room)
             .options(
                 selectinload(Room.category),
-                selectinload(Room.photos)
+                selectinload(Room.beds),
+                selectinload(Room.views),
+                selectinload(Room.bathroom_features),
+                selectinload(Room.room_facilities),
+                selectinload(Room.images)
             )
             .where(Room.room_id == room_id)
         )
