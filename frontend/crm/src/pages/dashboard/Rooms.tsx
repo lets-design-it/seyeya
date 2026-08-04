@@ -441,7 +441,7 @@ export const Rooms: React.FC = () => {
       accessorKey: 'id',
       header: 'Code',
       cell: ({ row }) => (
-        <span className="font-mono text-[10px] text-zinc-500 font-bold uppercase">
+        <span className="font-mono text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase">
           {row.original.id.substring(0, 12)}
         </span>
       )
@@ -451,8 +451,8 @@ export const Rooms: React.FC = () => {
       header: 'Guest Details',
       cell: ({ row }) => (
         <div>
-          <div className="font-semibold text-zinc-900 leading-tight">{row.original.guestName}</div>
-          <div className="text-[10px] text-zinc-450 mt-0.5">{row.original.email}</div>
+          <div className="font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">{row.original.guestName}</div>
+          <div className="text-[10px] text-zinc-500 dark:text-zinc-450 mt-0.5">{row.original.email}</div>
         </div>
       )
     },
@@ -460,7 +460,7 @@ export const Rooms: React.FC = () => {
       accessorKey: 'roomName',
       header: 'Cottage / Category',
       cell: ({ row }) => (
-        <Badge variant="outline" className="text-[10px] font-bold uppercase py-0.5 px-2 bg-zinc-50 border-zinc-200 text-zinc-650">
+        <Badge variant="outline" className="text-[10px] font-bold uppercase py-0.5 px-2 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-650 dark:text-zinc-300">
           {row.original.roomName.replace('Seyeya ', '')}
         </Badge>
       )
@@ -470,11 +470,11 @@ export const Rooms: React.FC = () => {
       header: 'Assigned Unit',
       cell: ({ row }) => (
         row.original.roomUnitNumber ? (
-          <span className="font-bold text-zinc-700 bg-zinc-100 border border-zinc-200 px-2 py-0.5 rounded-md text-[10px]">
+          <span className="font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded-md text-[10px]">
             Room {row.original.roomUnitNumber}
           </span>
         ) : (
-          <span className="text-zinc-400 italic text-[11px]">Unassigned</span>
+          <span className="text-zinc-400 dark:text-zinc-500 italic text-[11px]">Unassigned</span>
         )
       )
     },
@@ -482,7 +482,7 @@ export const Rooms: React.FC = () => {
       accessorKey: 'checkIn',
       header: 'Stay Dates',
       cell: ({ row }) => (
-        <span className="text-zinc-655 text-[11px] font-medium">
+        <span className="text-zinc-655 dark:text-zinc-300 text-[11px] font-medium">
           {row.original.checkIn} to {row.original.checkOut}
         </span>
       )
@@ -491,7 +491,7 @@ export const Rooms: React.FC = () => {
       accessorKey: 'totalPaid',
       header: 'Paid Value',
       cell: ({ row }) => (
-        <span className="font-bold text-zinc-900 text-xs">
+        <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
           UGX {row.original.totalPaid.toLocaleString()}
         </span>
       )
@@ -502,12 +502,12 @@ export const Rooms: React.FC = () => {
       cell: ({ row }) => {
         const s = row.original.status;
         const colorClass = s === 'Checked In'
-          ? 'bg-violet-50 text-violet-750 border-violet-200'
+          ? 'bg-violet-50 dark:bg-violet-955/20 text-violet-750 dark:text-violet-300 border-violet-200 dark:border-violet-900/50'
           : s === 'Reserved'
-            ? 'bg-amber-50 text-amber-700 border-amber-200'
+            ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
             : s === 'Checked Out'
-              ? 'bg-zinc-100 text-zinc-650 border-zinc-200'
-              : 'bg-red-50 text-red-700 border-red-200';
+              ? 'bg-zinc-100 dark:bg-zinc-800/40 text-zinc-650 dark:text-zinc-350 border-zinc-200 dark:border-zinc-700'
+              : 'bg-red-50 dark:bg-red-955/20 text-red-700 dark:text-red-350 border-red-200 dark:border-red-900/50';
         return (
           <Badge className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorClass}`}>
             {s}
@@ -524,7 +524,7 @@ export const Rooms: React.FC = () => {
             variant="ghost"
             size="icon"
             onClick={() => openEditBooking(row.original)}
-            className="h-7 w-7 text-zinc-550 hover:text-zinc-900 rounded-lg cursor-pointer"
+            className="h-7 w-7 text-zinc-550 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer"
           >
             <Edit2 className="h-3.5 w-3.5" />
           </ShadcnButton>
@@ -535,7 +535,7 @@ export const Rooms: React.FC = () => {
               setDeleteConfirmType('booking');
               setDeleteConfirmId(row.original.id);
             }}
-            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer"
+            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-955/30 rounded-lg cursor-pointer"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </ShadcnButton>
@@ -550,7 +550,7 @@ export const Rooms: React.FC = () => {
       accessorKey: 'roomNumber',
       header: 'Room Number',
       cell: ({ row }) => (
-        <div className="font-semibold text-zinc-900 text-xs leading-none">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100 text-xs leading-none">
           Room {row.original.roomNumber}
         </div>
       )
@@ -561,7 +561,7 @@ export const Rooms: React.FC = () => {
       cell: ({ row }) => {
         const cat = categories.find(c => c.id === row.original.roomCategoryId);
         return (
-          <Badge variant="outline" className="text-[10px] font-bold uppercase py-0.5 px-2 bg-zinc-50 border-zinc-200 text-zinc-650">
+          <Badge variant="outline" className="text-[10px] font-bold uppercase py-0.5 px-2 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-650 dark:text-zinc-300">
             {cat ? cat.name.replace('Seyeya ', '') : 'Unknown'}
           </Badge>
         );
@@ -571,14 +571,14 @@ export const Rooms: React.FC = () => {
       accessorKey: 'floor',
       header: 'Floor / Level',
       cell: ({ row }) => (
-        <span className="text-zinc-500 font-medium text-xs">{row.original.floor}</span>
+        <span className="text-zinc-500 dark:text-zinc-400 font-medium text-xs">{row.original.floor}</span>
       )
     },
     {
       accessorKey: 'maxOccupancy',
       header: 'Capacity',
       cell: ({ row }) => (
-        <span className="text-zinc-700 font-semibold text-xs">{row.original.maxOccupancy} Guests</span>
+        <span className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs">{row.original.maxOccupancy} Guests</span>
       )
     },
     {
@@ -587,12 +587,12 @@ export const Rooms: React.FC = () => {
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1 max-w-[200px]">
           {row.original.amenities?.slice(0, 3).map(a => (
-            <Badge key={a} variant="outline" className="text-[9px] bg-zinc-50 border-zinc-200 text-zinc-500 px-1 py-0 shadow-none">
+            <Badge key={a} variant="outline" className="text-[9px] bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-300 px-1 py-0 shadow-none">
               {a}
             </Badge>
           ))}
           {(row.original.amenities?.length || 0) > 3 && (
-            <span className="text-[9px] text-zinc-400 font-bold ml-1">
+            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold ml-1">
               +{(row.original.amenities?.length || 0) - 3}
             </span>
           )}
@@ -605,12 +605,12 @@ export const Rooms: React.FC = () => {
       cell: ({ row }) => {
         const s = row.original.roomStatus;
         const colorClass = s === 'Available'
-          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+          ? 'bg-emerald-50 dark:bg-emerald-955/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/50'
           : s === 'Reserved'
-            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+            ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50'
             : s === 'Occupied'
-              ? 'bg-violet-50 text-violet-750 border-violet-200'
-              : 'bg-zinc-100 text-zinc-650 border border-zinc-200';
+              ? 'bg-violet-50 dark:bg-violet-955/20 text-violet-750 dark:text-violet-300 border border-violet-200 dark:border-violet-900/50'
+              : 'bg-zinc-100 dark:bg-zinc-800/40 text-zinc-655 dark:text-zinc-350 border border-zinc-200 dark:border-zinc-700';
         return (
           <Badge className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorClass}`}>
             {s}
@@ -627,7 +627,7 @@ export const Rooms: React.FC = () => {
             variant="ghost"
             size="icon"
             onClick={() => openEditRoom(row.original)}
-            className="h-7 w-7 text-zinc-550 hover:text-zinc-900 rounded-lg cursor-pointer"
+            className="h-7 w-7 text-zinc-555 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer"
           >
             <Edit2 className="h-3.5 w-3.5" />
           </ShadcnButton>
@@ -638,7 +638,7 @@ export const Rooms: React.FC = () => {
               setDeleteConfirmType('room');
               setDeleteConfirmId(row.original.id);
             }}
-            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer"
+            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-955/30 rounded-lg cursor-pointer"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </ShadcnButton>
@@ -656,7 +656,7 @@ export const Rooms: React.FC = () => {
         <img
           src={row.original.image}
           alt={row.original.name}
-          className="h-10 w-10 rounded-lg object-cover bg-zinc-100 border border-zinc-100"
+          className="h-10 w-10 rounded-lg object-cover bg-zinc-100 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-800"
         />
       )
     },
@@ -664,7 +664,7 @@ export const Rooms: React.FC = () => {
       accessorKey: 'name',
       header: 'Category Name',
       cell: ({ row }) => (
-        <div className="font-semibold text-zinc-900 leading-tight">
+        <div className="font-semibold text-zinc-900 dark:text-zinc-100 leading-tight">
           {row.original.name}
         </div>
       )
@@ -673,7 +673,7 @@ export const Rooms: React.FC = () => {
       accessorKey: 'priceUGX',
       header: 'Price (UGX)',
       cell: ({ row }) => (
-        <span className="font-bold text-zinc-900 text-xs">
+        <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
           UGX {row.original.priceUGX.toLocaleString()}
         </span>
       )
@@ -682,7 +682,7 @@ export const Rooms: React.FC = () => {
       accessorKey: 'priceUSD',
       header: 'Price (USD)',
       cell: ({ row }) => (
-        <span className="text-zinc-500 font-medium text-xs">
+        <span className="text-zinc-500 dark:text-zinc-400 font-medium text-xs">
           ${row.original.priceUSD.toFixed(2)}
         </span>
       )
@@ -691,7 +691,7 @@ export const Rooms: React.FC = () => {
       accessorKey: 'capacity',
       header: 'Capacity',
       cell: ({ row }) => (
-        <span className="text-zinc-700 font-semibold text-xs">{row.original.capacity}</span>
+        <span className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs">{row.original.capacity}</span>
       )
     },
     {
@@ -700,12 +700,12 @@ export const Rooms: React.FC = () => {
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1 max-w-[200px]">
           {row.original.amenities.slice(0, 3).map(a => (
-            <Badge key={a} variant="outline" className="text-[9px] bg-zinc-50 border-zinc-200 text-zinc-500 px-1 py-0 shadow-none">
+            <Badge key={a} variant="outline" className="text-[9px] bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-300 px-1 py-0 shadow-none">
               {a}
             </Badge>
           ))}
           {row.original.amenities.length > 3 && (
-            <span className="text-[9px] text-zinc-400 font-bold ml-1">
+            <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-bold ml-1">
               +{row.original.amenities.length - 3}
             </span>
           )}
@@ -721,7 +721,7 @@ export const Rooms: React.FC = () => {
             variant="ghost"
             size="icon"
             onClick={() => openEditCategory(row.original)}
-            className="h-7 w-7 text-zinc-550 hover:text-zinc-900 rounded-lg cursor-pointer"
+            className="h-7 w-7 text-zinc-555 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg cursor-pointer"
           >
             <Edit2 className="h-3.5 w-3.5" />
           </ShadcnButton>
@@ -732,7 +732,7 @@ export const Rooms: React.FC = () => {
               setDeleteConfirmType('category');
               setDeleteConfirmId(row.original.id);
             }}
-            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer"
+            className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-955/30 rounded-lg cursor-pointer"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </ShadcnButton>
@@ -810,8 +810,8 @@ export const Rooms: React.FC = () => {
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-dark tracking-tight">Rooms</h3>
-          <p className="text-xs text-zinc-555">Coordinate room reservations, vacancies, check-ins and configure lodgings catalog.</p>
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">Rooms</h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Coordinate room reservations, vacancies, check-ins and configure lodgings catalog.</p>
         </div>
 
         {/* Dynamic Add Buttons */}
@@ -819,7 +819,7 @@ export const Rooms: React.FC = () => {
           {activeTab === 'reservations' && (
             <ShadcnButton
               onClick={openAddBooking}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none"
+              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
             >
               <Plus className="h-4 w-4" />
               New Reservation
@@ -828,7 +828,7 @@ export const Rooms: React.FC = () => {
           {activeTab === 'rooms' && (
             <ShadcnButton
               onClick={openAddRoom}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none"
+              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
             >
               <Plus className="h-4 w-4" />
               Add Room Unit
@@ -837,7 +837,7 @@ export const Rooms: React.FC = () => {
           {activeTab === 'categories' && (
             <ShadcnButton
               onClick={openAddCategory}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none"
+              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
             >
               <Plus className="h-4 w-4" />
               Add Category
@@ -847,12 +847,12 @@ export const Rooms: React.FC = () => {
       </div>
 
       {/* Tabs navigation pill bars */}
-      <div className="flex bg-zinc-100 p-1.5 rounded-2xl w-fit border border-zinc-150">
+      <div className="flex bg-zinc-100 dark:bg-zinc-950/40 p-1.5 rounded-2xl w-fit border border-zinc-150 dark:border-zinc-800">
         <button
           onClick={() => { setActiveTab('reservations'); resetFilters(); }}
           className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${activeTab === 'reservations'
-            ? 'bg-white text-zinc-950 shadow-xs border border-zinc-150/40'
-            : 'text-zinc-505 hover:text-zinc-900 hover:bg-zinc-200/50'
+            ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 shadow-xs border border-zinc-150/40 dark:border-zinc-800'
+            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/40'
             }`}
         >
           Reservations made
@@ -860,8 +860,8 @@ export const Rooms: React.FC = () => {
         <button
           onClick={() => { setActiveTab('rooms'); resetFilters(); }}
           className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${activeTab === 'rooms'
-            ? 'bg-white text-zinc-950 shadow-xs border border-zinc-150/40'
-            : 'text-zinc-505 hover:text-zinc-900 hover:bg-zinc-200/50'
+            ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 shadow-xs border border-zinc-150/40 dark:border-zinc-800'
+            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/40'
             }`}
         >
           Rooms
@@ -869,8 +869,8 @@ export const Rooms: React.FC = () => {
         <button
           onClick={() => { setActiveTab('categories'); resetFilters(); }}
           className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${activeTab === 'categories'
-            ? 'bg-white text-zinc-950 shadow-xs border border-zinc-150/40'
-            : 'text-zinc-505 hover:text-zinc-900 hover:bg-zinc-200/50'
+            ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 shadow-xs border border-zinc-150/40 dark:border-zinc-800'
+            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/40'
             }`}
         >
           Room Categories
@@ -879,30 +879,30 @@ export const Rooms: React.FC = () => {
 
       {/* Analytics widgets */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-        <Card className="p-4 bg-white border border-zinc-150 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 tracking-wider">Total Rooms</CardDescription>
-          <CardTitle className="text-xl font-bold text-zinc-800 mt-1">{totalUnits} Units</CardTitle>
+        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider">Total Rooms</CardDescription>
+          <CardTitle className="text-xl font-bold text-zinc-800 dark:text-zinc-100 mt-1">{totalUnits} Units</CardTitle>
         </Card>
-        <Card className="p-4 bg-white border border-zinc-150 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-455 tracking-wider font-sans">Checked In</CardDescription>
-          <CardTitle className="text-xl font-bold text-violet-600 mt-1">{occupiedCount} Rooms</CardTitle>
+        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Checked In</CardDescription>
+          <CardTitle className="text-xl font-bold text-violet-600 dark:text-violet-400 mt-1">{occupiedCount} Rooms</CardTitle>
         </Card>
-        <Card className="p-4 bg-white border border-zinc-150 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-455 tracking-wider font-sans">Reserved</CardDescription>
-          <CardTitle className="text-xl font-bold text-amber-500 mt-1">{reservedCount} Rooms</CardTitle>
+        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Reserved</CardDescription>
+          <CardTitle className="text-xl font-bold text-amber-500 dark:text-amber-400 mt-1">{reservedCount} Rooms</CardTitle>
         </Card>
-        <Card className="p-4 bg-white border border-zinc-150 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-455 tracking-wider font-sans">Vacant & Prepared</CardDescription>
-          <CardTitle className="text-xl font-bold text-emerald-500 mt-1">{vacantCount} Rooms</CardTitle>
+        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Vacant & Prepared</CardDescription>
+          <CardTitle className="text-xl font-bold text-emerald-500 dark:text-emerald-400 mt-1">{vacantCount} Rooms</CardTitle>
         </Card>
-        <Card className="p-4 bg-white border border-zinc-150 rounded-2xl shadow-xs col-span-2 lg:col-span-1">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-455 tracking-wider font-sans">Occupancy Rate</CardDescription>
-          <CardTitle className="text-xl font-bold text-zinc-900 mt-1">{occupancyRate}%</CardTitle>
+        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs col-span-2 lg:col-span-1">
+          <CardDescription className="text-[10px] uppercase font-bold text-zinc-455 dark:text-zinc-400 tracking-wider font-sans">Occupancy Rate</CardDescription>
+          <CardTitle className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{occupancyRate}%</CardTitle>
         </Card>
       </div>
 
       {/* Advanced Filter Section */}
-      <Card className="p-4 bg-white border border-zinc-150 rounded-2xl shadow-xs">
+      <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
 
@@ -922,22 +922,22 @@ export const Rooms: React.FC = () => {
                 }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white h-10 pl-10 pr-4 text-xs focus-visible:ring-1 focus-visible:ring-zinc-950 focus-visible:border-zinc-955 outline-hidden transition-all"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-foreground placeholder-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700 focus-visible:border-zinc-955 outline-hidden transition-all"
               />
             </div>
 
             {/* Category Select Filter (Not applicable to categories tab itself) */}
             {activeTab !== 'categories' && (
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 bg-white h-10 px-3.5 text-xs text-zinc-700 font-semibold cursor-pointer">
+                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 h-10 px-3.5 text-xs text-zinc-700 font-semibold cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90! [&_svg]:dark:text-black!">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-zinc-200 rounded-xl p-1 z-50 shadow-md">
-                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">
+                <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
+                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
                     All Categories
                   </SelectItem>
                   {categories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id} className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">
+                    <SelectItem key={cat.id} value={cat.id} className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
                       {cat.name.replace('Seyeya ', '')}
                     </SelectItem>
                   ))}
@@ -948,26 +948,26 @@ export const Rooms: React.FC = () => {
             {/* Status Select Filter (Not applicable to categories tab itself) */}
             {activeTab !== 'categories' && (
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 bg-white h-10 px-3.5 text-xs text-zinc-700 font-semibold cursor-pointer">
+                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 h-10 px-3.5 text-xs text-zinc-700 font-semibold cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90! [&_svg]:dark:text-black!">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-zinc-200 rounded-xl p-1 z-50 shadow-md">
-                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">
+                <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
+                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
                     All Status
                   </SelectItem>
                   {activeTab === 'reservations' ? (
                     <>
-                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">Reserved</SelectItem>
-                      <SelectItem value="Checked In" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">Checked In</SelectItem>
-                      <SelectItem value="Checked Out" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">Checked Out</SelectItem>
-                      <SelectItem value="Cancelled" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">Cancelled</SelectItem>
+                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Reserved</SelectItem>
+                      <SelectItem value="Checked In" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Checked In</SelectItem>
+                      <SelectItem value="Checked Out" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Checked Out</SelectItem>
+                      <SelectItem value="Cancelled" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Cancelled</SelectItem>
                     </>
                   ) : (
                     <>
-                      <SelectItem value="Available" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">Available</SelectItem>
-                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">Reserved</SelectItem>
-                      <SelectItem value="Occupied" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">Occupied</SelectItem>
-                      <SelectItem value="Maintenance" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">Maintenance</SelectItem>
+                      <SelectItem value="Available" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Available</SelectItem>
+                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Reserved</SelectItem>
+                      <SelectItem value="Occupied" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Occupied</SelectItem>
+                      <SelectItem value="Maintenance" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Maintenance</SelectItem>
                     </>
                   )}
                 </SelectContent>
@@ -979,7 +979,7 @@ export const Rooms: React.FC = () => {
               <ShadcnButton
                 onClick={resetFilters}
                 variant="ghost"
-                className="flex items-center gap-1 text-xs text-zinc-550 hover:bg-zinc-100 hover:text-zinc-900 rounded-xl h-10 px-3 cursor-pointer"
+                className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-xl h-10 px-3 cursor-pointer"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Reset Filters
@@ -991,13 +991,13 @@ export const Rooms: React.FC = () => {
             {/* Columns selector dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs">
+                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 text-zinc-755 cursor-pointer text-xs font-bold shadow-xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! [&_svg]:dark:text-black!">
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                   Columns
                   <ChevronDown className="h-4 w-4 text-zinc-500" />
                 </ShadcnButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[170px] bg-white border border-zinc-150 rounded-xl shadow-md p-1.5 mt-1 z-50">
+              <DropdownMenuContent align="end" className="w-[170px] bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-xl shadow-md p-1.5 mt-1 z-50">
                 {table
                   .getAllColumns()
                   .filter((column) => column.getCanHide())
@@ -1005,7 +1005,7 @@ export const Rooms: React.FC = () => {
                     return (
                       <DropdownMenuCheckboxItem
                         key={column.id}
-                        className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden flex items-center gap-2"
+                        className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden flex items-center gap-2"
                         checked={column.getIsVisible()}
                         onCheckedChange={(value) => column.toggleVisibility(!!value)}
                       >
@@ -1028,28 +1028,28 @@ export const Rooms: React.FC = () => {
       </Card>
 
       {/* DataTable Container */}
-      <div className="bg-white border border-zinc-150 rounded-[20px] shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-[20px] shadow-xs overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-955 border-t-transparent" />
-            <p className="text-xs text-zinc-500 font-semibold tracking-wider uppercase">Loading Console...</p>
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-955 dark:border-zinc-300 border-t-transparent" />
+            <p className="text-xs text-zinc-500 dark:text-zinc-450 font-semibold tracking-wider uppercase">Loading Console...</p>
           </div>
         ) : activeTableData.length === 0 ? (
           <div className="text-center py-20">
             <ClipboardList className="h-9 w-9 mx-auto text-zinc-400 mb-3 animate-pulse" />
-            <h5 className="text-sm font-bold text-zinc-700 uppercase tracking-wider">No matching items found</h5>
-            <p className="text-xs text-zinc-550 mt-1 max-w-xs mx-auto">
+            <h5 className="text-sm font-bold text-zinc-700 dark:text-zinc-350 uppercase tracking-wider">No matching items found</h5>
+            <p className="text-xs text-zinc-555 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
               We couldn't find any entries matching the active search or filter parameters.
             </p>
           </div>
         ) : (
           <div>
             <Table>
-              <TableHeader className="bg-zinc-50/60 border-b border-zinc-150">
+              <TableHeader className="bg-zinc-50/70 dark:bg-zinc-950/40 border-b border-zinc-150 dark:border-zinc-800">
                 {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100">
+                  <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
                     {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
+                      <TableHead key={header.id} className="text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
                         {header.isPlaceholder
                           ? null
                           : flexRender(
@@ -1066,13 +1066,13 @@ export const Rooms: React.FC = () => {
                   <TableRow
                     key={row.id}
                     onClick={() => handleRowClick(row.original)}
-                    className={`border-zinc-100 transition-colors ${activeTab === 'reservations'
-                      ? 'cursor-pointer hover:bg-zinc-50/40'
+                    className={`border-zinc-100 dark:border-zinc-800 transition-colors ${activeTab === 'reservations'
+                      ? 'cursor-pointer hover:bg-zinc-50/40 dark:hover:bg-zinc-850/40'
                       : 'hover:bg-transparent'
                       }`}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-750">
+                      <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-750 dark:text-zinc-300">
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
@@ -1085,14 +1085,14 @@ export const Rooms: React.FC = () => {
             </Table>
 
             {/* Pagination Controls */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 bg-zinc-50/20 text-xs text-zinc-500">
-              <div className="flex-1 text-zinc-450 font-bold">
+            <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-950/20 text-xs text-zinc-500 dark:text-zinc-400">
+              <div className="flex-1 text-zinc-450 dark:text-zinc-400 font-bold">
                 Showing {table.getRowModel().rows.length} of {activeTableData.length} entries
               </div>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-1">
                   <span className="font-semibold">Page</span>
-                  <strong className="text-zinc-900 font-extrabold">
+                  <strong className="text-zinc-900 dark:text-zinc-200 font-extrabold">
                     {table.getState().pagination.pageIndex + 1} of{' '}
                     {table.getPageCount()}
                   </strong>
@@ -1102,7 +1102,7 @@ export const Rooms: React.FC = () => {
                     variant="outline"
                     onClick={() => table.previousPage()}
                     disabled={!table.getCanPreviousPage()}
-                    className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 disabled:opacity-40 cursor-pointer bg-white"
+                    className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </ShadcnButton>
@@ -1110,7 +1110,7 @@ export const Rooms: React.FC = () => {
                     variant="outline"
                     onClick={() => table.nextPage()}
                     disabled={!table.getCanNextPage()}
-                    className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 disabled:opacity-40 cursor-pointer bg-white"
+                    className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </ShadcnButton>
@@ -1125,31 +1125,31 @@ export const Rooms: React.FC = () => {
           DRAWER: Add / Edit Room Category
           ------------------------------------------------------------- */}
       <Drawer open={isCategoryDrawerOpen} onOpenChange={setIsCategoryDrawerOpen} direction="right" modal={false}>
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
-          <DrawerHeader className="border-b border-zinc-150 pb-4">
-            <DrawerTitle className="text-base font-bold">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
+          <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4 bg-zinc-50/50 dark:bg-zinc-950/40">
+            <DrawerTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50">
               {editCategoryItem ? 'Edit Room Category' : 'New Room Category'}
             </DrawerTitle>
-            <DrawerDescription className="text-xs text-zinc-500">
+            <DrawerDescription className="text-xs text-zinc-500 dark:text-zinc-400">
               Configure room type titles, rates, capacity levels, and amenities.
             </DrawerDescription>
           </DrawerHeader>
-          <form onSubmit={handleCategorySubmit} className="space-y-4 p-5">
+          <form onSubmit={handleCategorySubmit} className="space-y-4 p-5 bg-white dark:bg-zinc-900">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550 mb-1.5 font-sans">Category Name *</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Category Name *</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Deluxe Riverside Cottage"
                 value={catName}
                 onChange={(e) => setCatName(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550 mb-1.5 font-sans">Base Rate (UGX) *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Base Rate (UGX) *</label>
                 <input
                   type="number"
                   required
@@ -1157,11 +1157,11 @@ export const Rooms: React.FC = () => {
                   placeholder="300000"
                   value={catPriceUGX}
                   onChange={(e) => setCatPriceUGX(Number(e.target.value))}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Base Rate (USD) *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Base Rate (USD) *</label>
                 <input
                   type="number"
                   required
@@ -1169,68 +1169,68 @@ export const Rooms: React.FC = () => {
                   placeholder="85"
                   value={catPriceUSD}
                   onChange={(e) => setCatPriceUSD(Number(e.target.value))}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Guest Capacity *</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Guest Capacity *</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. 2 Adults, 1 Child"
                 value={catCapacity}
                 onChange={(e) => setCatCapacity(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Amenities (comma-separated)</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Amenities (comma-separated)</label>
               <input
                 type="text"
                 placeholder="AC, King Bed, Wi-Fi"
                 value={catAmenities}
                 onChange={(e) => setCatAmenities(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Image URL</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Image URL</label>
               <input
                 type="url"
                 placeholder="https://images.unsplash.com/..."
                 value={catImage}
                 onChange={(e) => setCatImage(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Description</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Description</label>
               <textarea
                 placeholder="Brief description about the room styling, views, and unique highlights..."
                 value={catDescription}
                 onChange={(e) => setCatDescription(e.target.value)}
                 rows={3}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 resize-none"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 leading-normal font-medium resize-none"
               />
             </div>
 
-            <div className="pt-4 flex items-center justify-end gap-2 border-t border-zinc-150 mt-6">
+            <div className="pt-4 flex items-center justify-end gap-2 border-t border-zinc-150 dark:border-zinc-800 mt-6 bg-white dark:bg-zinc-900">
               <ShadcnButton
                 type="button"
                 variant="outline"
                 onClick={() => setIsCategoryDrawerOpen(false)}
-                className="rounded-xl px-4 text-xs font-bold cursor-pointer h-10 border border-zinc-200"
+                className="rounded-xl px-4 text-xs font-bold border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-350 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 cursor-pointer h-10"
               >
                 Cancel
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none"
+                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
               >
                 Save Category
               </ShadcnButton>
@@ -1243,113 +1243,113 @@ export const Rooms: React.FC = () => {
           DRAWER: Add / Edit Room Unit
           ------------------------------------------------------------- */}
       <Drawer open={isRoomDrawerOpen} onOpenChange={setIsRoomDrawerOpen} direction="right" modal={false}>
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
-          <DrawerHeader className="border-b border-zinc-150 pb-4">
-            <DrawerTitle className="text-base font-bold">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
+          <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4 bg-zinc-50/50 dark:bg-zinc-950/40">
+            <DrawerTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50">
               {editRoomItem ? 'Edit Room Unit' : 'New Room Unit'}
             </DrawerTitle>
-            <DrawerDescription className="text-xs text-zinc-500">
+            <DrawerDescription className="text-xs text-zinc-500 dark:text-zinc-400">
               Create individual rooms or cottages and assign them to a category.
             </DrawerDescription>
           </DrawerHeader>
-          <form onSubmit={handleRoomSubmit} className="space-y-4 p-5">
+          <form onSubmit={handleRoomSubmit} className="space-y-4 p-5 bg-white dark:bg-zinc-900">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550 mb-1.5 font-sans">Room / Cottage Number *</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Room / Cottage Number *</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. 104"
                 value={roomNumber}
                 onChange={(e) => setRoomNumber(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Room Category *</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Room Category *</label>
               <select
                 value={roomCatId}
                 onChange={(e) => setRoomCatId(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 cursor-pointer"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 cursor-pointer font-semibold"
               >
-                <option value="" disabled>Select a room type...</option>
+                <option value="" disabled className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Select a room type...</option>
                 {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">{cat.name}</option>
                 ))}
               </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Floor / level</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Floor / level</label>
                 <input
                   type="text"
                   placeholder="e.g. 1st Floor"
                   value={roomFloor}
                   onChange={(e) => setRoomFloor(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Max Occupancy (Guests)</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Max Occupancy (Guests)</label>
                 <input
                   type="number"
                   min={1}
                   value={roomMaxOcc}
                   onChange={(e) => setRoomMaxOcc(Number(e.target.value))}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Status *</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Status *</label>
               <select
                 value={roomUnitStatus}
                 onChange={(e) => setRoomUnitStatus(e.target.value as any)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 cursor-pointer"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 cursor-pointer font-semibold"
               >
-                <option value="Available">Available</option>
-                <option value="Reserved">Reserved</option>
-                <option value="Occupied">Occupied</option>
-                <option value="Maintenance">Maintenance</option>
+                <option value="Available" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Available</option>
+                <option value="Reserved" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Reserved</option>
+                <option value="Occupied" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Occupied</option>
+                <option value="Maintenance" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Maintenance</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Room Amenities (comma-separated)</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Room Amenities (comma-separated)</label>
               <input
                 type="text"
                 placeholder="AC, Nile View, King Bed"
                 value={roomAmens}
                 onChange={(e) => setRoomAmens(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Unit Description</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Unit Description</label>
               <textarea
                 placeholder="Details specific to this unit unit's quietness, garden vistas, or specific configurations..."
                 value={roomDesc}
                 onChange={(e) => setRoomDesc(e.target.value)}
                 rows={3}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 resize-none"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 leading-normal font-medium resize-none"
               />
             </div>
 
-            <div className="pt-4 flex items-center justify-end gap-2 border-t border-zinc-150 mt-6">
+            <div className="pt-4 flex items-center justify-end gap-2 border-t border-zinc-150 dark:border-zinc-800 mt-6 bg-white dark:bg-zinc-900">
               <ShadcnButton
                 type="button"
                 variant="outline"
                 onClick={() => setIsRoomDrawerOpen(false)}
-                className="rounded-xl px-4 text-xs font-bold cursor-pointer h-10 border border-zinc-200"
+                className="rounded-xl px-4 text-xs font-bold border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-350 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 cursor-pointer h-10"
               >
                 Cancel
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none"
+                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
               >
                 Save Room
               </ShadcnButton>
@@ -1362,18 +1362,18 @@ export const Rooms: React.FC = () => {
           DRAWER: Add / Edit Reservation
           ------------------------------------------------------------- */}
       <Drawer open={isBookingDrawerOpen} onOpenChange={setIsBookingDrawerOpen} direction="right" modal={false}>
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
-          <DrawerHeader className="border-b border-zinc-150 pb-4">
-            <DrawerTitle className="text-base font-bold">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
+          <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4 bg-zinc-50/50 dark:bg-zinc-955/40">
+            <DrawerTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50">
               {editBookingItem ? 'Edit Room Reservation' : 'New Room Reservation'}
             </DrawerTitle>
-            <DrawerDescription className="text-xs text-zinc-500">
+            <DrawerDescription className="text-xs text-zinc-500 dark:text-zinc-400">
               Manually book a cottage or executive room for checking-in guests.
             </DrawerDescription>
           </DrawerHeader>
-          <form onSubmit={handleBookingSubmit} className="space-y-4 p-5">
+          <form onSubmit={handleBookingSubmit} className="space-y-4 p-5 bg-white dark:bg-zinc-900">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Cottage Category *</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Cottage Category *</label>
               <select
                 value={bookCatId}
                 onChange={(e) => {
@@ -1381,30 +1381,30 @@ export const Rooms: React.FC = () => {
                   setBookRoomUnitId(''); // reset unit assignment
                   handleBookingDateOrCatChange(e.target.value, bookCheckIn, bookCheckOut);
                 }}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 cursor-pointer"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 cursor-pointer font-semibold"
               >
                 {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">{cat.name}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Assign Room Unit (Optional)</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Assign Room Unit (Optional)</label>
               <select
                 value={bookRoomUnitId}
                 onChange={(e) => setBookRoomUnitId(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 cursor-pointer"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 cursor-pointer font-semibold"
               >
-                <option value="">Keep Unassigned (Auto Assign at Check-In)</option>
+                <option value="" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Keep Unassigned (Auto Assign at Check-In)</option>
                 {availableRoomUnitsForCategory.map(ru => (
-                  <option key={ru.id} value={ru.id}>Room {ru.roomNumber} ({ru.floor})</option>
+                  <option key={ru.id} value={ru.id} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Room {ru.roomNumber} ({ru.floor})</option>
                 ))}
               </select>
             </div>
 
             <div className="relative">
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Search and Select Guests *</label>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Search and Select Guests *</label>
               <div className="relative z-50">
                 <input
                   type="text"
@@ -1415,13 +1415,13 @@ export const Rooms: React.FC = () => {
                     setIsDropdownOpen(true);
                   }}
                   onFocus={() => setIsDropdownOpen(true)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
                 {guestSearchTerm && (
                   <button
                     type="button"
                     onClick={() => setGuestSearchTerm('')}
-                    className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-650"
+                    className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-250 cursor-pointer"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -1434,12 +1434,12 @@ export const Rooms: React.FC = () => {
                     className="fixed inset-0 z-40 bg-transparent"
                     onClick={() => setIsDropdownOpen(false)}
                   />
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-zinc-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg max-h-48 overflow-y-auto">
                     {allClients.filter(c =>
                       c.full_name.toLowerCase().includes(guestSearchTerm.toLowerCase()) &&
                       !selectedGuests.some(sg => sg.id === c.customer_id)
                     ).length === 0 ? (
-                      <div className="p-3 text-xs text-zinc-450 text-center font-medium">No unregistered matching guests found</div>
+                      <div className="p-3 text-xs text-zinc-450 dark:text-zinc-400 text-center font-medium">No unregistered matching guests found</div>
                     ) : (
                       allClients.filter(c =>
                         c.full_name.toLowerCase().includes(guestSearchTerm.toLowerCase()) &&
@@ -1466,10 +1466,10 @@ export const Rooms: React.FC = () => {
                             setGuestSearchTerm('');
                             setIsDropdownOpen(false);
                           }}
-                          className="px-3 py-2 text-xs hover:bg-zinc-50 cursor-pointer font-medium flex items-center justify-between border-b border-zinc-100 last:border-b-0"
+                          className="px-3 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer font-medium flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 text-zinc-800 dark:text-zinc-200"
                         >
                           <span>{c.full_name}</span>
-                          <span className="text-[10px] text-zinc-400">{c.phone_number || c.email || ""}</span>
+                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{c.phone_number || c.email || ""}</span>
                         </div>
                       ))
                     )}
@@ -1479,14 +1479,14 @@ export const Rooms: React.FC = () => {
             </div>
 
             {selectedGuests.length > 0 && (
-              <div className="space-y-2.5 bg-zinc-50/70 p-3 rounded-2xl border border-zinc-150 shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Selected Occupying Guests</span>
+              <div className="space-y-2.5 bg-zinc-50/70 dark:bg-zinc-950/20 p-3 rounded-2xl border border-zinc-150 dark:border-zinc-800 shadow-2xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1">Selected Occupying Guests</span>
                 <div className="space-y-2">
                   {selectedGuests.map((guest, idx) => (
-                    <div key={`${guest.id}-${idx}`} className="flex items-center justify-between p-2 rounded-xl bg-white border border-zinc-150/60 shadow-3xs">
+                    <div key={`${guest.id}-${idx}`} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-150/60 dark:border-zinc-800 shadow-3xs">
                       <div className="flex flex-col">
-                        <span className="text-xs font-bold text-foreground">
-                          {guest.name} {idx === 0 && <span className="text-[9px] bg-zinc-100 border px-1 rounded-sm text-zinc-500 font-semibold ml-1">Paying Primary</span>}
+                        <span className="text-xs font-bold text-foreground dark:text-zinc-150">
+                          {guest.name} {idx === 0 && <span className="text-[9px] bg-zinc-100 dark:bg-zinc-800 border dark:border-zinc-700 px-1 rounded-sm text-zinc-500 dark:text-zinc-400 font-semibold ml-1">Paying Primary</span>}
                         </span>
                       </div>
 
@@ -1510,8 +1510,8 @@ export const Rooms: React.FC = () => {
                             ));
                           }}
                           className={`text-[9px] font-extrabold px-2 py-1 rounded-lg border uppercase tracking-wider cursor-pointer ${guest.isChild
-                            ? 'bg-amber-50 text-amber-700 border-amber-200'
-                            : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                            ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
+                            : 'bg-indigo-50 dark:bg-indigo-955/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
                             }`}
                         >
                           {guest.isChild ? 'Child' : 'Adult'}
@@ -1520,7 +1520,7 @@ export const Rooms: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => setSelectedGuests(selectedGuests.filter(g => g.id !== guest.id))}
-                          className="text-zinc-400 hover:text-red-500 hover:bg-red-50/50 p-1 rounded-lg transition-colors cursor-pointer"
+                          className="text-zinc-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50/50 dark:hover:bg-red-950/20 p-1 rounded-lg transition-colors cursor-pointer"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -1533,7 +1533,7 @@ export const Rooms: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Check-In Date *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5 font-sans">Check-In Date *</label>
                 <input
                   type="date"
                   required
@@ -1542,11 +1542,11 @@ export const Rooms: React.FC = () => {
                     setBookCheckIn(e.target.value);
                     handleBookingDateOrCatChange(bookCatId, e.target.value, bookCheckOut);
                   }}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Check-Out Date *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5 font-sans">Check-Out Date *</label>
                 <input
                   type="date"
                   required
@@ -1555,50 +1555,50 @@ export const Rooms: React.FC = () => {
                     setBookCheckOut(e.target.value);
                     handleBookingDateOrCatChange(bookCatId, bookCheckIn, e.target.value);
                   }}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Reservation Value (UGX) *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5 font-sans">Reservation Value (UGX) *</label>
                 <input
                   type="number"
                   required
                   min={0}
                   value={bookTotalPaid}
                   onChange={(e) => setBookTotalPaid(Number(e.target.value))}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5 font-sans">Booking Status *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5 font-sans">Booking Status *</label>
                 <select
                   value={bookStatus}
                   onChange={(e) => setBookStatus(e.target.value as any)}
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 cursor-pointer"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 cursor-pointer font-semibold"
                 >
-                  <option value="Reserved">Reserved</option>
-                  <option value="Checked In">Checked In</option>
-                  <option value="Checked Out">Checked Out</option>
-                  <option value="Cancelled">Cancelled</option>
+                  <option value="Reserved" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Reserved</option>
+                  <option value="Checked In" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Checked In</option>
+                  <option value="Checked Out" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Checked Out</option>
+                  <option value="Cancelled" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Cancelled</option>
                 </select>
               </div>
             </div>
 
-            <div className="pt-4 flex items-center justify-end gap-2 border-t border-zinc-150 mt-6">
+            <div className="pt-4 flex items-center justify-end gap-2 border-t border-zinc-150 dark:border-zinc-800 mt-6 bg-white dark:bg-zinc-900">
               <ShadcnButton
                 type="button"
                 variant="outline"
                 onClick={() => setIsBookingDrawerOpen(false)}
-                className="rounded-xl px-4 text-xs font-bold cursor-pointer h-10 border border-zinc-200"
+                className="rounded-xl px-4 text-xs font-bold border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-350 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 cursor-pointer h-10"
               >
                 Cancel
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none"
+                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
               >
                 Save Reservation
               </ShadcnButton>
@@ -1611,19 +1611,19 @@ export const Rooms: React.FC = () => {
           DETAILS SLIDE-OVER DRAWER: Booking Details Summary
           ------------------------------------------------------------- */}
       <Drawer open={isDetailsOpen} onOpenChange={setIsDetailsOpen} direction="right" modal={false}>
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-md">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-md bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
           {selectedBooking && (
-            <div className="flex flex-col h-full font-sans bg-white">
-              <DrawerHeader className="border-b border-zinc-150 pb-4 flex justify-between items-center shrink-0">
+            <div className="flex flex-col h-full font-sans bg-white dark:bg-zinc-900">
+              <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4 flex justify-between items-center shrink-0 bg-zinc-50/50 dark:bg-zinc-950/40">
                 <div>
-                  <DrawerTitle className="text-base font-bold">Cottage Occupancy Details</DrawerTitle>
-                  <DrawerDescription className="text-xs text-zinc-500">
+                  <DrawerTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50">Cottage Occupancy Details</DrawerTitle>
+                  <DrawerDescription className="text-xs text-zinc-500 dark:text-zinc-400">
                     Front-desk koordinations for checking in/out.
                   </DrawerDescription>
                 </div>
                 <button
                   onClick={() => setIsDetailsOpen(false)}
-                  className="text-zinc-500 hover:text-foreground rounded-lg p-1.5 transition-colors focus:outline-none cursor-pointer"
+                  className="text-zinc-500 hover:text-foreground dark:hover:text-zinc-200 rounded-lg p-1.5 transition-colors focus:outline-none cursor-pointer"
                 >
                   <X className="h-4.5 w-4.5" />
                 </button>
@@ -1631,22 +1631,22 @@ export const Rooms: React.FC = () => {
 
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 <div className="flex flex-col items-center text-center space-y-3">
-                  <div className="h-16 w-16 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-650 shadow-inner">
-                    <Bed className="h-8 w-8 text-violet-500" />
+                  <div className="h-16 w-16 rounded-full bg-zinc-100 dark:bg-zinc-850 flex items-center justify-center text-zinc-655 dark:text-zinc-350 shadow-inner">
+                    <Bed className="h-8 w-8 text-violet-500 dark:text-violet-400" />
                   </div>
                   <div>
-                    <h4 className="text-base font-bold text-foreground">
+                    <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
                       {selectedBooking.roomUnitNumber ? `Room ${selectedBooking.roomUnitNumber}` : 'Unassigned Room'}
                     </h4>
-                    <span className="inline-block px-2.5 py-1 mt-1 rounded-full bg-zinc-100 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <span className="inline-block px-2.5 py-1 mt-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                       {selectedBooking.roomName}
                     </span>
                   </div>
                 </div>
 
-                <div className="space-y-5 border-t border-zinc-100/60 pt-5">
+                <div className="space-y-5 border-t border-zinc-100/60 dark:border-zinc-800 pt-5">
                   <div className="space-y-2.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-450 block">Registered Occupants ({selectedBooking.guests?.length || 1})</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-450 dark:text-zinc-450 block">Registered Occupants ({selectedBooking.guests?.length || 1})</span>
                     <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                       {selectedBooking.guests && selectedBooking.guests.length > 0 ? (
                         selectedBooking.guests.map((g: any, index: number) => {
@@ -1660,64 +1660,64 @@ export const Rooms: React.FC = () => {
                           const isChild = g.is_child;
 
                           return (
-                            <div key={index} className="p-3 bg-zinc-50 border border-zinc-150/80 rounded-2xl space-y-1 text-xs text-left">
-                              <div className="flex items-center justify-between font-bold text-zinc-800">
+                            <div key={index} className="p-3 bg-zinc-50 dark:bg-zinc-950/30 border border-zinc-150/80 dark:border-zinc-800 rounded-2xl space-y-1 text-xs text-left">
+                              <div className="flex items-center justify-between font-bold text-zinc-805 dark:text-zinc-150">
                                 <span>{name}</span>
                                 <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-lg border uppercase tracking-wider shrink-0 ${isChild
-                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                  : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                  ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
+                                  : 'bg-indigo-50 dark:bg-indigo-955/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
                                 }`}>
                                   {isChild ? 'Child' : 'Adult'}
                                 </span>
                               </div>
-                              {email && <p className="text-[10px] text-zinc-500 font-medium">Email: {email}</p>}
-                              {phone && <p className="text-[10px] text-zinc-500 font-medium">Phone: {phone}</p>}
-                              {nationality && <p className="text-[10px] text-zinc-500 font-medium">Nationality: {nationality}</p>}
-                              {idDoc && <p className="text-[10px] text-zinc-500 font-semibold">ID/Passport: {idDoc}</p>}
+                              {email && <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Email: {email}</p>}
+                              {phone && <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Phone: {phone}</p>}
+                              {nationality && <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Nationality: {nationality}</p>}
+                              {idDoc && <p className="text-[10px] text-zinc-500 dark:text-zinc-450 font-semibold">ID/Passport: {idDoc}</p>}
                             </div>
                           );
                         })
                       ) : (
-                        <div className="p-3 bg-zinc-50 border border-zinc-150/80 rounded-2xl space-y-1 text-xs text-left">
-                          <div className="flex items-center justify-between font-bold text-zinc-800">
+                        <div className="p-3 bg-zinc-50 dark:bg-zinc-955/20 border border-zinc-150/80 dark:border-zinc-800 rounded-2xl space-y-1 text-xs text-left">
+                          <div className="flex items-center justify-between font-bold text-zinc-805 dark:text-zinc-150">
                             <span>{selectedBooking.guestName}</span>
-                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-lg border uppercase tracking-wider bg-indigo-50 text-indigo-700 border-indigo-200">
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-lg border uppercase tracking-wider bg-indigo-50 dark:bg-indigo-955/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50">
                               Adult
                             </span>
                           </div>
-                          {selectedBooking.email && <p className="text-[10px] text-zinc-500 font-medium">Email: {selectedBooking.email}</p>}
+                          {selectedBooking.email && <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium">Email: {selectedBooking.email}</p>}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 bg-zinc-50/50 p-4 rounded-[18px] text-xs">
+                  <div className="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-955/20 p-4 border border-zinc-150/40 dark:border-zinc-800 rounded-[18px] text-xs">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Check In</span>
-                      <span className="font-semibold text-foreground block">{selectedBooking.checkIn}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1">Check In</span>
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-200 block">{selectedBooking.checkIn}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block mb-1">Check Out</span>
-                      <span className="font-semibold text-foreground block">{selectedBooking.checkOut}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1">Check Out</span>
+                      <span className="font-semibold text-zinc-900 dark:text-zinc-200 block">{selectedBooking.checkOut}</span>
                     </div>
                   </div>
 
-                  <div className="bg-zinc-50/50 p-4 rounded-[18px] text-xs flex justify-between items-center">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Total Rental Value</span>
-                    <span className="font-bold text-foreground text-xs">
+                  <div className="bg-zinc-50/50 dark:bg-zinc-955/20 p-4 border border-zinc-150/40 dark:border-zinc-800 rounded-[18px] text-xs flex justify-between items-center">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Total Rental Value</span>
+                    <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
                       UGX {selectedBooking.totalPaid.toLocaleString()}
                     </span>
                   </div>
 
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Current Status</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Current Status</span>
                     <Badge className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${selectedBooking.status === 'Checked In'
-                      ? 'bg-violet-50 text-violet-750 border-violet-200'
+                      ? 'bg-violet-50 dark:bg-violet-955/20 text-violet-755 dark:text-violet-300 border-violet-200 dark:border-violet-900/50'
                       : selectedBooking.status === 'Reserved'
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
                         : selectedBooking.status === 'Checked Out'
-                          ? 'bg-zinc-100 text-zinc-650 border-zinc-200'
-                          : 'bg-red-50 text-red-700 border-red-200'
+                          ? 'bg-zinc-100 dark:bg-zinc-800/40 text-zinc-655 dark:text-zinc-350 border-zinc-200 dark:border-zinc-700'
+                          : 'bg-red-50 dark:bg-red-955/20 text-red-700 dark:text-red-350 border-red-200 dark:border-red-900/50'
                       }`}>
                       {selectedBooking.status}
                     </Badge>
@@ -1726,7 +1726,7 @@ export const Rooms: React.FC = () => {
               </div>
 
               {/* Drawer Footer Actions */}
-              <div className="p-6 bg-zinc-50/50 border-t border-zinc-100/60 flex flex-col gap-2 shrink-0">
+              <div className="p-6 bg-zinc-50/50 dark:bg-zinc-950/40 border-t border-zinc-100/60 dark:border-zinc-800 flex flex-col gap-2 shrink-0">
                 {selectedBooking.status === 'Reserved' && (
                   <>
                     <button
@@ -1752,14 +1752,14 @@ export const Rooms: React.FC = () => {
                         }
                         setIsDetailsOpen(false);
                       }}
-                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-[#212121] hover:bg-zinc-800 text-white py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm"
+                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-[#212121] hover:bg-zinc-800 text-white py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
                     >
                       <UserCheck className="h-4 w-4" />
                       Check In Guest
                     </button>
                     <button
                       onClick={() => handleCancelBooking(selectedBooking.id)}
-                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-red-50 hover:bg-red-100 border border-red-200 text-red-650 py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm"
+                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-red-50 dark:bg-red-955/20 hover:bg-red-100 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-650 dark:text-red-400 py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm"
                     >
                       Cancel Reservation
                     </button>
@@ -1771,7 +1771,7 @@ export const Rooms: React.FC = () => {
                       updateBookingStatus(selectedBooking.id, 'Checked Out');
                       setIsDetailsOpen(false);
                     }}
-                    className="w-full flex items-center justify-center gap-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm"
+                    className="w-full flex items-center justify-center gap-1.5 rounded-full bg-red-600 hover:bg-red-700 text-white py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm"
                   >
                     <ShieldAlert className="h-4 w-4" />
                     Check Out / Clear Room
@@ -1788,12 +1788,12 @@ export const Rooms: React.FC = () => {
           ------------------------------------------------------------- */}
       {deleteConfirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
-          <Card className="w-full max-w-sm bg-white border border-zinc-200 rounded-3xl p-6 shadow-2xl animate-scale-up">
+          <Card className="w-full max-w-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 shadow-2xl animate-scale-up">
             <div className="flex items-center gap-3 text-red-600 mb-4">
               <AlertCircle className="h-6 w-6" />
-              <h5 className="font-bold text-sm text-zinc-900 uppercase tracking-wider">Confirm Deletion</h5>
+              <h5 className="font-bold text-sm text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">Confirm Deletion</h5>
             </div>
-            <p className="text-xs text-zinc-655 mb-6 leading-relaxed">
+            <p className="text-xs text-zinc-655 dark:text-zinc-300 mb-6 leading-relaxed">
               Are you sure you want to permanently delete this {deleteConfirmType}? This action is irreversible and will release any associated bookings or rooms.
             </p>
             <div className="flex justify-end gap-2">
@@ -1803,13 +1803,13 @@ export const Rooms: React.FC = () => {
                   setDeleteConfirmType(null);
                 }}
                 variant="outline"
-                className="rounded-xl px-4 text-xs font-bold cursor-pointer h-10 border-zinc-200"
+                className="rounded-xl px-4 text-xs font-bold border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-355 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 cursor-pointer h-10"
               >
                 Cancel
               </ShadcnButton>
               <ShadcnButton
                 onClick={handleDeleteConfirm}
-                className="bg-red-600 hover:bg-red-700 text-white rounded-xl px-4 text-xs font-bold cursor-pointer h-10 border-none"
+                className="bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-xl px-4 text-xs font-bold cursor-pointer h-10 border-none"
               >
                 Delete Permanently
               </ShadcnButton>

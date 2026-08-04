@@ -23,12 +23,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const { user } = useAuth();
 
-  React.useEffect(() => {
-    // Keep light theme active globally
-    const root = window.document.documentElement;
-    root.classList.remove('dark');
-    root.classList.add('light');
-  }, []);
+
 
   if (!user) return null;
 
@@ -54,7 +49,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <SiteHeader activeTab={activeTab} />
         
         <div className="flex flex-1 flex-col">
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-zinc-50/50">
+          <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-zinc-50/50 dark:bg-transparent">
             <div className="mx-auto max-w-7xl h-full">
               {children}
             </div>

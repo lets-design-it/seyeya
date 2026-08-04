@@ -10,8 +10,8 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
     const baseStyle = "rounded-3xl transition-all duration-300 shadow-xl border border-zinc-100/60 bg-card text-card-foreground";
     const styles = {
       default: "",
-      glass: "glass-panel bg-white/95 backdrop-blur-md",
-      glow: "glass-panel glass-card-glow bg-white/95 backdrop-blur-md"
+      glass: "glass-panel bg-white/95 dark:bg-[#0f0f14]/95 backdrop-blur-md",
+      glow: "glass-panel glass-card-glow bg-white/95 dark:bg-[#0f0f14]/95 backdrop-blur-md"
     };
 
     return (

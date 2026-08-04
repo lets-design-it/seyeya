@@ -283,6 +283,10 @@ class MenuItem(Base):
     choices = relationship("MenuChoice", back_populates="menu_item", cascade="all, delete-orphan")
     accompaniments = relationship("MenuAccompaniment", back_populates="menu_item", cascade="all, delete-orphan")
 
+    @property
+    def name(self):
+        return self.item_name
+
 
 class MenuExtra(Base):
     """Menu extra/addon model"""
@@ -316,6 +320,10 @@ class MenuChoice(Base):
     menu_item = relationship("MenuItem", back_populates="choices")
     order_items = relationship("OrderItem", back_populates="choice")
 
+    @property
+    def name(self):
+        return self.choice_name
+
 
 class MenuAccompaniment(Base):
     """Menu accompaniment model"""
@@ -331,6 +339,10 @@ class MenuAccompaniment(Base):
     # Relationships
     menu_item = relationship("MenuItem", back_populates="accompaniments")
     order_items = relationship("OrderItem", back_populates="accompaniment")
+
+    @property
+    def name(self):
+        return self.accompaniment_name
 
 
 class RestaurantOrder(Base):

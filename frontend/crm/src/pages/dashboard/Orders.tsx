@@ -47,10 +47,10 @@ export const Orders: React.FC = () => {
 
   const getStatusColor = (status: RestaurantOrder['status']) => {
     switch (status) {
-      case 'Pending': return 'border-amber-500/20 text-amber-400 bg-amber-500/5';
-      case 'Preparing': return 'border-indigo-500/20 text-indigo-400 bg-indigo-500/5';
-      case 'Ready': return 'border-emerald-500/20 text-emerald-450 bg-emerald-500/5';
-      case 'Completed': return 'border-zinc-800 text-zinc-550 bg-zinc-50';
+      case 'Pending': return 'border-amber-500/20 dark:border-amber-500/30 text-amber-500 dark:text-amber-400 bg-amber-500/5';
+      case 'Preparing': return 'border-indigo-500/20 dark:border-indigo-500/30 text-indigo-500 dark:text-indigo-400 bg-indigo-500/5';
+      case 'Ready': return 'border-emerald-500/20 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5';
+      case 'Completed': return 'border-zinc-200 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-850';
     }
   };
 
@@ -160,19 +160,19 @@ export const Orders: React.FC = () => {
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-dark tracking-tight">Orders</h3>
-          <p className="text-xs text-zinc-550">Monitor and progress culinary ticket orders submitted by guests.</p>
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">Orders</h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Monitor and progress culinary ticket orders submitted by guests.</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-zinc-800 text-white rounded-full px-5 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
+            className="flex items-center gap-2 bg-primary hover:bg-zinc-800 text-white dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-full px-5 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             Create New Order
           </Button>
-          <div className="flex items-center gap-2 bg-zinc-100 rounded-2xl px-4 py-2.5 text-xs font-semibold text-foreground">
-            <ChefHat className="h-4 w-4 text-violet-450" />
+          <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-955/40 border border-zinc-150/40 dark:border-zinc-800 rounded-2xl px-4 py-2.5 text-xs font-semibold text-foreground dark:text-zinc-300">
+            <ChefHat className="h-4 w-4 text-violet-450 dark:text-violet-400" />
             <span>Active Tickets: {orders.filter(o => o.status !== 'Completed').length}</span>
           </div>
         </div>
@@ -186,11 +186,11 @@ export const Orders: React.FC = () => {
             return (
               <div
                 key={col}
-                className="flex-1 min-w-[220px] bg-zinc-50 rounded-2xl p-3 flex flex-col max-h-[70vh]"
+                className="flex-1 min-w-[220px] bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-150/40 dark:border-zinc-800 rounded-2xl p-3 flex flex-col max-h-[70vh]"
               >
                 {/* Column Title */}
                 <div className="flex items-center justify-between pb-2 mb-3 shrink-0">
-                  <span className="text-xs font-bold text-foreground uppercase tracking-wide">{col}</span>
+                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-350 uppercase tracking-wide">{col}</span>
                   <span className={`px-2 py-0.5 rounded-md border text-xs font-bold ${getStatusColor(col)}`}>
                     {columnOrders.length}
                   </span>
@@ -199,7 +199,7 @@ export const Orders: React.FC = () => {
                 {/* Tickets list */}
                 <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 py-1">
                   {columnOrders.length === 0 ? (
-                    <div className="h-16 flex items-center justify-center rounded-xl border border-dashed border-zinc-200 text-xs text-zinc-400 text-center font-medium">
+                    <div className="h-16 flex items-center justify-center rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs text-zinc-400 dark:text-zinc-500 text-center font-medium">
                       No tickets
                     </div>
                   ) : (
@@ -209,23 +209,23 @@ export const Orders: React.FC = () => {
                         <Card
                           key={order.id}
                           variant="glass"
-                          className="p-3.5 shadow-md flex flex-col gap-2.5 hover:border-zinc-800 transition-colors group cursor-pointer"
+                          className="p-3.5 shadow-md flex flex-col gap-2.5 border-zinc-150/40 dark:border-zinc-800 hover:border-zinc-800 dark:hover:border-zinc-650 transition-colors group cursor-pointer"
                           onClick={() => openDetails(order)}
                         >
                           <div className="flex items-start justify-between">
-                            <span className="text-xs font-bold text-violet-500 leading-none">{order.table}</span>
-                            <span className="text-xs text-foreground font-semibold">
+                            <span className="text-xs font-bold text-violet-600 dark:text-violet-400 leading-none">{order.table}</span>
+                            <span className="text-xs text-zinc-900 dark:text-zinc-100 font-bold">
                               UGX {order.value.toLocaleString()}
                             </span>
                           </div>
-                          <p className="text-xs text-foreground leading-normal font-medium line-clamp-2">
+                          <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-normal font-semibold line-clamp-2">
                             {order.items}
                           </p>
 
                           {/* Footer with actions */}
-                          <div className="flex items-center justify-between pt-2.5 mt-0.5 shrink-0 border-t border-zinc-100/50">
-                            <div className="flex items-center gap-1 text-xs text-zinc-450 font-medium">
-                              <Clock className="h-3 w-3 text-zinc-400" />
+                          <div className="flex items-center justify-between pt-2.5 mt-0.5 shrink-0 border-t border-zinc-100/50 dark:border-zinc-800/40">
+                            <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 font-semibold">
+                              <Clock className="h-3 w-3 text-zinc-450" />
                               <span>{order.timestamp}</span>
                             </div>
 
@@ -236,7 +236,7 @@ export const Orders: React.FC = () => {
                                   e.stopPropagation();
                                   updateOrderStatus(order.id, next);
                                 }}
-                                className="flex items-center gap-1 rounded-lg bg-violet-600/10 border border-violet-500/20 hover:bg-violet-650 hover:text-white px-2 py-1 text-[10px] font-bold text-violet-550 transition-colors focus:outline-none cursor-pointer"
+                                className="flex items-center gap-1 rounded-lg bg-violet-600/10 dark:bg-violet-500/10 border border-violet-500/20 dark:border-violet-900/50 hover:bg-violet-650 dark:hover:bg-violet-600 hover:text-white dark:hover:text-white! px-2 py-1 text-[10px] font-bold text-violet-550 dark:text-violet-400 transition-colors focus:outline-none cursor-pointer"
                               >
                                 <span>{next}</span>
                                 <ChevronRight className="h-3 w-3" />
@@ -244,7 +244,7 @@ export const Orders: React.FC = () => {
                             )}
 
                             {order.status === 'Completed' && (
-                              <CheckSquare className="h-3.5 w-3.5 text-zinc-455" />
+                              <CheckSquare className="h-3.5 w-3.5 text-zinc-450 dark:text-zinc-400" />
                             )}
                           </div>
                         </Card>
@@ -260,10 +260,10 @@ export const Orders: React.FC = () => {
 
       {/* Create Order Modal */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 animate-fade-in backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-4xl bg-card rounded-[24px] p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 mb-5 border-b border-zinc-100/60 shrink-0">
-              <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-955/40 animate-fade-in backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-4xl bg-card dark:bg-zinc-900 border border-zinc-150/40 dark:border-zinc-800 rounded-[24px] p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 mb-5 border-b border-zinc-100/60 dark:border-zinc-800 shrink-0">
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">
                 Create New Restaurant Order
               </h3>
               <button
@@ -272,14 +272,14 @@ export const Orders: React.FC = () => {
                   setCreateError(null);
                   setCartItems([]);
                 }}
-                className="text-zinc-500 hover:text-foreground rounded-lg p-1 cursor-pointer"
+                className="text-zinc-500 dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 rounded-lg p-1 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {createError && (
-              <div className="mb-4 text-xs font-semibold text-red-600 bg-red-50 p-3.5 rounded-xl border border-red-150/50 flex items-center gap-2 shrink-0">
+              <div className="mb-4 text-xs font-semibold text-red-600 bg-red-50 dark:bg-red-955/20 p-3.5 rounded-xl border border-red-150/50 dark:border-red-900/50 flex items-center gap-2 shrink-0">
                 ⚠️ {createError}
               </div>
             )}
@@ -288,81 +288,81 @@ export const Orders: React.FC = () => {
               {/* Left Column: Order Settings */}
               <form onSubmit={handleCreateOrder} className="md:col-span-5 space-y-4 overflow-y-auto pr-2">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Delivery Option</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Delivery Option</label>
                   <select
                     value={deliveryOption}
                     onChange={(e) => setDeliveryOption(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500 cursor-pointer"
+                    className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 cursor-pointer font-semibold"
                   >
-                    <option value="Premises">Eat-in (Premises)</option>
-                    <option value="Delivery">Room Service / Delivery</option>
+                    <option value="Premises" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Eat-in (Premises)</option>
+                    <option value="Delivery" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Room Service / Delivery</option>
                   </select>
                 </div>
 
                 {deliveryOption === 'Premises' ? (
                   <div className="grid grid-cols-2 gap-3.5">
                     <div>
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Seating Table</label>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Seating Table</label>
                       <select
                         value={table}
                         onChange={(e) => setTable(e.target.value)}
-                        className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500 cursor-pointer"
+                        className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 cursor-pointer font-semibold"
                       >
                         {Array.from({ length: 12 }, (_, i) => `Table ${i + 1}`).map(t => (
-                          <option key={t} value={t}>{t}</option>
+                          <option key={t} value={t} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">{t}</option>
                         ))}
-                        <option value="Other">Other / Custom</option>
+                        <option value="Other" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Other / Custom</option>
                       </select>
                     </div>
 
                     {table === 'Other' && (
                       <div>
-                        <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Custom Table Name</label>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Custom Table Name</label>
                         <input
                           type="text"
                           required
                           placeholder="e.g. Lounge Area 4"
                           value={customTable}
                           onChange={(e) => setCustomTable(e.target.value)}
-                          className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
+                          className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-semibold"
                         />
                       </div>
                     )}
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Delivery Address / Room Number</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Delivery Address / Room Number</label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. Room 204 or Conference Hall A"
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
-                      className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
+                      className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-semibold"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Special Instructions</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Special Instructions</label>
                   <textarea
                     placeholder="e.g. Extra spicy, allergens: peanuts, no salt on fries..."
                     value={specialInstr}
                     onChange={(e) => setSpecialInstr(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500 h-20 resize-none"
+                    className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-150 outline-none focus:border-violet-500 dark:focus:border-violet-650 h-20 resize-none font-medium"
                   />
                 </div>
 
-                <div className="pt-4 border-t border-zinc-100/60 flex items-center justify-between">
+                <div className="pt-4 border-t border-zinc-100/60 dark:border-zinc-800 flex items-center justify-between">
                   <div>
                     <p className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Running Total</p>
-                    <p className="text-sm font-bold text-violet-500">
+                    <p className="text-sm font-bold text-violet-500 dark:text-violet-400">
                       UGX {cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0).toLocaleString()}
                     </p>
                   </div>
                   <Button
                     type="submit"
-                    className="bg-primary hover:bg-zinc-800 text-white rounded-full px-6 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
+                    className="bg-primary hover:bg-zinc-800 text-white dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-full px-6 py-2.5 text-xs font-bold shadow-sm cursor-pointer border-none"
                   >
                     Place Order
                   </Button>
@@ -370,21 +370,21 @@ export const Orders: React.FC = () => {
               </form>
 
               {/* Right Column: Menu Selector & Order Summary */}
-              <div className="md:col-span-7 flex flex-col min-h-0 border-l border-zinc-100/60 pl-6">
+              <div className="md:col-span-7 flex flex-col min-h-0 border-l border-zinc-100/60 dark:border-zinc-800 pl-6">
                 <div className="mb-4 shrink-0">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1.5">Search Menu Items</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Search Menu Items</label>
                   <input
                     type="text"
                     placeholder="Search by food name..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2.5 text-xs text-foreground outline-none focus:border-violet-500"
+                    className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-semibold"
                   />
                 </div>
 
                 <div className="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Left inner pane: Menu search results */}
-                  <div className="border border-zinc-100 rounded-2xl p-3 flex flex-col min-h-0">
+                  <div className="border border-zinc-100 dark:border-zinc-800 rounded-2xl p-3 flex flex-col min-h-0 bg-white dark:bg-zinc-900">
                     <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Select Dish</h4>
                     <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                       {menu
@@ -393,13 +393,13 @@ export const Orders: React.FC = () => {
                           <div
                             key={item.id}
                             onClick={() => addToCart(item)}
-                            className="p-2 rounded-xl border border-zinc-100 hover:border-violet-400 cursor-pointer transition-colors flex items-center justify-between gap-2"
+                            className="p-2 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-violet-450 dark:hover:border-violet-500 cursor-pointer transition-colors flex items-center justify-between gap-2 bg-zinc-50/10 dark:bg-zinc-950/20"
                           >
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-foreground truncate leading-snug">{item.name}</p>
-                              <p className="text-[10px] text-zinc-450 font-bold">UGX {item.priceUGX.toLocaleString()}</p>
+                              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate leading-snug">{item.name}</p>
+                              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold">UGX {item.priceUGX.toLocaleString()}</p>
                             </div>
-                            <span className="text-xs font-bold text-violet-550 bg-violet-50 px-2 py-0.5 rounded-lg shrink-0">
+                            <span className="text-xs font-bold text-violet-550 dark:text-violet-400 bg-violet-50 dark:bg-violet-955/20 border border-violet-100/40 dark:border-violet-900/50 px-2 py-0.5 rounded-lg shrink-0">
                               + Add
                             </span>
                           </div>
@@ -408,39 +408,39 @@ export const Orders: React.FC = () => {
                   </div>
 
                   {/* Right inner pane: Order items in cart */}
-                  <div className="border border-zinc-100 rounded-2xl p-3 flex flex-col min-h-0 bg-zinc-50/20">
+                  <div className="border border-zinc-100 dark:border-zinc-800 rounded-2xl p-3 flex flex-col min-h-0 bg-zinc-50/20 dark:bg-zinc-955/10">
                     <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Order Items</h4>
                     <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                       {cartItems.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-center p-4">
-                          <ShoppingBag className="h-6 w-6 text-zinc-300 mb-2" />
+                          <ShoppingBag className="h-6 w-6 text-zinc-300 dark:text-zinc-650 mb-2" />
                           <p className="text-[10px] text-zinc-405 font-bold uppercase tracking-wider">Empty Order Cart</p>
                         </div>
                       ) : (
                         cartItems.map(item => (
                           <div
                             key={item.menu_item_id}
-                            className="p-2 rounded-xl border border-zinc-100/60 bg-white flex items-center justify-between gap-2"
+                            className="p-2 rounded-xl border border-zinc-100/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between gap-2"
                           >
                             <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-foreground truncate leading-snug">{item.name}</p>
-                              <p className="text-[10px] text-zinc-450 font-bold mt-0.5">UGX {(item.price * item.quantity).toLocaleString()}</p>
+                              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate leading-snug">{item.name}</p>
+                              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold mt-0.5">UGX {(item.price * item.quantity).toLocaleString()}</p>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => removeFromCart(item.menu_item_id)}
-                                className="w-5 h-5 rounded-lg border border-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-500 hover:bg-zinc-50 cursor-pointer"
+                                className="w-5 h-5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750 cursor-pointer"
                               >
                                 -
                               </button>
-                              <span className="text-xs font-bold text-foreground min-w-[12px] text-center">
+                              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 min-w-[12px] text-center font-sans">
                                 {item.quantity}
                               </span>
                               <button
                                 type="button"
                                 onClick={() => addToCart({ id: String(item.menu_item_id), name: item.name, priceUGX: item.price } as MenuItem)}
-                                className="w-5 h-5 rounded-lg border border-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-500 hover:bg-zinc-50 cursor-pointer"
+                                className="w-5 h-5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750 cursor-pointer"
                               >
                                 +
                               </button>
@@ -459,16 +459,16 @@ export const Orders: React.FC = () => {
 
       {/* Ticket Details & Update Drawer */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end bg-zinc-950/40 animate-fade-in backdrop-blur-sm">
-          <div className="glass-panel w-full max-w-md h-full bg-card shadow-2xl p-6 relative flex flex-col justify-between animate-slide-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-end bg-zinc-955/40 animate-fade-in backdrop-blur-sm">
+          <div className="glass-panel w-full max-w-md h-full bg-card dark:bg-zinc-900 border-l border-zinc-150/40 dark:border-zinc-800 shadow-2xl p-6 relative flex flex-col justify-between animate-slide-in">
             {/* Header */}
             <div>
-              <div className="flex items-center justify-between pb-3 mb-5 border-b border-zinc-100/60">
+              <div className="flex items-center justify-between pb-3 mb-5 border-b border-zinc-100/60 dark:border-zinc-800">
                 <div>
-                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">
                     Ticket Details
                   </h3>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase mt-0.5">
+                  <p className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase mt-0.5">
                     Order Number: {selectedOrder.orderNumber}
                   </p>
                 </div>
@@ -477,14 +477,14 @@ export const Orders: React.FC = () => {
                     setSelectedOrder(null);
                     setEditError(null);
                   }}
-                  className="text-zinc-500 hover:text-foreground rounded-lg p-1 cursor-pointer"
+                  className="text-zinc-500 dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 rounded-lg p-1 cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
               {editError && (
-                <div className="mb-4 text-xs font-semibold text-red-600 bg-red-50 p-3.5 rounded-xl border border-red-150/50 flex items-center gap-2 shrink-0">
+                <div className="mb-4 text-xs font-semibold text-red-600 bg-red-50 dark:bg-red-955/20 p-3.5 rounded-xl border border-red-150/50 dark:border-red-900/50 flex items-center gap-2 shrink-0">
                   ⚠️ {editError}
                 </div>
               )}
@@ -493,97 +493,97 @@ export const Orders: React.FC = () => {
               <div className="space-y-4.5 overflow-y-auto max-h-[60vh] pr-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 mb-1">Seating Table</span>
-                    <span className="text-xs font-bold text-foreground">{selectedOrder.table}</span>
+                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Seating Table</span>
+                    <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{selectedOrder.table}</span>
                   </div>
                   <div>
-                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 mb-1">Delivery Option</span>
-                    <span className="text-xs font-bold text-foreground">{selectedOrder.deliveryOption}</span>
+                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Delivery Option</span>
+                    <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{selectedOrder.deliveryOption}</span>
                   </div>
                 </div>
 
                 {selectedOrder.deliveryOption === 'Delivery' && selectedOrder.deliveryAddress && (
                   <div>
-                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 mb-1">Room / Address</span>
-                    <p className="text-xs font-medium text-foreground">{selectedOrder.deliveryAddress}</p>
+                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Room / Address</span>
+                    <p className="text-xs font-medium text-zinc-900 dark:text-zinc-100">{selectedOrder.deliveryAddress}</p>
                   </div>
                 )}
 
                 {selectedOrder.specialInstr && (
                   <div>
-                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 mb-1">Special Instructions</span>
-                    <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-100 text-xs text-zinc-600 italic">
+                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Special Instructions</span>
+                    <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 text-xs text-zinc-650 dark:text-zinc-350 italic">
                       "{selectedOrder.specialInstr}"
                     </div>
                   </div>
                 )}
 
                 <div>
-                  <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 mb-2">Order Items</span>
-                  <div className="space-y-2 border border-zinc-100 rounded-2xl p-3 bg-zinc-50/20">
+                  <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-2">Order Items</span>
+                  <div className="space-y-2 border border-zinc-100 dark:border-zinc-800 rounded-2xl p-3 bg-zinc-50/20 dark:bg-zinc-955/10">
                     {selectedOrder.rawItems.map((it: any) => {
                       const itemName = it.menu_item?.item_name || `Item #${it.menu_item_id}`;
                       const price = Number(it.menu_item?.price || 0);
                       return (
                         <div key={it.order_item_id || it.menu_item_id} className="flex justify-between items-center text-xs">
-                          <span className="font-semibold text-foreground">
+                          <span className="font-semibold text-zinc-900 dark:text-zinc-100">
                             {it.quantity}x {itemName}
                           </span>
-                          <span className="text-zinc-500 font-bold">
+                          <span className="text-zinc-550 dark:text-zinc-400 font-bold">
                             UGX {(price * it.quantity).toLocaleString()}
                           </span>
                         </div>
                       );
                     })}
-                    <div className="pt-2 border-t border-dashed border-zinc-200 mt-2 flex justify-between items-center text-xs font-bold">
-                      <span className="text-foreground uppercase tracking-wider text-[10px]">Total Order Amount</span>
-                      <span className="text-violet-550 font-bold">UGX {selectedOrder.value.toLocaleString()}</span>
+                    <div className="pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-800 mt-2 flex justify-between items-center text-xs font-bold">
+                      <span className="text-zinc-900 dark:text-zinc-150 uppercase tracking-wider text-[10px]">Total Order Amount</span>
+                      <span className="text-violet-550 dark:text-violet-400 font-bold">UGX {selectedOrder.value.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="border-t border-zinc-100/60 pt-4 space-y-4">
-                  <h4 className="text-[11px] font-bold text-zinc-700 uppercase tracking-wider">Status & Payment Adjustments</h4>
+                <div className="border-t border-zinc-100/60 dark:border-zinc-800 pt-4 space-y-4">
+                  <h4 className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">Status & Payment Adjustments</h4>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 mb-1.5">Ticket Status</label>
+                      <label className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Ticket Status</label>
                       <select
                         value={editStatus}
                         onChange={(e) => setEditStatus(e.target.value as any)}
-                        className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500 cursor-pointer font-bold"
+                        className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 px-3 py-2 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 cursor-pointer font-bold"
                       >
-                        <option value="Pending">Pending</option>
-                        <option value="Preparing">Preparing</option>
-                        <option value="Ready">Ready</option>
-                        <option value="Completed">Completed</option>
+                        <option value="Pending" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Pending</option>
+                        <option value="Preparing" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Preparing</option>
+                        <option value="Ready" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Ready</option>
+                        <option value="Completed" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Completed</option>
                       </select>
                     </div>
 
                     <div>
-                      <label className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 mb-1.5">Payment Status</label>
+                      <label className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Payment Status</label>
                       <select
                         value={editPaymentStatus}
                         onChange={(e) => setEditPaymentStatus(e.target.value)}
-                        className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500 cursor-pointer font-bold"
+                        className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 px-3 py-2 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 cursor-pointer font-bold"
                       >
-                        <option value="Pending">Pending</option>
-                        <option value="Paid">Paid</option>
+                        <option value="Pending" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Pending</option>
+                        <option value="Paid" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Paid</option>
                       </select>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 mb-1.5">Amount Paid (UGX)</label>
+                    <label className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Amount Paid (UGX)</label>
                     <input
                       type="number"
                       placeholder="e.g. 15000"
                       value={editAmountPaid}
                       onChange={(e) => setEditAmountPaid(Number(e.target.value))}
-                      className="w-full rounded-xl bg-zinc-50 border border-zinc-100 px-3 py-2 text-xs text-foreground outline-none focus:border-violet-500 font-bold"
+                      className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 px-3 py-2 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-bold"
                     />
                     {selectedOrder && (
-                      <p className="text-[10px] text-zinc-450 mt-1 font-bold">
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 font-bold">
                         Balance Due: UGX {Math.max(0, selectedOrder.value - editAmountPaid).toLocaleString()}
                       </p>
                     )}
@@ -593,20 +593,20 @@ export const Orders: React.FC = () => {
             </div>
 
             {/* Footer buttons */}
-            <div className="border-t border-zinc-100/60 pt-4 flex flex-col gap-2.5 shrink-0">
+            <div className="border-t border-zinc-100/60 dark:border-zinc-800 pt-4 flex flex-col gap-2.5 shrink-0">
               <div className="flex gap-3">
                 <Button
                   onClick={() => {
                     setSelectedOrder(null);
                     setEditError(null);
                   }}
-                  className="flex-1 bg-transparent hover:bg-zinc-100 text-zinc-500 text-xs font-semibold py-2.5"
+                  className="flex-1 bg-transparent hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-350 text-xs font-bold py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer h-10"
                 >
                   Close
                 </Button>
                 <Button
                   onClick={handleUpdateOrder}
-                  className="flex-1 bg-primary hover:bg-zinc-800 text-white rounded-full text-xs font-bold py-2.5 shadow-sm cursor-pointer"
+                  className="flex-1 bg-primary hover:bg-zinc-800 text-white dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-xl text-xs font-bold py-2.5 shadow-sm cursor-pointer border-none h-10"
                 >
                   Save Ticket Changes
                 </Button>
@@ -625,7 +625,7 @@ export const Orders: React.FC = () => {
                       }
                     }
                   }}
-                  className="w-full text-center text-xs font-bold text-red-500 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border border-red-200/40 rounded-xl py-2.5 transition-colors cursor-pointer"
+                  className="w-full text-center text-xs font-bold text-red-500 hover:text-red-700 dark:hover:text-red-400 bg-red-50/50 dark:bg-red-955/20 hover:bg-red-50 dark:hover:bg-red-950/40 border border-red-200/40 dark:border-red-900/50 rounded-xl py-2.5 transition-colors cursor-pointer"
                 >
                   Cancel Order Ticket
                 </button>
