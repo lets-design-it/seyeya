@@ -20,7 +20,8 @@ import {
   CalendarRange,
   Users,
   Utensils,
-  Shield
+  Shield,
+  Settings as SettingsIcon
 } from "lucide-react"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -42,6 +43,7 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
     { id: 'clients', label: 'Guests', icon: Users, roles: ['admin', 'manager', 'agent'] },
     { id: 'menu-editor', label: 'Menu', icon: Utensils, roles: ['admin', 'manager'] },
     { id: 'users', label: 'Staff', icon: Shield, roles: ['admin'] },
+    { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['admin', 'manager', 'agent'] },
   ];
 
   const allowedMenuItems = menuItems.filter(item => item.roles.includes(user.role));
@@ -57,7 +59,7 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
                   <path fillRule="evenodd" d="M12.516 2.17a.75.75 0 0 0-1.032 0 11.209 11.209 0 0 1-7.877 3.08.75.75 0 0 0-.722.515A12.74 12.74 0 0 0 2.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 0 0 .374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.39-.223-2.73-.635-3.985a.75.75 0 0 0-.722-.516 11.21 11.21 0 0 1-7.877-3.08Z" clipRule="evenodd" />
                 </svg>
               </div>
-              <span className="text-xs font-black tracking-widest text-zinc-900 uppercase">
+              <span className="text-xs font-black tracking-widest text-zinc-900 dark:text-zinc-50 uppercase">
                 Seyeya <span className="text-zinc-500 font-medium">CRM</span>
               </span>
             </div>
@@ -82,8 +84,8 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
                       onClick={() => setActiveTab(item.id)}
                       isActive={isActive}
                       className={`w-full flex items-center gap-3 px-3.5 py-5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${isActive
-                        ? "bg-black! text-white! hover:bg-black! hover:text-white! data-active:bg-black! data-active:text-white! data-active:hover:bg-black! data-active:hover:text-white! shadow-sm"
-                        : "text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900"
+                        ? "bg-black! text-white! hover:bg-black! hover:text-white! data-active:bg-black! data-active:text-white! data-active:hover:bg-black! data-active:hover:text-white! shadow-sm dark:bg-white! dark:text-black! dark:hover:bg-white! dark:hover:text-black!"
+                        : "text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                         }`}
                     >
                       <Icon className="h-4.5 w-4.5 shrink-0" />

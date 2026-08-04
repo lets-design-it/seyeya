@@ -21,6 +21,7 @@ interface AuthContextType {
   login: (email: string, passwordOrRole?: string, role?: UserRole) => Promise<boolean>;
   logout: () => void;
   updateUserRole: (role: UserRole) => void;
+  updateUserProfile: (name: string, email: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -216,8 +217,20 @@ const mapBackendRolesToUserRole = (roles: string[] | undefined): UserRole => {
     };
   }, [user]);
 
+  const updateUserProfile = (name: string, email: string) => {
+    if (user) {
+      const updated = {
+        ...user,
+        name,
+        email,
+      };
+      setUser(updated);
+      localStorage.setItem('seyeya_crm_user', JSON.stringify(updated));
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUserRole }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUserRole, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

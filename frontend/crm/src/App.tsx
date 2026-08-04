@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth, ProtectedRoute } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ClientLayout } from './layouts/ClientLayout';
 import { TooltipProvider } from './components/ui/tooltip';
@@ -13,6 +14,7 @@ import { Conferences } from './pages/dashboard/Conferences';
 import { ClientsCRM } from './pages/dashboard/ClientsCRM';
 import { MenuEditor } from './pages/dashboard/MenuEditor';
 import { UserManagement } from './pages/dashboard/UserManagement';
+import { Settings } from './pages/dashboard/Settings';
 
 // Client Views
 import { Restaurant } from './pages/client/Restaurant';
@@ -129,6 +131,12 @@ const CRMApp: React.FC = () => {
             <UserManagement />
           </ProtectedRoute>
         );
+      case 'settings':
+        return (
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        );
       default:
         return (
           <ProtectedRoute>
@@ -151,13 +159,15 @@ const CRMApp: React.FC = () => {
 
 function App() {
   return (
-    <TooltipProvider>
-      <NotificationProvider>
-        <AuthProvider>
-          <CRMApp />
-        </AuthProvider>
-      </NotificationProvider>
-    </TooltipProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <CRMApp />
+          </AuthProvider>
+        </NotificationProvider>
+      </TooltipProvider>
+    </ThemeProvider>
   );
 }
 

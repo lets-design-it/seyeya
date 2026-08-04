@@ -143,9 +143,9 @@ export const Conferences: React.FC = () => {
 
   const getStatusBadge = (status: ConferenceQuote['status']) => {
     switch (status) {
-      case 'Pending': return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'Approved': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'Declined': return 'bg-red-50 text-red-700 border-red-200';
+      case 'Pending': return 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50';
+      case 'Approved': return 'bg-emerald-50 dark:bg-emerald-955/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50';
+      case 'Declined': return 'bg-red-50 dark:bg-red-955/20 text-red-700 dark:text-red-350 border-red-200 dark:border-red-900/50';
     }
   };
 
@@ -182,7 +182,7 @@ export const Conferences: React.FC = () => {
       accessorKey: 'date',
       header: 'Date',
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-zinc-700">
+        <span className="font-semibold text-xs text-zinc-750 dark:text-zinc-300">
           {row.original.date}
         </span>
       ),
@@ -192,7 +192,7 @@ export const Conferences: React.FC = () => {
       accessorKey: 'companyName',
       header: 'Company',
       cell: ({ row }) => (
-        <div className="font-bold text-xs text-zinc-950 leading-tight">
+        <div className="font-bold text-xs text-zinc-950 dark:text-zinc-100 leading-tight">
           {row.original.companyName}
         </div>
       ),
@@ -203,10 +203,10 @@ export const Conferences: React.FC = () => {
       header: 'Contact',
       cell: ({ row }) => (
         <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-xs text-zinc-900 leading-none">
+          <span className="font-semibold text-xs text-zinc-900 dark:text-zinc-100 leading-none">
             {row.original.clientName}
           </span>
-          <span className="text-[10px] text-zinc-450 font-semibold leading-none mt-1">
+          <span className="text-[10px] text-zinc-500 dark:text-zinc-450 font-semibold leading-none mt-1">
             {row.original.email}
           </span>
         </div>
@@ -217,7 +217,7 @@ export const Conferences: React.FC = () => {
       accessorKey: 'hallName',
       header: 'Hall Name',
       cell: ({ row }) => (
-        <Badge variant="outline" className="text-[10px] font-bold py-0.5 px-2 bg-zinc-50 border-zinc-200 text-zinc-650">
+        <Badge variant="outline" className="text-[10px] font-bold py-0.5 px-2 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-650 dark:text-zinc-350">
           {row.original.hallName}
         </Badge>
       ),
@@ -227,8 +227,8 @@ export const Conferences: React.FC = () => {
       accessorKey: 'cateringOption',
       header: 'Catering',
       cell: ({ row }) => (
-        <span className="text-zinc-750 font-medium text-xs flex items-center gap-1.5">
-          <Coffee className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+        <span className="text-zinc-750 dark:text-zinc-200 font-medium text-xs flex items-center gap-1.5">
+          <Coffee className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
           {row.original.cateringOption}
         </span>
       ),
@@ -240,7 +240,7 @@ export const Conferences: React.FC = () => {
       cell: ({ row }) => {
         const q = row.original;
         return (
-          <div className="flex gap-2 text-zinc-550">
+          <div className="flex gap-2 text-zinc-550 dark:text-zinc-400">
             {q.soundSystem && (
               <span title="Sound System">
                 <Volume2 className="h-3.5 w-3.5 text-violet-500" />
@@ -251,7 +251,7 @@ export const Conferences: React.FC = () => {
                 <Video className="h-3.5 w-3.5 text-indigo-500" />
               </span>
             )}
-            {!q.soundSystem && !q.projector && <span className="text-[10px] text-zinc-400">None</span>}
+            {!q.soundSystem && !q.projector && <span className="text-[10px] text-zinc-450">None</span>}
           </div>
         );
       },
@@ -261,7 +261,7 @@ export const Conferences: React.FC = () => {
       accessorKey: 'totalCostUGX',
       header: 'Agreed Pricing',
       cell: ({ row }) => (
-        <span className="font-extrabold text-xs text-zinc-950">
+        <span className="font-extrabold text-xs text-zinc-950 dark:text-zinc-100">
           UGX {row.original.totalCostUGX.toLocaleString()}
         </span>
       ),
@@ -292,7 +292,7 @@ export const Conferences: React.FC = () => {
                 onClick={() => updateQuoteStatus(quote.id, 'Declined')}
                 variant="outline"
                 size="icon"
-                className="h-7 w-7 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-500 cursor-pointer flex items-center justify-center shadow-xs"
+                className="h-7 w-7 rounded-lg border border-red-200 dark:border-red-900/50 bg-white dark:bg-zinc-900 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 cursor-pointer flex items-center justify-center shadow-xs"
                 title="Decline Request"
               >
                 <X className="h-3.5 w-3.5" />
@@ -301,7 +301,7 @@ export const Conferences: React.FC = () => {
                 onClick={() => updateQuoteStatus(quote.id, 'Approved')}
                 variant="outline"
                 size="icon"
-                className="h-7 w-7 rounded-lg border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-600 cursor-pointer flex items-center justify-center shadow-xs"
+                className="h-7 w-7 rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-white dark:bg-zinc-900 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-emerald-600 cursor-pointer flex items-center justify-center shadow-xs"
                 title="Approve Request"
               >
                 <Check className="h-3.5 w-3.5" />
@@ -310,7 +310,7 @@ export const Conferences: React.FC = () => {
           );
         }
         return (
-          <span className="text-[10px] text-zinc-450 font-bold italic pl-2">Verified</span>
+          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold italic pl-2">Verified</span>
         );
       },
       enableHiding: false,
@@ -323,8 +323,8 @@ export const Conferences: React.FC = () => {
       accessorKey: 'name',
       header: 'Hall Name',
       cell: ({ row }) => (
-        <div className="font-bold text-xs text-zinc-950 leading-tight flex items-center gap-2.5">
-          <img src={row.original.image} alt={row.original.name} className="h-7 w-9 rounded-lg object-cover bg-zinc-200" />
+        <div className="font-bold text-xs text-zinc-950 dark:text-zinc-100 leading-tight flex items-center gap-2.5">
+          <img src={row.original.image} alt={row.original.name} className="h-7 w-9 rounded-lg object-cover bg-zinc-200 dark:bg-zinc-800" />
           <span>{row.original.name}</span>
         </div>
       ),
@@ -334,8 +334,8 @@ export const Conferences: React.FC = () => {
       accessorKey: 'capacity',
       header: 'Max Capacity',
       cell: ({ row }) => (
-        <span className="text-zinc-750 font-medium text-xs flex items-center gap-1.5">
-          <Users className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+        <span className="text-zinc-750 dark:text-zinc-200 font-medium text-xs flex items-center gap-1.5">
+          <Users className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 shrink-0" />
           {row.original.capacity} Guests
         </span>
       ),
@@ -345,7 +345,7 @@ export const Conferences: React.FC = () => {
       accessorKey: 'hourly_rate',
       header: 'Hourly Rate',
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-zinc-700">
+        <span className="font-semibold text-xs text-zinc-750 dark:text-zinc-350">
           {row.original.hourly_rate ? `UGX ${row.original.hourly_rate.toLocaleString()}` : 'Free'}
         </span>
       ),
@@ -355,7 +355,7 @@ export const Conferences: React.FC = () => {
       accessorKey: 'half_day_rate',
       header: 'Half Day Rate',
       cell: ({ row }) => (
-        <span className="font-semibold text-xs text-zinc-700">
+        <span className="font-semibold text-xs text-zinc-750 dark:text-zinc-350">
           {row.original.half_day_rate ? `UGX ${row.original.half_day_rate.toLocaleString()}` : 'Free'}
         </span>
       ),
@@ -365,7 +365,7 @@ export const Conferences: React.FC = () => {
       accessorKey: 'full_day_rate',
       header: 'Full Day Rate',
       cell: ({ row }) => (
-        <span className="font-extrabold text-xs text-zinc-950">
+        <span className="font-extrabold text-xs text-zinc-950 dark:text-zinc-100">
           {row.original.full_day_rate ? `UGX ${row.original.full_day_rate.toLocaleString()}` : 'Free'}
         </span>
       ),
@@ -378,12 +378,12 @@ export const Conferences: React.FC = () => {
         <div className="flex flex-wrap gap-1 max-w-[200px]">
           {row.original.amenities ? (
             row.original.amenities.split(',').map((am, i) => (
-              <Badge key={i} variant="outline" className="text-[9px] font-bold py-0 px-1.5 bg-zinc-50 border-zinc-150 text-zinc-500 rounded-md">
+              <Badge key={i} variant="outline" className="text-[9px] font-bold py-0 px-1.5 bg-zinc-50 dark:bg-zinc-805 border-zinc-150 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 rounded-md">
                 {am.trim()}
               </Badge>
             ))
           ) : (
-            <span className="text-[10px] text-zinc-400 font-bold">None</span>
+            <span className="text-[10px] text-zinc-450 dark:text-zinc-500 font-bold">None</span>
           )}
         </div>
       ),
@@ -393,7 +393,7 @@ export const Conferences: React.FC = () => {
       accessorKey: 'description',
       header: 'Description',
       cell: ({ row }) => (
-        <span className="text-zinc-500 text-xs font-medium line-clamp-2 max-w-xs leading-normal">
+        <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium line-clamp-2 max-w-xs leading-normal">
           {row.original.description || 'No description provided.'}
         </span>
       ),
@@ -538,13 +538,13 @@ export const Conferences: React.FC = () => {
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-dark tracking-tight">Conferences</h3>
-          <p className="text-xs text-zinc-500">Review quotes, configure seating specifications, manage venue halls, and approve facility bookings.</p>
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">Conferences</h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Review quotes, configure seating specifications, manage venue halls, and approve facility bookings.</p>
         </div>
         {activeTab === 'quotes' ? (
           <ShadcnButton
             onClick={() => setIsResDrawerOpen(true)}
-            className="flex items-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none select-none shrink-0"
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none select-none shrink-0 dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
           >
             <Plus className="h-4 w-4" />
             Book Event
@@ -552,7 +552,7 @@ export const Conferences: React.FC = () => {
         ) : (
           <ShadcnButton
             onClick={() => setIsAddDrawerOpen(true)}
-            className="flex items-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none select-none shrink-0"
+            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none select-none shrink-0 dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
           >
             <Plus className="h-4 w-4" />
             Add Hall
@@ -564,28 +564,28 @@ export const Conferences: React.FC = () => {
       <div className="flex border-b border-zinc-150 gap-6">
         <button
           onClick={() => setActiveTab('quotes')}
-          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'quotes' ? 'text-zinc-950' : 'text-zinc-400 hover:text-zinc-600'
+          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'quotes' ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-400 hover:text-zinc-605 dark:hover:text-zinc-300'
             }`}
         >
           Reservations
           {activeTab === 'quotes' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 rounded-full animate-fade-in" />
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 dark:bg-zinc-50 rounded-full animate-fade-in" />
           )}
         </button>
         <button
           onClick={() => setActiveTab('halls')}
-          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'halls' ? 'text-zinc-950' : 'text-zinc-400 hover:text-zinc-600'
+          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'halls' ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-400 hover:text-zinc-605 dark:hover:text-zinc-300'
             }`}
         >
           Conference Halls
           {activeTab === 'halls' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 rounded-full animate-fade-in" />
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 dark:bg-zinc-50 rounded-full animate-fade-in" />
           )}
         </button>
       </div>
 
       {/* Filter Section */}
-      <Card className="p-4 bg-white border border-zinc-150 rounded-2xl shadow-xs">
+      <Card className="p-4 bg-card border border-border dark:border-zinc-800 rounded-2xl shadow-xs">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
             {/* Search filter */}
@@ -599,7 +599,7 @@ export const Conferences: React.FC = () => {
                   placeholder="Search event quotes by client, company or hall..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white h-10 pl-10 pr-4 text-xs focus-visible:ring-1 focus-visible:ring-zinc-955 focus-visible:border-zinc-955 outline-hidden transition-all"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-foreground placeholder-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700 focus-visible:border-zinc-955 outline-hidden transition-all"
                 />
               </div>
             ) : (
@@ -612,7 +612,7 @@ export const Conferences: React.FC = () => {
                   placeholder="Search venue halls by name, description or amenities..."
                   value={hallSearchTerm}
                   onChange={(e) => setHallSearchTerm(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white h-10 pl-10 pr-4 text-xs focus-visible:ring-1 focus-visible:ring-zinc-955 focus-visible:border-zinc-955 outline-hidden transition-all"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-foreground placeholder-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700 focus-visible:border-zinc-955 outline-hidden transition-all"
                 />
               </div>
             )}
@@ -623,7 +623,7 @@ export const Conferences: React.FC = () => {
                 <ShadcnButton
                   onClick={resetFilters}
                   variant="ghost"
-                  className="flex items-center gap-1 text-xs text-zinc-555 hover:bg-zinc-100 hover:text-zinc-900 rounded-xl h-10 px-3 cursor-pointer"
+                  className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-xl h-10 px-3 cursor-pointer"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   Reset Filters
@@ -636,20 +636,20 @@ export const Conferences: React.FC = () => {
               <>
                 {/* Status Selector Dropdown */}
                 <Select value={filter} onValueChange={(val: any) => setFilter(val)}>
-                  <SelectTrigger className="!flex !items-center !justify-between !h-10 !px-4 !rounded-xl !border-zinc-200 !bg-white hover:!bg-zinc-50 !text-zinc-750 !cursor-pointer !text-xs !font-bold !shadow-xs !w-36 [&_svg]:!text-zinc-500 [&_svg]:!h-4 [&_svg]:!w-4">
+                  <SelectTrigger className="!flex !items-center !justify-between !h-10 !px-4 !rounded-xl !border-zinc-200 dark:!border-transparent !bg-white hover:!bg-zinc-50 !text-zinc-750 !cursor-pointer !text-xs !font-bold !shadow-xs !w-36 [&_svg]:!text-zinc-500 [&_svg]:!h-4 [&_svg]:!w-4 dark:bg-white! dark:text-black! dark:[&_svg]:text-black! dark:hover:bg-white/90!">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-zinc-200 rounded-xl p-1 z-50 shadow-md">
-                    <SelectItem value="All" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">
+                  <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
+                    <SelectItem value="All" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
                       All Statuses
                     </SelectItem>
-                    <SelectItem value="Pending" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">
+                    <SelectItem value="Pending" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
                       Pending
                     </SelectItem>
-                    <SelectItem value="Approved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">
+                    <SelectItem value="Approved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
                       Approved
                     </SelectItem>
-                    <SelectItem value="Declined" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden">
+                    <SelectItem value="Declined" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
                       Declined
                     </SelectItem>
                   </SelectContent>
@@ -658,7 +658,7 @@ export const Conferences: React.FC = () => {
                 {/* Quotes Columns Selector */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <ShadcnButton variant="outline" className="flex items-center justify-between h-10 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs w-36">
+                    <ShadcnButton variant="outline" className="flex items-center justify-between h-10 px-4 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs w-36 dark:bg-white! dark:text-black! dark:hover:bg-white/90!">
                       <span className="flex items-center gap-1.5">
                         <SlidersHorizontal className="h-3.5 w-3.5" />
                         Columns
@@ -666,14 +666,14 @@ export const Conferences: React.FC = () => {
                       <ChevronDown className="h-4 w-4 text-zinc-500" />
                     </ShadcnButton>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-[170px] bg-white border border-zinc-150 rounded-xl shadow-md p-1.5 mt-1 z-50">
+                  <DropdownMenuContent align="end" className="w-[170px] bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-xl shadow-md p-1.5 mt-1 z-50">
                     {table
                       .getAllColumns()
                       .filter((column) => column.getCanHide())
                       .map((column) => (
                         <DropdownMenuCheckboxItem
                           key={column.id}
-                          className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden flex items-center gap-2"
+                          className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden flex items-center gap-2"
                           checked={column.getIsVisible()}
                           onCheckedChange={(value) => column.toggleVisibility(!!value)}
                         >
@@ -700,7 +700,7 @@ export const Conferences: React.FC = () => {
                 {/* Halls Columns Selector */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <ShadcnButton variant="outline" className="flex items-center justify-between h-10 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs w-36">
+                    <ShadcnButton variant="outline" className="flex items-center justify-between h-10 px-4 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs w-36 dark:bg-white! dark:text-black! dark:hover:bg-white/90!">
                       <span className="flex items-center gap-1.5">
                         <SlidersHorizontal className="h-3.5 w-3.5" />
                         Columns
@@ -708,14 +708,14 @@ export const Conferences: React.FC = () => {
                       <ChevronDown className="h-4 w-4 text-zinc-500" />
                     </ShadcnButton>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-[170px] bg-white border border-zinc-150 rounded-xl shadow-md p-1.5 mt-1 z-50">
+                  <DropdownMenuContent align="end" className="w-[170px] bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-xl shadow-md p-1.5 mt-1 z-50">
                     {hallsTable
                       .getAllColumns()
                       .filter((column) => column.getCanHide())
                       .map((column) => (
                         <DropdownMenuCheckboxItem
                           key={column.id}
-                          className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden flex items-center gap-2"
+                          className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden flex items-center gap-2"
                           checked={column.getIsVisible()}
                           onCheckedChange={(value) => column.toggleVisibility(!!value)}
                         >
@@ -737,29 +737,29 @@ export const Conferences: React.FC = () => {
       </Card>
 
       {/* Table Container */}
-      <div className="bg-white border border-zinc-150 rounded-[20px] shadow-xs overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-[20px] shadow-xs overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-            <p className="text-xs font-semibold text-zinc-555 uppercase tracking-wider animate-pulse">Syncing Database...</p>
+            <p className="text-xs font-semibold text-zinc-555 dark:text-zinc-400 uppercase tracking-wider animate-pulse">Syncing Database...</p>
           </div>
         ) : activeTab === 'quotes' ? (
           filteredQuotes.length === 0 ? (
             <div className="text-center py-20">
               <CalendarRange className="h-9 w-9 mx-auto text-zinc-400 mb-3 animate-pulse" />
-              <h5 className="text-sm font-bold text-zinc-700 uppercase tracking-wider">No event quotes found</h5>
-              <p className="text-xs text-zinc-500 mt-1 max-w-xs mx-auto">
+              <h5 className="text-sm font-bold text-zinc-700 dark:text-zinc-350 uppercase tracking-wider">No event quotes found</h5>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
                 We couldn't find any event quotes matching the active filters or search queries.
               </p>
             </div>
           ) : (
             <div>
               <Table>
-                <TableHeader className="bg-zinc-50/60 border-b border-zinc-150">
+                <TableHeader className="bg-zinc-50/70 dark:bg-zinc-950/40 border-b border-zinc-150 dark:border-zinc-800">
                   {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100">
+                    <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
                       {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id} className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
+                        <TableHead key={header.id} className="text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
                           {header.isPlaceholder
                             ? null
                             : flexRender(
@@ -776,10 +776,10 @@ export const Conferences: React.FC = () => {
                     <TableRow
                       key={row.id}
                       onClick={() => setSelectedQuote(row.original)}
-                      className="cursor-pointer hover:bg-zinc-50/20 transition-colors border-zinc-100"
+                      className="cursor-pointer hover:bg-zinc-50/20 dark:hover:bg-zinc-850/40 transition-colors border-zinc-100 dark:border-zinc-800"
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-755">
+                        <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-755 dark:text-zinc-300">
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext()
@@ -793,14 +793,14 @@ export const Conferences: React.FC = () => {
 
               {/* Pagination Controls */}
               {table.getPageCount() > 1 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 bg-zinc-50/20 text-xs text-zinc-555">
-                  <div className="flex-1 text-zinc-450 font-bold">
+                <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-950/20 text-xs text-zinc-500 dark:text-zinc-400">
+                  <div className="flex-1 text-zinc-450 dark:text-zinc-400 font-bold">
                     Showing {table.getRowModel().rows.length} of {filteredQuotes.length} items
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-1">
                       <span className="font-semibold">Page</span>
-                      <strong className="text-zinc-900 font-extrabold">
+                      <strong className="text-zinc-900 dark:text-zinc-200 font-extrabold">
                         {table.getState().pagination.pageIndex + 1} of{' '}
                         {table.getPageCount()}
                       </strong>
@@ -810,7 +810,7 @@ export const Conferences: React.FC = () => {
                         variant="outline"
                         onClick={() => table.previousPage()}
                         disabled={!table.getCanPreviousPage()}
-                        className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 disabled:opacity-40 cursor-pointer bg-white"
+                        className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </ShadcnButton>
@@ -818,7 +818,7 @@ export const Conferences: React.FC = () => {
                         variant="outline"
                         onClick={() => table.nextPage()}
                         disabled={!table.getCanNextPage()}
-                        className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 disabled:opacity-40 cursor-pointer bg-white"
+                        className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </ShadcnButton>
@@ -833,19 +833,19 @@ export const Conferences: React.FC = () => {
           filteredHalls.length === 0 ? (
             <div className="text-center py-20">
               <Building className="h-9 w-9 mx-auto text-zinc-400 mb-3 animate-pulse" />
-              <h5 className="text-sm font-bold text-zinc-700 uppercase tracking-wider">No facility halls found</h5>
-              <p className="text-xs text-zinc-555 mt-1 max-w-xs mx-auto">
+              <h5 className="text-sm font-bold text-zinc-700 dark:text-zinc-350 uppercase tracking-wider">No facility halls found</h5>
+              <p className="text-xs text-zinc-555 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
                 No conference or board room structures have been configured yet. Let's create your first hall setup.
               </p>
             </div>
           ) : (
             <div>
               <Table>
-                <TableHeader className="bg-zinc-50/60 border-b border-zinc-150">
+                <TableHeader className="bg-zinc-50/70 dark:bg-zinc-950/40 border-b border-zinc-150 dark:border-zinc-800">
                   {hallsTable.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100">
+                    <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
                       {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id} className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
+                        <TableHead key={header.id} className="text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
                           {header.isPlaceholder
                             ? null
                             : flexRender(
@@ -861,10 +861,10 @@ export const Conferences: React.FC = () => {
                   {hallsTable.getRowModel().rows.map((row) => (
                     <TableRow
                       key={row.id}
-                      className="hover:bg-zinc-50/20 transition-colors border-zinc-100"
+                      className="hover:bg-zinc-50/20 dark:hover:bg-zinc-850/40 transition-colors border-zinc-100 dark:border-zinc-800"
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-755">
+                        <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-755 dark:text-zinc-300">
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext()
@@ -878,14 +878,14 @@ export const Conferences: React.FC = () => {
 
               {/* Pagination Controls */}
               {hallsTable.getPageCount() > 1 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 bg-zinc-50/20 text-xs text-zinc-555">
-                  <div className="flex-1 text-zinc-450 font-bold">
+                <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-950/20 text-xs text-zinc-500 dark:text-zinc-400">
+                  <div className="flex-1 text-zinc-450 dark:text-zinc-400 font-bold">
                     Showing {hallsTable.getRowModel().rows.length} of {filteredHalls.length} items
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-1">
                       <span className="font-semibold">Page</span>
-                      <strong className="text-zinc-900 font-extrabold">
+                      <strong className="text-zinc-900 dark:text-zinc-200 font-extrabold">
                         {hallsTable.getState().pagination.pageIndex + 1} of{' '}
                         {hallsTable.getPageCount()}
                       </strong>
@@ -895,7 +895,7 @@ export const Conferences: React.FC = () => {
                         variant="outline"
                         onClick={() => hallsTable.previousPage()}
                         disabled={!hallsTable.getCanPreviousPage()}
-                        className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 disabled:opacity-40 cursor-pointer bg-white"
+                        className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </ShadcnButton>
@@ -903,7 +903,7 @@ export const Conferences: React.FC = () => {
                         variant="outline"
                         onClick={() => hallsTable.nextPage()}
                         disabled={!hallsTable.getCanNextPage()}
-                        className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 disabled:opacity-40 cursor-pointer bg-white"
+                        className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </ShadcnButton>
@@ -917,47 +917,48 @@ export const Conferences: React.FC = () => {
       </div>
 
       {/* Add Hall Sliding Drawer */}
+      {/* Add Hall Sliding Drawer */}
       {isAddDrawerOpen && (
         <>
           {/* Backdrop */}
           <div
             onClick={() => setIsAddDrawerOpen(false)}
-            className="fixed inset-0 z-50 bg-zinc-950/25 backdrop-blur-xs transition-opacity duration-300"
+            className="fixed inset-0 z-50 bg-zinc-955/25 dark:bg-zinc-955/50 backdrop-blur-xs transition-opacity duration-300"
           />
 
           {/* Slide-out Drawer */}
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-150 animate-slide-in">
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-card text-card-foreground dark:bg-zinc-900 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-150 dark:border-zinc-800 animate-slide-in">
             {/* Header */}
-            <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/40">
               <div>
-                <h4 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">Add Facility Hall</h4>
-                <p className="text-[10px] text-zinc-500 font-bold mt-1">Configure room capacities, booking rate schemas, and venue specs.</p>
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">Add Facility Hall</h4>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold mt-1">Configure room capacities, booking rate schemas, and venue specs.</p>
               </div>
               <button
                 onClick={() => setIsAddDrawerOpen(false)}
-                className="text-zinc-450 hover:bg-zinc-100 p-2 rounded-xl transition-colors cursor-pointer"
+                className="text-zinc-450 hover:bg-zinc-100 dark:hover:bg-zinc-800 p-2 rounded-xl transition-colors cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Scrollable Form Body */}
-            <form onSubmit={handleAddHallSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+            <form onSubmit={handleAddHallSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 bg-white dark:bg-zinc-900">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Hall Name *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Hall Name *</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Nile View Grand Hall"
                   value={newHallName}
                   onChange={(e) => setNewHallName(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 font-semibold"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Max Capacity *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Max Capacity *</label>
                   <input
                     type="number"
                     min={1}
@@ -965,82 +966,82 @@ export const Conferences: React.FC = () => {
                     placeholder="e.g. 250"
                     value={newHallCapacity}
                     onChange={(e) => setNewHallCapacity(Number(e.target.value))}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Hourly Rate (UGX)</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Hourly Rate (UGX)</label>
                   <input
                     type="number"
                     min={0}
                     placeholder="e.g. 200000"
                     value={newHallHourly}
                     onChange={(e) => setNewHallHourly(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Half Day Rate (UGX)</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Half Day Rate (UGX)</label>
                   <input
                     type="number"
                     min={0}
                     placeholder="e.g. 1000000"
                     value={newHallHalfDay}
                     onChange={(e) => setNewHallHalfDay(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Full Day Rate (UGX)</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Full Day Rate (UGX)</label>
                   <input
                     type="number"
                     min={0}
                     placeholder="e.g. 1800000"
                     value={newHallFullDay}
                     onChange={(e) => setNewHallFullDay(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Amenities (comma-separated)</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5">Amenities (comma-separated)</label>
                 <input
                   type="text"
                   placeholder="e.g. Projector, Sound System, AC, WiFi"
                   value={newHallAmenities}
                   onChange={(e) => setNewHallAmenities(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-zinc-700 outline-hidden focus:border-zinc-955 font-medium"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Description</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5">Description</label>
                 <textarea
                   placeholder="A brief summary about the facility hall specs..."
                   rows={3}
                   value={newHallDescription}
                   onChange={(e) => setNewHallDescription(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-zinc-700 outline-hidden focus:border-zinc-955 leading-normal font-medium resize-none"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 leading-normal font-medium resize-none"
                 />
               </div>
 
               {/* Drawer Footer Buttons */}
-              <div className="pt-6 border-t border-zinc-100 flex items-center justify-end gap-3 bg-white">
+              <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-3 bg-white dark:bg-zinc-900">
                 <ShadcnButton
                   type="button"
                   onClick={() => setIsAddDrawerOpen(false)}
                   variant="outline"
-                  className="rounded-xl px-4.5 text-xs font-bold border border-zinc-200 text-zinc-500 hover:bg-zinc-50 cursor-pointer h-10"
+                  className="rounded-xl px-4.5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-350 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 cursor-pointer h-10"
                 >
                   Cancel
                 </ShadcnButton>
                 <ShadcnButton
                   type="submit"
-                  className="rounded-xl px-5 text-xs font-bold bg-zinc-950 hover:bg-zinc-800 text-white cursor-pointer h-10 shadow-xs"
+                  className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
                 >
                   Create Hall
                 </ShadcnButton>
@@ -1056,29 +1057,29 @@ export const Conferences: React.FC = () => {
           {/* Backdrop */}
           <div
             onClick={() => setIsResDrawerOpen(false)}
-            className="fixed inset-0 z-50 bg-zinc-950/25 backdrop-blur-xs transition-opacity duration-300"
+            className="fixed inset-0 z-50 bg-zinc-950/25 dark:bg-zinc-950/50 backdrop-blur-xs transition-opacity duration-300"
           />
 
           {/* Slide-out Drawer */}
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-150 animate-slide-in">
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-card text-card-foreground dark:bg-zinc-900 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-150 dark:border-zinc-800 animate-slide-in">
             {/* Header */}
-            <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/40">
               <div>
-                <h4 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">Book Conference / Event</h4>
-                <p className="text-[10px] text-zinc-500 font-bold mt-1">Reserve a venue hall and configure custom technical/seating requirements.</p>
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">Book Conference / Event</h4>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold mt-1">Reserve a venue hall and configure custom technical/seating requirements.</p>
               </div>
               <button
                 onClick={() => setIsResDrawerOpen(false)}
-                className="text-zinc-455 hover:bg-zinc-100 p-2 rounded-xl transition-colors cursor-pointer"
+                className="text-zinc-455 hover:bg-zinc-100 dark:hover:bg-zinc-800 p-2 rounded-xl transition-colors cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Scrollable Form Body */}
-            <form onSubmit={handleAddReservationSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+            <form onSubmit={handleAddReservationSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 bg-white dark:bg-zinc-900">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550 mb-1.5">Client Profile *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Client Profile *</label>
                 <select
                   value={resCustomerId}
                   onChange={(e) => {
@@ -1094,11 +1095,11 @@ export const Conferences: React.FC = () => {
                       setResEmail('');
                     }
                   }}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold cursor-pointer"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
                 >
-                  <option value="new">Create New Client Profile</option>
+                  <option value="new" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Create New Client Profile</option>
                   {customers.map(c => (
-                    <option key={c.customer_id} value={String(c.customer_id)}>
+                    <option key={c.customer_id} value={String(c.customer_id)} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">
                       {c.full_name} ({c.email || 'No email'})
                     </option>
                   ))}
@@ -1108,41 +1109,41 @@ export const Conferences: React.FC = () => {
               {resCustomerId === 'new' && (
                 <div className="grid grid-cols-2 gap-3.5 animate-fade-in">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Contact Name *</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Contact Name *</label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. Sarah Jenkins"
                       value={resClientName}
                       onChange={(e) => setResClientName(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold"
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Email Address *</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Email Address *</label>
                     <input
                       type="email"
                       required
                       placeholder="sarah@apex.com"
                       value={resEmail}
                       onChange={(e) => setResEmail(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold"
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
                     />
                   </div>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Venue Hall *</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Venue Hall *</label>
                 <select
                   required
                   value={resHallId}
                   onChange={(e) => setResHallId(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold cursor-pointer"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
                 >
-                  <option value="" disabled>Select Venue...</option>
+                  <option value="" disabled className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Select Venue...</option>
                   {halls.map(h => (
-                    <option key={h.id} value={h.id}>
+                    <option key={h.id} value={h.id} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">
                       {h.name} (Max: {h.capacity} guests)
                     </option>
                   ))}
@@ -1151,100 +1152,100 @@ export const Conferences: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Event / Company Name *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Event / Company Name *</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Apex Corp AGM"
                     value={resEventName}
                     onChange={(e) => setResEventName(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Event Date *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Event Date *</label>
                   <input
                     type="date"
                     required
                     value={resEventDate}
                     onChange={(e) => setResEventDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Start Time *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Start Time *</label>
                   <input
                     type="time"
                     required
                     value={resStartTime}
                     onChange={(e) => setResStartTime(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">End Time *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">End Time *</label>
                   <input
                     type="time"
                     required
                     value={resEndTime}
                     onChange={(e) => setResEndTime(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Guests Headcount *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Guests Headcount *</label>
                   <input
                     type="number"
                     min={1}
                     required
                     value={resGuests}
                     onChange={(e) => setResGuests(Number(e.target.value))}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Booking Type *</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Booking Type *</label>
                   <select
                     required
                     value={resBookingType}
                     onChange={(e) => setResBookingType(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold cursor-pointer"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
                   >
-                    <option value="Hourly">Hourly Rate</option>
-                    <option value="HalfDay">Half Day Rate</option>
-                    <option value="FullDay">Full Day Rate</option>
+                    <option value="Hourly" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Hourly Rate</option>
+                    <option value="HalfDay" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Half Day Rate</option>
+                    <option value="FullDay" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Full Day Rate</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Catering Option</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Catering Option</label>
                 <select
                   value={resCateringOption}
                   onChange={(e) => setResCateringOption(e.target.value as any)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-900 font-semibold cursor-pointer"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
                 >
-                  <option value="None">No Catering (Space only)</option>
-                  <option value="Standard Breakfast">Breakfast Buffet (UGX 25k/head)</option>
-                  <option value="Executive Full Day">Full Day Executive Catering (UGX 55k/head)</option>
+                  <option value="None" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">No Catering (Space only)</option>
+                  <option value="Standard Breakfast" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Breakfast Buffet (UGX 25k/head)</option>
+                  <option value="Executive Full Day" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Full Day Executive Catering (UGX 55k/head)</option>
                 </select>
               </div>
 
               <div className="space-y-2.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555">Technical Overlays</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Technical Overlays</label>
                 <div className="grid grid-cols-2 gap-3.5">
                   <button
                     type="button"
                     onClick={() => setResSoundSystem(!resSoundSystem)}
                     className={`rounded-xl border p-2.5 text-left flex items-center justify-between transition-colors ${resSoundSystem
-                      ? 'border-violet-500/30 bg-violet-650/5 text-violet-400'
-                      : 'border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100'
+                      ? 'border-violet-500/30 bg-violet-650/5 dark:bg-violet-950/20 text-violet-400'
+                      : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                       }`}
                   >
                     <span className="text-xs font-bold">Sound PA System</span>
@@ -1254,8 +1255,8 @@ export const Conferences: React.FC = () => {
                     type="button"
                     onClick={() => setResProjector(!resProjector)}
                     className={`rounded-xl border p-2.5 text-left flex items-center justify-between transition-colors ${resProjector
-                      ? 'border-indigo-500/30 bg-indigo-650/5 text-indigo-400'
-                      : 'border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100'
+                      ? 'border-indigo-500/30 bg-indigo-650/5 dark:bg-indigo-950/20 text-indigo-400'
+                      : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                       }`}
                   >
                     <span className="text-xs font-bold">HD Projector Display</span>
@@ -1265,29 +1266,29 @@ export const Conferences: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Special Requests</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Special Requests</label>
                 <textarea
                   placeholder="Extra seating layout details, dietary restrictions, etc..."
                   rows={3}
                   value={resSpecialRequests}
                   onChange={(e) => setResSpecialRequests(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-zinc-700 outline-hidden focus:border-zinc-900 leading-normal font-medium resize-none"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 leading-normal font-medium resize-none"
                 />
               </div>
 
               {/* Drawer Footer Buttons */}
-              <div className="pt-6 border-t border-zinc-100 flex items-center justify-end gap-3 bg-white">
+              <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-3 bg-white dark:bg-zinc-900">
                 <ShadcnButton
                   type="button"
                   onClick={() => setIsResDrawerOpen(false)}
                   variant="outline"
-                  className="rounded-xl px-4.5 text-xs font-bold border border-zinc-200 text-zinc-500 hover:bg-zinc-50 cursor-pointer h-10"
+                  className="rounded-xl px-4.5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-350 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 cursor-pointer h-10"
                 >
                   Cancel
                 </ShadcnButton>
                 <ShadcnButton
                   type="submit"
-                  className="rounded-xl px-5 text-xs font-bold bg-zinc-950 hover:bg-zinc-800 text-white cursor-pointer h-10 shadow-xs"
+                  className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
                 >
                   Confirm Booking
                 </ShadcnButton>
@@ -1298,92 +1299,93 @@ export const Conferences: React.FC = () => {
       )}
 
       {/* Update Reservation Sliding Drawer */}
+      {/* Update Reservation Sliding Drawer */}
       {selectedQuote && (
         <>
           {/* Backdrop */}
           <div
             onClick={() => setSelectedQuote(null)}
-            className="fixed inset-0 z-50 bg-zinc-950/25 backdrop-blur-xs transition-opacity duration-300"
+            className="fixed inset-0 z-50 bg-zinc-950/25 dark:bg-zinc-950/50 backdrop-blur-xs transition-opacity duration-300"
           />
 
           {/* Slide-out Drawer */}
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-150 animate-slide-in">
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-card text-card-foreground dark:bg-zinc-900 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-150 dark:border-zinc-800 animate-slide-in">
             {/* Header */}
-            <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/40">
               <div>
-                <h4 className="text-sm font-bold text-zinc-900 uppercase tracking-wider">Reservation Details</h4>
-                <p className="text-[10px] text-zinc-500 font-bold mt-1">Review event specifications and update reservation status & payments.</p>
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">Reservation Details</h4>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold mt-1">Review event specifications and update reservation status & payments.</p>
               </div>
               <button
                 onClick={() => setSelectedQuote(null)}
-                className="text-zinc-450 hover:bg-zinc-100 p-2 rounded-xl transition-colors cursor-pointer"
+                className="text-zinc-450 hover:bg-zinc-800 p-2 rounded-xl transition-colors cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Scrollable Drawer Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-white dark:bg-zinc-900">
 
               {/* Event Specs Panel */}
-              <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-150 space-y-3">
-                <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Event Information</h5>
+              <div className="bg-zinc-50 dark:bg-zinc-950/30 p-4 rounded-2xl border border-zinc-150 dark:border-zinc-800 space-y-3">
+                <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Event Information</h5>
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-xs font-semibold">
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Event / Company</span>
-                    <span className="text-zinc-900">{selectedQuote.companyName}</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Event / Company</span>
+                    <span className="text-zinc-900 dark:text-zinc-100">{selectedQuote.companyName}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Venue Hall</span>
-                    <span className="text-zinc-900">{selectedQuote.hallName}</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Venue Hall</span>
+                    <span className="text-zinc-900 dark:text-zinc-100">{selectedQuote.hallName}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Client Contact</span>
-                    <span className="text-zinc-900">{selectedQuote.clientName}</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Client Contact</span>
+                    <span className="text-zinc-900 dark:text-zinc-100">{selectedQuote.clientName}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Contact Email</span>
-                    <span className="text-zinc-900 truncate block">{selectedQuote.email}</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Contact Email</span>
+                    <span className="text-zinc-900 dark:text-zinc-100 truncate block">{selectedQuote.email}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Date & Duration</span>
-                    <span className="text-zinc-900">{selectedQuote.date} ({selectedQuote.daysCount} Days)</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Date & Duration</span>
+                    <span className="text-zinc-900 dark:text-zinc-100">{selectedQuote.date} ({selectedQuote.daysCount} Days)</span>
                   </div>
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Scheduled Time</span>
-                    <span className="text-zinc-900">{selectedQuote.startTime?.slice(0, 5) || '08:00'} - {selectedQuote.endTime?.slice(0, 5) || '17:00'}</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Scheduled Time</span>
+                    <span className="text-zinc-900 dark:text-zinc-100">{selectedQuote.startTime?.slice(0, 5) || '08:00'} - {selectedQuote.endTime?.slice(0, 5) || '17:00'}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Expected Headcount</span>
-                    <span className="text-zinc-900">{selectedQuote.guestsCount} Guests</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Expected Headcount</span>
+                    <span className="text-zinc-900 dark:text-zinc-100">{selectedQuote.guestsCount} Guests</span>
                   </div>
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Catering Package</span>
-                    <span className="text-zinc-900">{selectedQuote.cateringOption}</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Catering Package</span>
+                    <span className="text-zinc-900 dark:text-zinc-100">{selectedQuote.cateringOption}</span>
                   </div>
                 </div>
                 <div>
-                  <span className="text-zinc-455 block text-[9px] font-bold uppercase">Technical Overlays</span>
+                  <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Technical Overlays</span>
                   <div className="flex gap-2.5 mt-1">
                     {selectedQuote.soundSystem && (
-                      <Badge variant="outline" className="text-[9px] font-bold py-0.5 px-2 bg-violet-50 border-violet-200 text-violet-600 rounded-md">
+                      <Badge variant="outline" className="text-[9px] font-bold py-0.5 px-2 bg-violet-50 dark:bg-violet-955/20 border-violet-200 dark:border-violet-900/50 text-violet-600 dark:text-violet-400 rounded-md">
                         Sound PA System
                       </Badge>
                     )}
                     {selectedQuote.projector && (
-                      <Badge variant="outline" className="text-[9px] font-bold py-0.5 px-2 bg-indigo-50 border-indigo-200 text-indigo-600 rounded-md">
+                      <Badge variant="outline" className="text-[9px] font-bold py-0.5 px-2 bg-indigo-50 dark:bg-indigo-955/20 border-indigo-200 dark:border-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-md">
                         HD Projector Display
                       </Badge>
                     )}
                     {!selectedQuote.soundSystem && !selectedQuote.projector && (
-                      <span className="text-xs text-zinc-450 font-medium">None</span>
+                      <span className="text-xs text-zinc-450 dark:text-zinc-500 font-medium">None</span>
                     )}
                   </div>
                 </div>
                 {selectedQuote.specialRequests && (
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Special Requests</span>
-                    <p className="text-xs text-zinc-650 leading-relaxed font-medium mt-1 bg-white p-2.5 rounded-xl border border-zinc-150">
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Special Requests</span>
+                    <p className="text-xs text-zinc-650 dark:text-zinc-300 leading-relaxed font-medium mt-1 bg-white dark:bg-zinc-900 p-2.5 rounded-xl border border-zinc-150 dark:border-zinc-800">
                       {selectedQuote.specialRequests}
                     </p>
                   </div>
@@ -1391,80 +1393,80 @@ export const Conferences: React.FC = () => {
               </div>
 
               {/* Financial Summary */}
-              <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-150 space-y-3">
-                <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Financial Summary</h5>
+              <div className="bg-zinc-50 dark:bg-zinc-950/30 p-4 rounded-2xl border border-zinc-150 dark:border-zinc-800 space-y-3">
+                <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Financial Summary</h5>
                 <div className="grid grid-cols-3 gap-4 text-xs font-semibold">
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Total Cost</span>
-                    <span className="text-zinc-955 font-extrabold">UGX {selectedQuote.totalCostUGX.toLocaleString()}</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Total Cost</span>
+                    <span className="text-zinc-955 dark:text-zinc-100 font-extrabold">UGX {selectedQuote.totalCostUGX.toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Paid Amount</span>
-                    <span className="text-emerald-600 font-extrabold">UGX {(selectedQuote.amountPaid || 0).toLocaleString()}</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Paid Amount</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">UGX {(selectedQuote.amountPaid || 0).toLocaleString()}</span>
                   </div>
                   <div>
-                    <span className="text-zinc-455 block text-[9px] font-bold uppercase">Balance Due</span>
-                    <span className="text-red-500 font-extrabold">UGX {(selectedQuote.balanceDue || 0).toLocaleString()}</span>
+                    <span className="text-zinc-500 dark:text-zinc-450 block text-[9px] font-bold uppercase">Balance Due</span>
+                    <span className="text-red-500 dark:text-red-400 font-extrabold">UGX {(selectedQuote.balanceDue || 0).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
 
               {/* Editor Form */}
               <form onSubmit={handleUpdateReservationSubmit} className="space-y-4">
-                <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Update Booking Status</h5>
+                <h5 className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Update Booking Status</h5>
 
                 <div className="grid grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550 mb-1.5">Booking Status</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Booking Status</label>
                     <select
                       value={editStatus}
                       onChange={(e) => setEditStatus(e.target.value as any)}
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 font-semibold cursor-pointer"
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold cursor-pointer"
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Approved">Approved</option>
-                      <option value="Declined">Declined</option>
+                      <option value="Pending" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Pending</option>
+                      <option value="Approved" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Approved</option>
+                      <option value="Declined" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Declined</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Payment Status</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Payment Status</label>
                     <select
                       value={editPaymentStatus}
                       onChange={(e) => setEditPaymentStatus(e.target.value as any)}
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 font-semibold cursor-pointer"
+                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold cursor-pointer"
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Paid">Paid</option>
-                      <option value="PartiallyPaid">Partially Paid</option>
+                      <option value="Pending" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Pending</option>
+                      <option value="Paid" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Paid</option>
+                      <option value="PartiallyPaid" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Partially Paid</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 mb-1.5">Amount Paid (UGX)</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Amount Paid (UGX)</label>
                   <input
                     type="number"
                     min={0}
                     max={selectedQuote.totalCostUGX}
                     value={editAmountPaid}
                     onChange={(e) => setEditAmountPaid(Number(e.target.value))}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955 font-semibold"
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                   />
                 </div>
 
                 {/* Submit Actions */}
-                <div className="pt-4 border-t border-zinc-100 flex items-center justify-end gap-3 bg-white">
+                <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-3 bg-white dark:bg-zinc-900">
                   <ShadcnButton
                     type="button"
                     onClick={() => setSelectedQuote(null)}
                     variant="outline"
-                    className="rounded-xl px-4.5 text-xs font-bold border border-zinc-200 text-zinc-500 hover:bg-zinc-50 cursor-pointer h-10"
+                    className="rounded-xl px-4.5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-350 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 cursor-pointer h-10"
                   >
                     Cancel
                   </ShadcnButton>
                   <ShadcnButton
                     type="submit"
-                    className="rounded-xl px-5 text-xs font-bold bg-zinc-950 hover:bg-zinc-800 text-white cursor-pointer h-10 shadow-xs"
+                    className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
                   >
                     Save Changes
                   </ShadcnButton>
