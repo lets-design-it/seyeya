@@ -636,20 +636,20 @@ export const Conferences: React.FC = () => {
               <>
                 {/* Status Selector Dropdown */}
                 <Select value={filter} onValueChange={(val: any) => setFilter(val)}>
-                  <SelectTrigger className="!flex !items-center !justify-between !h-10 !px-4 !rounded-xl !border-zinc-200 dark:!border-transparent !bg-white hover:!bg-zinc-50 !text-zinc-750 !cursor-pointer !text-xs !font-bold !shadow-xs !w-36 [&_svg]:!text-zinc-500 [&_svg]:!h-4 [&_svg]:!w-4 dark:bg-white! dark:text-black! dark:[&_svg]:text-black! dark:hover:bg-white/90!">
+                  <SelectTrigger className="!flex !items-center !justify-between !h-10 !px-4 !rounded-xl !border-zinc-200 dark:!border-zinc-800 !bg-white dark:!bg-zinc-900 hover:!bg-zinc-50 dark:hover:!bg-zinc-800/50 !text-zinc-750 dark:!text-zinc-300 !cursor-pointer !text-xs !font-bold !shadow-xs !w-36 [&_svg]:!text-zinc-500 dark:[&_svg]:!text-zinc-400 [&_svg]:!h-4 [&_svg]:!w-4">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
-                    <SelectItem value="All" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
+                    <SelectItem value="All" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
                       All Statuses
                     </SelectItem>
-                    <SelectItem value="Pending" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
+                    <SelectItem value="Pending" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
                       Pending
                     </SelectItem>
-                    <SelectItem value="Approved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
+                    <SelectItem value="Approved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
                       Approved
                     </SelectItem>
-                    <SelectItem value="Declined" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
+                    <SelectItem value="Declined" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
                       Declined
                     </SelectItem>
                   </SelectContent>
@@ -658,7 +658,7 @@ export const Conferences: React.FC = () => {
                 {/* Quotes Columns Selector */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <ShadcnButton variant="outline" className="flex items-center justify-between h-10 px-4 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs w-36 dark:bg-white! dark:text-black! dark:hover:bg-white/90!">
+                    <ShadcnButton variant="outline" className="flex items-center justify-between h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-750 dark:text-zinc-300 cursor-pointer text-xs font-bold shadow-xs w-36 transition-all">
                       <span className="flex items-center gap-1.5">
                         <SlidersHorizontal className="h-3.5 w-3.5" />
                         Columns
@@ -700,7 +700,7 @@ export const Conferences: React.FC = () => {
                 {/* Halls Columns Selector */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <ShadcnButton variant="outline" className="flex items-center justify-between h-10 px-4 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs w-36 dark:bg-white! dark:text-black! dark:hover:bg-white/90!">
+                    <ShadcnButton variant="outline" className="flex items-center justify-between h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-750 dark:text-zinc-300 cursor-pointer text-xs font-bold shadow-xs w-36 transition-all">
                       <span className="flex items-center gap-1.5">
                         <SlidersHorizontal className="h-3.5 w-3.5" />
                         Columns

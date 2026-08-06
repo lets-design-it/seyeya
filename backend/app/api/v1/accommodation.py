@@ -1,7 +1,7 @@
 """
 Accommodation module routes
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from datetime import date
@@ -351,7 +351,12 @@ async def get_all_categories(
 ):
     """Retrieve all room categories"""
     from app.models import RoomCategory
-    result = await db.execute(select(RoomCategory).order_by(RoomCategory.room_category_id))
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(RoomCategory)
+        .options(selectinload(RoomCategory.photos))
+        .order_by(RoomCategory.room_category_id)
+    )
     return result.scalars().all()
 
 
@@ -362,7 +367,8 @@ async def create_room_category(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new room category"""
-    from app.models import RoomCategory
+    from app.models import RoomCategory, RoomCategoryPhoto
+    from sqlalchemy.orm import selectinload
     category = RoomCategory(
         category_name=request.category_name,
         description=request.description,
@@ -370,9 +376,25 @@ async def create_room_category(
         is_active=request.is_active
     )
     db.add(category)
+    await db.flush()
+    
+    if request.photos:
+        for photo_url in request.photos:
+            photo = RoomCategoryPhoto(
+                room_category_id=category.room_category_id,
+                photo_url=photo_url
+            )
+            db.add(photo)
+            
     await db.commit()
-    await db.refresh(category)
-    return category
+    
+    # Reload with photos
+    result = await db.execute(
+        select(RoomCategory)
+        .options(selectinload(RoomCategory.photos))
+        .where(RoomCategory.room_category_id == category.room_category_id)
+    )
+    return result.scalar_one()
 
 
 @router.put("/categories/{category_id}", response_model=RoomCategoryResponse)
@@ -383,8 +405,15 @@ async def update_room_category(
     current_user: dict = Depends(get_current_user)
 ):
     """Update room category details"""
-    from app.models import RoomCategory
-    result = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == category_id))
+    from app.models import RoomCategory, RoomCategoryPhoto
+    from sqlalchemy import delete
+    from sqlalchemy.orm import selectinload
+    
+    result = await db.execute(
+        select(RoomCategory)
+        .options(selectinload(RoomCategory.photos))
+        .where(RoomCategory.room_category_id == category_id)
+    )
     category = result.scalar_one_or_none()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -398,10 +427,25 @@ async def update_room_category(
     if request.is_active is not None:
         category.is_active = request.is_active
         
+    if request.photos is not None:
+        category.photos.clear()
+        for photo_url in request.photos:
+            photo = RoomCategoryPhoto(
+                room_category_id=category_id,
+                photo_url=photo_url
+            )
+            category.photos.append(photo)
+            
     db.add(category)
     await db.commit()
-    await db.refresh(category)
-    return category
+    
+    # Reload category with photos
+    result = await db.execute(
+        select(RoomCategory)
+        .options(selectinload(RoomCategory.photos))
+        .where(RoomCategory.room_category_id == category_id)
+    )
+    return result.scalar_one()
 
 
 @router.delete("/categories/{category_id}")
@@ -425,6 +469,17 @@ async def delete_room_category(
     await db.delete(category)
     await db.commit()
     return {"message": "Category deleted successfully"}
+
+
+@router.post("/categories/upload")
+async def upload_category_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload a room category photo"""
+    from app.utils.upload import validate_and_save_upload
+    photo_url = validate_and_save_upload(file, "categories")
+    return {"photo_url": photo_url}
 
 
 @router.post("/rooms", response_model=RoomResponse, status_code=status.HTTP_201_CREATED)
