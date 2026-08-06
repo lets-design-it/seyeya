@@ -604,12 +604,21 @@ class CustomerOrdersResponse(BaseModel):
 # ACCOMMODATION SCHEMAS
 # =====================================================================
 
+class RoomCategoryPhotoResponse(BaseModel):
+    photo_id: int
+    photo_url: str
+    
+    class Config:
+        from_attributes = True
+
+
 class RoomCategoryResponse(BaseModel):
     room_category_id: int
     category_name: str
     description: Optional[str] = None
     base_rate_usd: Decimal
     is_active: bool
+    photos: List[RoomCategoryPhotoResponse] = []
     
     class Config:
         from_attributes = True
@@ -645,6 +654,7 @@ class RoomCategoryCreate(BaseModel):
     description: Optional[str] = None
     base_rate_usd: Decimal
     is_active: bool = True
+    photos: Optional[List[str]] = []
 
 
 class RoomCategoryUpdate(BaseModel):
@@ -652,6 +662,7 @@ class RoomCategoryUpdate(BaseModel):
     description: Optional[str] = None
     base_rate_usd: Optional[Decimal] = None
     is_active: Optional[bool] = None
+    photos: Optional[List[str]] = None
 
 
 class RoomCreate(BaseModel):

@@ -480,6 +480,20 @@ class RoomCategory(Base):
     
     # Relationships
     rooms = relationship("Room", back_populates="category", cascade="all, delete-orphan")
+    photos = relationship("RoomCategoryPhoto", back_populates="category", cascade="all, delete-orphan")
+
+
+class RoomCategoryPhoto(Base):
+    """Room category photo model"""
+    __tablename__ = "room_category_photos"
+    
+    photo_id = Column(Integer, primary_key=True)
+    room_category_id = Column(Integer, ForeignKey("room_categories.room_category_id", ondelete="CASCADE"), nullable=False)
+    photo_url = Column(String(500), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    category = relationship("RoomCategory", back_populates="photos")
 
 
 class Room(Base):

@@ -11,6 +11,7 @@ export interface RoomType {
   amenities: string[];
   description: string;
   image: string;
+  photos?: string[];
 }
 
 export interface RoomUnit {
@@ -67,6 +68,8 @@ export const useAccommodation = () => {
       const catRes = await api.get('/accommodation/categories');
       const parsedCats = catRes.data.map((c: any) => {
         const parts = c.description ? c.description.split(" | ") : [];
+        const dbPhotos = c.photos ? c.photos.map((p: any) => p.photo_url) : [];
+        const defaultImg = dbPhotos.length > 0 ? dbPhotos[0] : (parts[3] || 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
         return {
           id: String(c.room_category_id),
           name: c.category_name,
@@ -75,7 +78,8 @@ export const useAccommodation = () => {
           capacity: parts[1] || "2 Adults, 1 Child",
           amenities: parts[2] ? parts[2].split(",") : ['AC', 'Free Wi-Fi', 'King Bed'],
           description: parts[0] || c.description || "",
-          image: parts[3] || 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300',
+          image: defaultImg,
+          photos: dbPhotos,
         };
       });
       setCategories(parsedCats);
@@ -167,7 +171,8 @@ export const useAccommodation = () => {
         category_name: category.name,
         description: descPayload,
         base_rate_usd: category.priceUSD,
-        is_active: true
+        is_active: true,
+        photos: category.photos || []
       });
       await fetchAccommodationData();
       addNotification('Category Added', `Created new room category: ${category.name}`, 'booking');
@@ -184,7 +189,8 @@ export const useAccommodation = () => {
         category_name: updatedCat.name,
         description: descPayload,
         base_rate_usd: updatedCat.priceUSD,
-        is_active: true
+        is_active: true,
+        photos: updatedCat.photos || []
       });
       await fetchAccommodationData();
       addNotification('Category Updated', `Updated room category: ${updatedCat.name}`, 'booking');

@@ -86,7 +86,36 @@
   --color-indigo-800: #0c408c;
   --color-indigo-900: #092c61;
   --color-indigo-950: #04142e;
+
+  /* Custom legacy/special shades used in codebase */
+  --color-zinc-150: #ececf1;
+  --color-zinc-250: #e1e1e6;
+  --color-zinc-350: #b5b5bc;
+  --color-zinc-450: #85858d;
+  --color-zinc-455: #7b7b84;
+  --color-zinc-550: #65656e;
+  --color-zinc-555: #5f5f67;
+  --color-zinc-650: #4f4f56;
+  --color-zinc-655: #43434a;
+  --color-zinc-660: #3a3a40;
+  --color-zinc-750: #2b2b30;
+  --color-zinc-755: #202024;
+  --color-zinc-850: #1b1b1f;
+  --color-zinc-955: #09090b;
+
+  --color-emerald-450: #34d399;
+  --color-emerald-955: #022c22;
+  
+  --color-amber-955: #451a03;
+  
+  --color-violet-750: #6d28d9;
+  --color-violet-955: #2e1065;
+  
+  --color-red-350: #fda4af;
+  --color-red-650: #be123c;
+  --color-red-955: #450a0a;
 }
+
 
 :root {
   --background: oklch(1 0 0); /* Clean cool grey background, #eff1f4 */

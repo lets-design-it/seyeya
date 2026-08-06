@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { useAccommodation, RoomType, RoomUnit, BookingRecord } from '../../hooks/useAccommodation';
 import {
@@ -72,8 +72,23 @@ import {
   User,
   AlertCircle,
   UserCheck,
-  ShieldAlert
+  ShieldAlert,
+  Upload,
+  RotateCw,
+  Crop,
+  Check
 } from 'lucide-react';
+
+const getImageUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const isLocal = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const backendBase = isLocal ? 'http://localhost:8000' : 'https://api.seyeyalodge.com';
+  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 export const Rooms: React.FC = () => {
   const {
@@ -137,25 +152,63 @@ export const Rooms: React.FC = () => {
   const occupancyRate = totalUnits > 0 ? Math.round(((totalUnits - vacantCount) / totalUnits) * 100) : 0;
 
   // -------------------------------------------------------------
-  // Category Form State
+  // Category Form & Upload/Crop State
   // -------------------------------------------------------------
   const [catName, setCatName] = useState('');
   const [catPriceUGX, setCatPriceUGX] = useState<number>(300000);
   const [catPriceUSD, setCatPriceUSD] = useState<number>(85);
-  const [catCapacity, setCatCapacity] = useState('2 Adults');
+  const [catAdults, setCatAdults] = useState<number>(2);
+  const [catChildren, setCatChildren] = useState<number>(1);
   const [catAmenities, setCatAmenities] = useState('');
   const [catDescription, setCatDescription] = useState('');
   const [catImage, setCatImage] = useState('');
+  
+  // Category Photos Upload State
+  const [catPhotos, setCatPhotos] = useState<string[]>([]);
+  
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.post('/accommodation/categories/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      const uploadedUrl = res.data.photo_url;
+      
+      setCatPhotos(prev => [...prev, uploadedUrl]);
+      // Default primary catImage if it is empty or default
+      setCatImage(prev => {
+        if (!prev || prev.includes('unsplash.com/photo-1618773928121-c32242e63f39')) {
+          return uploadedUrl;
+        }
+        return prev;
+      });
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Image upload failed. Please try again.");
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+    e.target.value = ''; // allow reselecting same file
+  };
 
   const openAddCategory = () => {
     setEditCategoryItem(null);
     setCatName('');
     setCatPriceUGX(300000);
     setCatPriceUSD(85);
-    setCatCapacity('2 Adults');
+    setCatAdults(2);
+    setCatChildren(1);
     setCatAmenities('AC, Free Wi-Fi, King Bed');
     setCatDescription('');
     setCatImage('https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
+    setCatPhotos([]);
     setIsCategoryDrawerOpen(true);
   };
 
@@ -164,10 +217,32 @@ export const Rooms: React.FC = () => {
     setCatName(item.name);
     setCatPriceUGX(item.priceUGX);
     setCatPriceUSD(item.priceUSD);
-    setCatCapacity(item.capacity);
+    
+    // Parse existing capacity string
+    const capStr = (item.capacity || "").toLowerCase();
+    let adults = 2;
+    let children = 1;
+    const adultMatch = capStr.match(/(\d+)\s*adult/);
+    if (adultMatch) {
+      adults = parseInt(adultMatch[1]);
+    } else if (capStr.includes("adult")) {
+      adults = 1;
+    }
+    const childMatch = capStr.match(/(\d+)\s*child/);
+    if (childMatch) {
+      children = parseInt(childMatch[1]);
+    } else if (capStr.includes("child")) {
+      children = 1;
+    } else if (capStr.includes("no child")) {
+      children = 0;
+    }
+    setCatAdults(adults);
+    setCatChildren(children);
+
     setCatAmenities(item.amenities.join(', '));
     setCatDescription(item.description);
     setCatImage(item.image);
+    setCatPhotos(item.photos || []);
     setIsCategoryDrawerOpen(true);
   };
 
@@ -175,14 +250,21 @@ export const Rooms: React.FC = () => {
     e.preventDefault();
     if (!catName.trim()) return;
 
+    const adultsText = catAdults === 1 ? "1 Adult" : `${catAdults} Adults`;
+    const childrenText = catChildren === 0
+      ? ""
+      : (catChildren === 1 ? "1 Child" : `${catChildren} Children`);
+    const capacityString = childrenText ? `${adultsText}, ${childrenText}` : adultsText;
+
     const data = {
       name: catName.trim(),
       priceUGX: Number(catPriceUGX),
       priceUSD: Number(catPriceUSD),
-      capacity: catCapacity.trim(),
+      capacity: capacityString,
       amenities: catAmenities.split(',').map(s => s.trim()).filter(Boolean),
       description: catDescription.trim(),
-      image: catImage.trim() || 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300'
+      image: catImage.trim() || (catPhotos.length > 0 ? catPhotos[0] : 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300'),
+      photos: catPhotos
     };
 
     if (editCategoryItem) {
@@ -281,6 +363,33 @@ export const Rooms: React.FC = () => {
     }
   }, [isBookingDrawerOpen, isDetailsOpen]);
 
+  const getCategoryCapacity = (catId: string) => {
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return { maxAdults: 2, maxChildren: 1 };
+
+    const capStr = (cat.capacity || "").toLowerCase();
+    let maxAdults = 2;
+    let maxChildren = 1;
+
+    const adultMatch = capStr.match(/(\d+)\s*adult/);
+    if (adultMatch) {
+      maxAdults = parseInt(adultMatch[1]);
+    } else if (capStr.includes("adult")) {
+      maxAdults = 1;
+    }
+
+    const childMatch = capStr.match(/(\d+)\s*child/);
+    if (childMatch) {
+      maxChildren = parseInt(childMatch[1]);
+    } else if (capStr.includes("child")) {
+      maxChildren = 1;
+    } else if (capStr.includes("no child")) {
+      maxChildren = 0;
+    }
+
+    return { maxAdults, maxChildren };
+  };
+
   const openAddBooking = () => {
     setEditBookingItem(null);
     setBookGuestName('');
@@ -312,15 +421,30 @@ export const Rooms: React.FC = () => {
     setBookTotalPaid(item.totalPaid);
     setBookStatus(item.status);
 
+    const primaryClient = allClients.find(c => c.full_name.toLowerCase() === item.guestName.toLowerCase());
+    const primaryId = primaryClient ? primaryClient.customer_id : (item.customerId || 1);
+
     if (item.guests && item.guests.length > 0) {
-      setSelectedGuests(item.guests.map((g: any) => ({
+      const parsedGuests = item.guests.map((g: any) => ({
         id: g.customer_id,
         name: g.name || `Guest #${g.customer_id}`,
         isChild: g.is_child
-      })));
+      }));
+      const primaryIdx = parsedGuests.findIndex(g => String(g.id) === String(primaryId));
+      if (primaryIdx > 0) {
+        const [primary] = parsedGuests.splice(primaryIdx, 1);
+        parsedGuests.unshift(primary);
+      } else if (primaryIdx === -1) {
+        parsedGuests.unshift({
+          id: primaryId,
+          name: item.guestName,
+          isChild: false
+        });
+      }
+      setSelectedGuests(parsedGuests);
     } else {
       setSelectedGuests([{
-        id: item.customerId || 1,
+        id: primaryId,
         name: item.guestName,
         isChild: false
       }]);
@@ -340,11 +464,25 @@ export const Rooms: React.FC = () => {
 
     const catObj = categories.find(c => c.id === bookCatId);
     const roomUnitObj = roomUnits.find(ru => ru.id === bookRoomUnitId);
-    const maxOccupancy = roomUnitObj?.maxOccupancy || 2;
+    
+    const { maxAdults, maxChildren } = getCategoryCapacity(bookCatId);
+    const maxOccupancy = roomUnitObj?.maxOccupancy || maxAdults;
 
     const adultsCount = selectedGuests.filter(g => !g.isChild).length;
+    const childrenCount = selectedGuests.filter(g => g.isChild).length;
+
     if (adultsCount > maxOccupancy) {
       alert(`The selected room unit has a maximum capacity of ${maxOccupancy} adults. You have selected ${adultsCount} adults. Please remove some adults or mark them as children.`);
+      return;
+    }
+
+    if (adultsCount > maxAdults) {
+      alert(`This category has a maximum capacity of ${maxAdults} adults. You have selected ${adultsCount} adults.`);
+      return;
+    }
+
+    if (childrenCount > maxChildren) {
+      alert(`This category has a maximum capacity of ${maxChildren} children. You have selected ${childrenCount} children.`);
       return;
     }
 
@@ -654,7 +792,7 @@ export const Rooms: React.FC = () => {
       header: 'Image',
       cell: ({ row }) => (
         <img
-          src={row.original.image}
+          src={getImageUrl(row.original.image)}
           alt={row.original.name}
           className="h-10 w-10 rounded-lg object-cover bg-zinc-100 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-800"
         />
@@ -929,15 +1067,15 @@ export const Rooms: React.FC = () => {
             {/* Category Select Filter (Not applicable to categories tab itself) */}
             {activeTab !== 'categories' && (
               <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 h-10 px-3.5 text-xs text-zinc-700 font-semibold cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90! [&_svg]:dark:text-black!">
+                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
-                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
+                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
                     All Categories
                   </SelectItem>
                   {categories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id} className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
+                    <SelectItem key={cat.id} value={cat.id} className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
                       {cat.name.replace('Seyeya ', '')}
                     </SelectItem>
                   ))}
@@ -948,26 +1086,26 @@ export const Rooms: React.FC = () => {
             {/* Status Select Filter (Not applicable to categories tab itself) */}
             {activeTab !== 'categories' && (
               <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 h-10 px-3.5 text-xs text-zinc-700 font-semibold cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90! [&_svg]:dark:text-black!">
+                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
-                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">
+                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
                     All Status
                   </SelectItem>
                   {activeTab === 'reservations' ? (
                     <>
-                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Reserved</SelectItem>
-                      <SelectItem value="Checked In" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Checked In</SelectItem>
-                      <SelectItem value="Checked Out" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Checked Out</SelectItem>
-                      <SelectItem value="Cancelled" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Cancelled</SelectItem>
+                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
+                      <SelectItem value="Checked In" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked In</SelectItem>
+                      <SelectItem value="Checked Out" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked Out</SelectItem>
+                      <SelectItem value="Cancelled" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Cancelled</SelectItem>
                     </>
                   ) : (
                     <>
-                      <SelectItem value="Available" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Available</SelectItem>
-                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Reserved</SelectItem>
-                      <SelectItem value="Occupied" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Occupied</SelectItem>
-                      <SelectItem value="Maintenance" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-350 outline-hidden">Maintenance</SelectItem>
+                      <SelectItem value="Available" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Available</SelectItem>
+                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
+                      <SelectItem value="Occupied" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Occupied</SelectItem>
+                      <SelectItem value="Maintenance" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Maintenance</SelectItem>
                     </>
                   )}
                 </SelectContent>
@@ -991,7 +1129,7 @@ export const Rooms: React.FC = () => {
             {/* Columns selector dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 dark:border-transparent bg-white hover:bg-zinc-50 text-zinc-755 cursor-pointer text-xs font-bold shadow-xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! [&_svg]:dark:text-black!">
+                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 cursor-pointer text-xs font-bold shadow-xs transition-all">
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                   Columns
                   <ChevronDown className="h-4 w-4 text-zinc-500" />
@@ -1174,16 +1312,29 @@ export const Rooms: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Guest Capacity *</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. 2 Adults, 1 Child"
-                value={catCapacity}
-                onChange={(e) => setCatCapacity(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Max Adults *</label>
+                <input
+                  type="number"
+                  required
+                  min={1}
+                  value={catAdults}
+                  onChange={(e) => setCatAdults(Number(e.target.value))}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Max Children</label>
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  value={catChildren}
+                  onChange={(e) => setCatChildren(Number(e.target.value))}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
+                />
+              </div>
             </div>
 
             <div>
@@ -1198,14 +1349,86 @@ export const Rooms: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Image URL</label>
-              <input
-                type="url"
-                placeholder="https://images.unsplash.com/..."
-                value={catImage}
-                onChange={(e) => setCatImage(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
-              />
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Category Photos (Unlimited)</label>
+              
+              {/* Thumbnail grid */}
+              {catPhotos.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {catPhotos.map((photoUrl, idx) => {
+                    const isPrimary = photoUrl === catImage;
+                    return (
+                      <div key={idx} className={`relative group aspect-square rounded-xl overflow-hidden border-2 transition-all ${isPrimary ? 'border-indigo-500 shadow-md' : 'border-zinc-200 dark:border-zinc-800'}`}>
+                        <img src={getImageUrl(photoUrl)} alt={`Thumbnail ${idx}`} className="h-full w-full object-cover" />
+                        
+                        {/* Overlay with options */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-1 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setCatImage(photoUrl)}
+                            className="bg-indigo-600 text-white rounded-lg px-1.5 py-1 text-[9px] font-bold cursor-pointer hover:bg-indigo-700 transition-colors w-full"
+                          >
+                            Set Primary
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCatPhotos(prev => {
+                                const next = prev.filter(url => url !== photoUrl);
+                                // If primary image was deleted, assign the next available one
+                                if (isPrimary && next.length > 0) {
+                                  setCatImage(next[0]);
+                                } else if (isPrimary) {
+                                  setCatImage('');
+                                }
+                                return next;
+                              });
+                            }}
+                            className="bg-red-600 text-white rounded-lg px-1.5 py-1 text-[9px] font-bold cursor-pointer hover:bg-red-700 transition-colors w-full"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                        
+                        {/* Primary Badge */}
+                        {isPrimary && (
+                          <div className="absolute top-1 left-1 bg-indigo-600 text-white text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                            <Check className="h-2 w-2" />
+                            Primary
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Upload trigger zone */}
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="category-photo-file-input"
+                />
+                <label
+                  htmlFor="category-photo-file-input"
+                  className="flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 rounded-2xl p-4 bg-zinc-50/50 dark:bg-zinc-950/20 hover:bg-indigo-50/5 dark:hover:bg-indigo-500/5 cursor-pointer transition-all text-center h-28"
+                >
+                  {isUploadingPhoto ? (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider animate-pulse">Uploading Image...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="h-5 w-5 text-zinc-450 dark:text-zinc-500 mb-1.5" />
+                      <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">Upload Photo</span>
+                      <span className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-0.5">Select image files</span>
+                    </>
+                  )}
+                </label>
+              </div>
             </div>
 
             <div>
@@ -1362,8 +1585,8 @@ export const Rooms: React.FC = () => {
           DRAWER: Add / Edit Reservation
           ------------------------------------------------------------- */}
       <Drawer open={isBookingDrawerOpen} onOpenChange={setIsBookingDrawerOpen} direction="right" modal={false}>
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
-          <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4 bg-zinc-50/50 dark:bg-zinc-955/40">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg bg-card text-card-foreground dark:bg-zinc-900 border-zinc-200/50 dark:border-zinc-800">
+          <DrawerHeader className="border-b border-zinc-200/50 dark:border-zinc-800 pb-4 bg-zinc-50/50 dark:bg-zinc-950/40">
             <DrawerTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50">
               {editBookingItem ? 'Edit Room Reservation' : 'New Room Reservation'}
             </DrawerTitle>
@@ -1435,21 +1658,50 @@ export const Rooms: React.FC = () => {
                     onClick={() => setIsDropdownOpen(false)}
                   />
                   <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                    {allClients.filter(c =>
-                      c.full_name.toLowerCase().includes(guestSearchTerm.toLowerCase()) &&
-                      !selectedGuests.some(sg => sg.id === c.customer_id)
-                    ).length === 0 ? (
-                      <div className="p-3 text-xs text-zinc-450 dark:text-zinc-400 text-center font-medium">No unregistered matching guests found</div>
-                    ) : (
-                      allClients.filter(c =>
-                        c.full_name.toLowerCase().includes(guestSearchTerm.toLowerCase()) &&
-                        !selectedGuests.some(sg => sg.id === c.customer_id)
-                      ).map(c => (
+                    {(() => {
+                      const { maxAdults, maxChildren } = getCategoryCapacity(bookCatId);
+                      const currentAdults = selectedGuests.filter(g => !g.isChild).length;
+                      const currentChildren = selectedGuests.filter(g => g.isChild).length;
+                      const onlyChildrenAllowed = currentAdults >= maxAdults;
+
+                      const eligible = allClients.filter(c => {
+                        const matchesSearch = c.full_name.toLowerCase().includes(guestSearchTerm.toLowerCase());
+                        const notSelectedYet = !selectedGuests.some(sg => 
+                          String(sg.id) === String(c.customer_id) || 
+                          sg.name.toLowerCase() === c.full_name.toLowerCase()
+                        );
+                        if (!matchesSearch || !notSelectedYet) return false;
+
+                        if (onlyChildrenAllowed) {
+                          return !!c.is_child;
+                        }
+                        if (currentChildren >= maxChildren) {
+                          return !c.is_child;
+                        }
+                        return true;
+                      });
+
+                      if (eligible.length === 0) {
+                        return (
+                          <div className="p-3 text-xs text-zinc-450 dark:text-zinc-400 text-center font-medium">
+                            No unregistered matching guests found
+                          </div>
+                        );
+                      }
+
+                      return eligible.map(c => (
                         <div
                           key={c.customer_id}
                           onClick={() => {
+                            if (selectedGuests.some(sg => 
+                              String(sg.id) === String(c.customer_id) || 
+                              sg.name.toLowerCase() === c.full_name.toLowerCase()
+                            )) {
+                              alert("This guest is already selected.");
+                              return;
+                            }
                             const roomUnitObj = roomUnits.find(ru => ru.id === bookRoomUnitId);
-                            const maxOccupancy = roomUnitObj?.maxOccupancy || 2;
+                            const maxOccupancy = roomUnitObj?.maxOccupancy || maxAdults;
                             const adultsCount = selectedGuests.filter(g => !g.isChild).length;
                             const isGuestChild = !!c.is_child;
 
@@ -1468,25 +1720,25 @@ export const Rooms: React.FC = () => {
                           }}
                           className="px-3 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer font-medium flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 text-zinc-800 dark:text-zinc-200"
                         >
-                          <span>{c.full_name}</span>
+                          <span>{c.full_name} {c.is_child && <span className="text-[9px] bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50 px-1 rounded-sm ml-1 font-bold">Child</span>}</span>
                           <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{c.phone_number || c.email || ""}</span>
                         </div>
-                      ))
-                    )}
+                      ));
+                    })()}
                   </div>
                 </>
               )}
             </div>
 
             {selectedGuests.length > 0 && (
-              <div className="space-y-2.5 bg-zinc-50/70 dark:bg-zinc-950/20 p-3 rounded-2xl border border-zinc-150 dark:border-zinc-800 shadow-2xs">
+              <div className="space-y-2.5 bg-zinc-50/70 dark:bg-zinc-950/20 p-3 rounded-2xl border border-zinc-200/50 dark:border-zinc-800 shadow-2xs">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1">Selected Occupying Guests</span>
                 <div className="space-y-2">
                   {selectedGuests.map((guest, idx) => (
-                    <div key={`${guest.id}-${idx}`} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-150/60 dark:border-zinc-800 shadow-3xs">
+                    <div key={`${guest.id}-${idx}`} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/40 dark:border-zinc-800 shadow-3xs">
                       <div className="flex flex-col">
                         <span className="text-xs font-bold text-foreground dark:text-zinc-150">
-                          {guest.name} {idx === 0 && <span className="text-[9px] bg-zinc-100 dark:bg-zinc-800 border dark:border-zinc-700 px-1 rounded-sm text-zinc-500 dark:text-zinc-400 font-semibold ml-1">Paying Primary</span>}
+                          {guest.name}
                         </span>
                       </div>
 
@@ -1494,13 +1746,24 @@ export const Rooms: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
+                            const { maxAdults, maxChildren } = getCategoryCapacity(bookCatId);
                             const roomUnitObj = roomUnits.find(ru => ru.id === bookRoomUnitId);
-                            const maxOccupancy = roomUnitObj?.maxOccupancy || 2;
+                            const maxOccupancy = roomUnitObj?.maxOccupancy || maxAdults;
 
                             if (guest.isChild) {
                               const newAdultsCount = selectedGuests.filter(g => !g.isChild).length + 1;
                               if (newAdultsCount > maxOccupancy) {
                                 alert(`Cannot change to Adult. The maximum capacity of this room is ${maxOccupancy} adults.`);
+                                return;
+                              }
+                              if (newAdultsCount > maxAdults) {
+                                alert(`Cannot change to Adult. This category only allows a maximum of ${maxAdults} adults.`);
+                                return;
+                              }
+                            } else {
+                              const newChildrenCount = selectedGuests.filter(g => g.isChild).length + 1;
+                              if (newChildrenCount > maxChildren) {
+                                alert(`Cannot change to Child. This category only allows a maximum of ${maxChildren} children.`);
                                 return;
                               }
                             }
@@ -1510,8 +1773,8 @@ export const Rooms: React.FC = () => {
                             ));
                           }}
                           className={`text-[9px] font-extrabold px-2 py-1 rounded-lg border uppercase tracking-wider cursor-pointer ${guest.isChild
-                            ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
-                            : 'bg-indigo-50 dark:bg-indigo-955/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
+                            ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
+                            : 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
                             }`}
                         >
                           {guest.isChild ? 'Child' : 'Adult'}
@@ -1650,7 +1913,7 @@ export const Rooms: React.FC = () => {
                     <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                       {selectedBooking.guests && selectedBooking.guests.length > 0 ? (
                         selectedBooking.guests.map((g: any, index: number) => {
-                          const client = allClients.find(c => c.customer_id === g.customer_id) || 
+                          const client = allClients.find(c => String(c.customer_id) === String(g.customer_id)) || 
                                          allClients.find(c => c.full_name === g.name);
                           const name = client?.full_name || g.name || `Guest #${g.customer_id}`;
                           const phone = client?.phone_number || g.phone_number || '';
@@ -1660,12 +1923,12 @@ export const Rooms: React.FC = () => {
                           const isChild = g.is_child;
 
                           return (
-                            <div key={index} className="p-3 bg-zinc-50 dark:bg-zinc-950/30 border border-zinc-150/80 dark:border-zinc-800 rounded-2xl space-y-1 text-xs text-left">
-                              <div className="flex items-center justify-between font-bold text-zinc-805 dark:text-zinc-150">
+                            <div key={index} className="p-3 bg-zinc-50 dark:bg-zinc-950/30 border border-zinc-200/50 dark:border-zinc-800 rounded-2xl space-y-1 text-xs text-left">
+                              <div className="flex items-center justify-between font-bold text-zinc-800 dark:text-zinc-150">
                                 <span>{name}</span>
                                 <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-lg border uppercase tracking-wider shrink-0 ${isChild
-                                  ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
-                                  : 'bg-indigo-50 dark:bg-indigo-955/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
+                                  ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
+                                  : 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
                                 }`}>
                                   {isChild ? 'Child' : 'Adult'}
                                 </span>
@@ -1678,10 +1941,10 @@ export const Rooms: React.FC = () => {
                           );
                         })
                       ) : (
-                        <div className="p-3 bg-zinc-50 dark:bg-zinc-955/20 border border-zinc-150/80 dark:border-zinc-800 rounded-2xl space-y-1 text-xs text-left">
-                          <div className="flex items-center justify-between font-bold text-zinc-805 dark:text-zinc-150">
+                        <div className="p-3 bg-zinc-50 dark:bg-zinc-950/30 border border-zinc-200/50 dark:border-zinc-800 rounded-2xl space-y-1 text-xs text-left">
+                          <div className="flex items-center justify-between font-bold text-zinc-800 dark:text-zinc-150">
                             <span>{selectedBooking.guestName}</span>
-                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-lg border uppercase tracking-wider bg-indigo-50 dark:bg-indigo-955/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50">
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-lg border uppercase tracking-wider bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50">
                               Adult
                             </span>
                           </div>
@@ -1691,7 +1954,7 @@ export const Rooms: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-955/20 p-4 border border-zinc-150/40 dark:border-zinc-800 rounded-[18px] text-xs">
+                  <div className="grid grid-cols-2 gap-4 bg-zinc-50/50 dark:bg-zinc-950/30 p-4 border border-zinc-200/50 dark:border-zinc-800 rounded-[18px] text-xs">
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1">Check In</span>
                       <span className="font-semibold text-zinc-900 dark:text-zinc-200 block">{selectedBooking.checkIn}</span>
@@ -1702,7 +1965,7 @@ export const Rooms: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="bg-zinc-50/50 dark:bg-zinc-955/20 p-4 border border-zinc-150/40 dark:border-zinc-800 rounded-[18px] text-xs flex justify-between items-center">
+                  <div className="bg-zinc-50/50 dark:bg-zinc-950/30 p-4 border border-zinc-200/50 dark:border-zinc-800 rounded-[18px] text-xs flex justify-between items-center">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Total Rental Value</span>
                     <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
                       UGX {selectedBooking.totalPaid.toLocaleString()}
@@ -1712,12 +1975,12 @@ export const Rooms: React.FC = () => {
                   <div className="space-y-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Current Status</span>
                     <Badge className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${selectedBooking.status === 'Checked In'
-                      ? 'bg-violet-50 dark:bg-violet-955/20 text-violet-755 dark:text-violet-300 border-violet-200 dark:border-violet-900/50'
+                      ? 'bg-violet-50 dark:bg-violet-950/20 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-900/50'
                       : selectedBooking.status === 'Reserved'
-                        ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
+                        ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
                         : selectedBooking.status === 'Checked Out'
-                          ? 'bg-zinc-100 dark:bg-zinc-800/40 text-zinc-655 dark:text-zinc-350 border-zinc-200 dark:border-zinc-700'
-                          : 'bg-red-50 dark:bg-red-955/20 text-red-700 dark:text-red-350 border-red-200 dark:border-red-900/50'
+                          ? 'bg-zinc-100 dark:bg-zinc-800/40 text-zinc-600 dark:text-zinc-350 border-zinc-200 dark:border-zinc-700'
+                          : 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-350 border-red-200 dark:border-red-900/50'
                       }`}>
                       {selectedBooking.status}
                     </Badge>
