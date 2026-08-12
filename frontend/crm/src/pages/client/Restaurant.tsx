@@ -251,10 +251,11 @@ export const Restaurant: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="text-right flex flex-col justify-end">
-                  <span className="text-xs uppercase font-bold text-zinc-550 block">Aggregate Total</span>
-                  <span className="text-xs font-bold text-white mt-1 block">UGX {cartTotal.ugx.toLocaleString()}</span>
-                  <span className="text-xs text-zinc-500">~ ${cartTotal.usd} USD</span>
+                <div className="text-right flex flex-col justify-end space-y-0.5">
+                  <span className="text-[10px] uppercase font-bold text-zinc-500">Subtotal: UGX {cartTotal.ugx.toLocaleString()}</span>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500">VAT (18%): UGX {Math.round(cartTotal.ugx * 0.18).toLocaleString()}</span>
+                  <span className="text-xs font-bold text-violet-400 mt-1 block">Total: UGX {Math.round(cartTotal.ugx * 1.18).toLocaleString()}</span>
+                  <span className="text-[10px] text-zinc-500 block">~ ${Math.round(cartTotal.usd * 1.18 * 10) / 10} USD</span>
                 </div>
               </div>
 

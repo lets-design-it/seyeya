@@ -58,6 +58,11 @@ export interface RestaurantOrder {
   deliveryOption: string;
   deliveryAddress?: string;
   rawItems: any[];
+  subTotal?: number;
+  deliveryCharge?: number;
+  taxAmount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const useRestaurant = () => {
@@ -125,7 +130,7 @@ export const useRestaurant = () => {
         const itemsStr = o.items
           ? o.items
               .map((it: any) => {
-                const itemName = it.menu_item?.item_name || `Item #${it.menu_item_id}`;
+                const itemName = it.menu_item?.name || `Item #${it.menu_item_id}`;
                 return `${it.quantity}x ${itemName}`;
               })
               .join(', ')
@@ -151,7 +156,12 @@ export const useRestaurant = () => {
           specialInstr: o.special_instr || '',
           deliveryOption: o.delivery_option || 'Premises',
           deliveryAddress: o.delivery_address || '',
-          rawItems: o.items || []
+          rawItems: o.items || [],
+          subTotal: Number(o.sub_total || 0),
+          deliveryCharge: Number(o.delivery_charge || 0),
+          taxAmount: Number(o.tax_amount || 0),
+          createdAt: o.created_at || null,
+          updatedAt: o.updated_at || null
         };
       });
       setOrders(mappedOrders);

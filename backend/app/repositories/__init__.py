@@ -10,7 +10,7 @@ from decimal import Decimal
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
     ConferenceReservation, MenuItem, MenuCategory, Room, ConferenceHall,
-    Payment, CustomerReview, OrderItem, MenuExtra, MenuChoice, MenuAccompaniment,
+    Payment, CustomerReview, OrderItem, OrderItemExtra, MenuExtra, MenuChoice, MenuAccompaniment,
     Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken
 )
 
@@ -747,7 +747,7 @@ class RestaurantOrderRepository:
             select(RestaurantOrder)
             .where(RestaurantOrder.order_id == order_id)
             .options(
-                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras).selectinload(OrderItemExtra.extra),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
@@ -761,7 +761,7 @@ class RestaurantOrderRepository:
             select(RestaurantOrder)
             .where(RestaurantOrder.order_number == order_number)
             .options(
-                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras).selectinload(OrderItemExtra.extra),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
@@ -775,7 +775,7 @@ class RestaurantOrderRepository:
             select(RestaurantOrder)
             .where(RestaurantOrder.customer_id == customer_id)
             .options(
-                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras).selectinload(OrderItemExtra.extra),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)

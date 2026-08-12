@@ -80,11 +80,7 @@ export const UserManagement: React.FC = () => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Pagination states
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+  // Provision modal form state
 
   // Provision modal form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -111,9 +107,7 @@ export const UserManagement: React.FC = () => {
   const [updateError, setUpdateError] = useState('');
   const [isFetchingUser, setIsFetchingUser] = useState(false);
 
-  useEffect(() => {
-    setPagination(p => ({ ...p, pageIndex: 0 }));
-  }, [searchTerm]);
+
 
   // Fetch initial data
   const fetchData = async () => {
@@ -429,12 +423,16 @@ export const UserManagement: React.FC = () => {
     columns,
     state: {
       columnVisibility,
-      pagination,
     },
     onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageIndex: 0,
+        pageSize: 10,
+      }
+    }
   });
 
   return (

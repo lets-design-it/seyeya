@@ -56,7 +56,15 @@ import {
   Building
 } from 'lucide-react';
 
-export const Conferences: React.FC = () => {
+interface ConferencesProps {
+  activeTab?: 'quotes' | 'halls';
+  setActiveTab?: (tab: 'quotes' | 'halls') => void;
+}
+
+export const Conferences: React.FC<ConferencesProps> = ({ 
+  activeTab: propActiveTab, 
+  setActiveTab: propSetActiveTab 
+}) => {
   const {
     quotes,
     halls,
@@ -67,7 +75,9 @@ export const Conferences: React.FC = () => {
     createReservation
   } = useConference();
 
-  const [activeTab, setActiveTab] = useState<'quotes' | 'halls'>('quotes');
+  const [localActiveTab, localSetActiveTab] = useState<'quotes' | 'halls'>('quotes');
+  const activeTab = propActiveTab || localActiveTab;
+  const setActiveTab = propSetActiveTab || localSetActiveTab;
 
   // Quotes filters state
   const [filter, setFilter] = useState<'All' | 'Pending' | 'Approved' | 'Declined'>('All');
@@ -560,29 +570,7 @@ export const Conferences: React.FC = () => {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-zinc-150 gap-6">
-        <button
-          onClick={() => setActiveTab('quotes')}
-          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'quotes' ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-400 hover:text-zinc-605 dark:hover:text-zinc-300'
-            }`}
-        >
-          Reservations
-          {activeTab === 'quotes' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 dark:bg-zinc-50 rounded-full animate-fade-in" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('halls')}
-          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'halls' ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-400 hover:text-zinc-605 dark:hover:text-zinc-300'
-            }`}
-        >
-          Conference Halls
-          {activeTab === 'halls' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 dark:bg-zinc-50 rounded-full animate-fade-in" />
-          )}
-        </button>
-      </div>
+
 
       {/* Filter Section */}
       <Card className="p-4 bg-card border border-border dark:border-zinc-800 rounded-2xl shadow-xs">

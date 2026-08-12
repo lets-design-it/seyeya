@@ -59,6 +59,7 @@ interface HotelData {
   check_out_time: string;
   currency: string;
   timezone: string;
+  vat_rate: string;
   is_active: boolean;
   facebook_url?: string;
   instagram_url?: string;
@@ -88,11 +89,21 @@ interface NotificationPrefs {
   system_notifications: boolean;
 }
 
-export const Settings: React.FC = () => {
+interface SettingsProps {
+  activeTab?: ActiveTab;
+  setActiveTab?: (tab: ActiveTab) => void;
+}
+
+export const Settings: React.FC<SettingsProps> = ({ 
+  activeTab: propActiveTab, 
+  setActiveTab: propSetActiveTab 
+}) => {
   const { user, updateUserProfile } = useAuth();
   const { theme, setTheme } = useTheme();
   
-  const [activeTab, setActiveTab] = useState<ActiveTab>('profile');
+  const [localActiveTab, localSetActiveTab] = useState<ActiveTab>('profile');
+  const activeTab = propActiveTab || localActiveTab;
+  const setActiveTab = propSetActiveTab || localSetActiveTab;
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -122,6 +133,7 @@ export const Settings: React.FC = () => {
     check_out_time: '10:00',
     currency: 'USD',
     timezone: 'UTC',
+    vat_rate: '18.00',
     is_active: true,
     facebook_url: '',
     instagram_url: '',
@@ -195,6 +207,7 @@ export const Settings: React.FC = () => {
                 check_out_time: d.check_out_time || '10:00',
                 currency: d.currency || 'USD',
                 timezone: d.timezone || 'UTC',
+                vat_rate: d.vat_rate !== null && d.vat_rate !== undefined ? String(d.vat_rate) : '18.00',
                 is_active: d.is_active ?? true,
                 facebook_url: d.facebook_url || '',
                 instagram_url: d.instagram_url || '',
@@ -313,6 +326,7 @@ export const Settings: React.FC = () => {
       form.append('postal_code', hotelForm.postal_code);
       form.append('currency', hotelForm.currency);
       form.append('timezone', hotelForm.timezone);
+      if (hotelForm.vat_rate) form.append('vat_rate', hotelForm.vat_rate);
       form.append('is_active', String(hotelForm.is_active));
 
       if (hotelForm.latitude) form.append('latitude', hotelForm.latitude);
@@ -450,52 +464,7 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex border-b border-zinc-150 gap-6">
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
-            activeTab === 'profile' ? 'text-zinc-950 dark:text-zinc-50 font-black' : 'text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-300'
-          }`}
-        >
-          Personal Profile
-          {activeTab === 'profile' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 dark:bg-zinc-50 rounded-full animate-fade-in" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('hotel')}
-          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
-            activeTab === 'hotel' ? 'text-zinc-950 dark:text-zinc-50 font-black' : 'text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-300'
-          }`}
-        >
-          Hotel & Delivery Setup
-          {activeTab === 'hotel' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 dark:bg-zinc-50 rounded-full animate-fade-in" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('theme')}
-          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
-            activeTab === 'theme' ? 'text-zinc-950 dark:text-zinc-50 font-black' : 'text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-300'
-          }`}
-        >
-          Theme Preferences
-          {activeTab === 'theme' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 dark:bg-zinc-50 rounded-full animate-fade-in" />
-          )}
-        </button>
-        <button
-          onClick={() => setActiveTab('notifications')}
-          className={`pb-3 text-sm font-bold transition-all relative cursor-pointer ${
-            activeTab === 'notifications' ? 'text-zinc-950 dark:text-zinc-50 font-black' : 'text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-300'
-          }`}
-        >
-          Notification Toggles
-          {activeTab === 'notifications' && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-zinc-950 dark:bg-zinc-50 rounded-full animate-fade-in" />
-          )}
-        </button>
-      </div>
+
 
       {/* Main Tab View Area */}
       {isLoading ? (
@@ -842,7 +811,7 @@ export const Settings: React.FC = () => {
                     <p className="text-[10px] text-zinc-500 font-medium mt-1">Configure hours, default currency, and active status.</p>
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-4">
+                  <div className="grid gap-4 md:grid-cols-5">
                     <div className="grid gap-2">
                       <Label htmlFor="checkin" className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Check-in Time</Label>
                       <Input 
@@ -884,6 +853,21 @@ export const Settings: React.FC = () => {
                         onChange={e => setHotelForm(h => ({ ...h, timezone: e.target.value }))}
                         disabled={!isAdmin}
                         placeholder="Africa/Kampala"
+                        className="rounded-xl h-10 text-xs border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 dark:text-zinc-50"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="vat_rate" className="text-xs font-bold text-zinc-700 dark:text-zinc-300">VAT Rate (%)</Label>
+                      <Input 
+                        id="vat_rate" 
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={hotelForm.vat_rate}
+                        onChange={e => setHotelForm(h => ({ ...h, vat_rate: e.target.value }))}
+                        disabled={!isAdmin}
+                        placeholder="18.00"
                         className="rounded-xl h-10 text-xs border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 dark:text-zinc-50"
                       />
                     </div>

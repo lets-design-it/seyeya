@@ -38,6 +38,7 @@ async def create_hotel_details(
     check_out_time: Optional[str] = Form(None),
     currency: str = Form("USD"),
     timezone: str = Form("UTC"),
+    vat_rate: Optional[float] = Form(18.00),
     is_active: bool = Form(True),
     logo: Optional[UploadFile] = File(None),
     cover_image: Optional[UploadFile] = File(None),
@@ -70,6 +71,7 @@ async def create_hotel_details(
             check_out_time=check_out_time,
             currency=currency,
             timezone=timezone,
+            vat_rate=vat_rate,
             is_active=is_active
         )
     except Exception as e:
@@ -174,6 +176,7 @@ async def update_hotel_details(
     check_out_time: Optional[str] = Form(None),
     currency: Optional[str] = Form(None),
     timezone: Optional[str] = Form(None),
+    vat_rate: Optional[float] = Form(None),
     is_active: Optional[bool] = Form(None),
     logo: Optional[UploadFile] = File(None),
     cover_image: Optional[UploadFile] = File(None),
@@ -206,6 +209,7 @@ async def update_hotel_details(
             check_out_time=check_out_time,
             currency=currency,
             timezone=timezone,
+            vat_rate=vat_rate,
             is_active=is_active
         )
     except Exception as e:

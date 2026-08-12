@@ -90,7 +90,15 @@ const getImageUrl = (url: string) => {
   return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
-export const Rooms: React.FC = () => {
+interface RoomsProps {
+  activeTab?: 'reservations' | 'rooms' | 'categories';
+  setActiveTab?: (tab: 'reservations' | 'rooms' | 'categories') => void;
+}
+
+export const Rooms: React.FC<RoomsProps> = ({ 
+  activeTab: propActiveTab, 
+  setActiveTab: propSetActiveTab 
+}) => {
   const {
     categories,
     roomUnits,
@@ -109,7 +117,9 @@ export const Rooms: React.FC = () => {
   } = useAccommodation();
 
   // Active Tab state
-  const [activeTab, setActiveTab] = useState<'reservations' | 'rooms' | 'categories'>('reservations');
+  const [localActiveTab, localSetActiveTab] = useState<'reservations' | 'rooms' | 'categories'>('reservations');
+  const activeTab = propActiveTab || localActiveTab;
+  const setActiveTab = propSetActiveTab || localSetActiveTab;
 
   // Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -982,37 +992,6 @@ export const Rooms: React.FC = () => {
             </ShadcnButton>
           )}
         </div>
-      </div>
-
-      {/* Tabs navigation pill bars */}
-      <div className="flex bg-zinc-100 dark:bg-zinc-950/40 p-1.5 rounded-2xl w-fit border border-zinc-150 dark:border-zinc-800">
-        <button
-          onClick={() => { setActiveTab('reservations'); resetFilters(); }}
-          className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${activeTab === 'reservations'
-            ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 shadow-xs border border-zinc-150/40 dark:border-zinc-800'
-            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/40'
-            }`}
-        >
-          Reservations made
-        </button>
-        <button
-          onClick={() => { setActiveTab('rooms'); resetFilters(); }}
-          className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${activeTab === 'rooms'
-            ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 shadow-xs border border-zinc-150/40 dark:border-zinc-800'
-            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/40'
-            }`}
-        >
-          Rooms
-        </button>
-        <button
-          onClick={() => { setActiveTab('categories'); resetFilters(); }}
-          className={`px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${activeTab === 'categories'
-            ? 'bg-white dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 shadow-xs border border-zinc-150/40 dark:border-zinc-800'
-            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/50 dark:hover:bg-zinc-800/40'
-            }`}
-        >
-          Room Categories
-        </button>
       </div>
 
       {/* Analytics widgets */}

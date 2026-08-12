@@ -470,6 +470,7 @@ class OrderItemExtraResponse(BaseModel):
     quantity: int
     unit_price: Decimal
     total_price: Decimal
+    extra: Optional[MenuExtraResponse] = None
     
     class Config:
         from_attributes = True
@@ -526,13 +527,15 @@ class RestaurantOrderResponse(BaseModel):
     customer_id: Optional[int] = None
     order_number: str
     seating_location: Optional[str] = None
-    delivery_option: str
-    delivery_distance_km: Decimal
-    price_per_km_used: Decimal
-    delivery_charge: Decimal
-    total_amount: Decimal
-    amount_paid: Decimal
-    balance_due: Decimal
+    delivery_option: Optional[str] = None
+    delivery_distance_km: Optional[Decimal] = Decimal(0)
+    price_per_km_used: Optional[Decimal] = Decimal(0)
+    delivery_charge: Optional[Decimal] = Decimal(0)
+    tax_amount: Optional[Decimal] = Decimal(0)
+    sub_total: Optional[Decimal] = Decimal(0)
+    total_amount: Optional[Decimal] = Decimal(0)
+    amount_paid: Optional[Decimal] = Decimal(0)
+    balance_due: Optional[Decimal] = Decimal(0)
     order_status: Optional[str] = "Pending"
     payment_status: Optional[str] = "Pending"
     items: List[OrderItemResponse]
@@ -1278,6 +1281,7 @@ class HotelDetailsResponse(BaseModel):
     check_out_time: Optional[str] = None
     currency: str
     timezone: str
+    vat_rate: Optional[Decimal] = Decimal("18.00")
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -1311,6 +1315,7 @@ class HotelDetailsCreate(BaseModel):
     check_out_time: Optional[str] = None
     currency: str = "USD"
     timezone: str = "UTC"
+    vat_rate: Optional[Decimal] = Decimal("18.00")
     is_active: bool = True
 
     @field_validator("latitude")
@@ -1373,6 +1378,7 @@ class HotelDetailsUpdate(BaseModel):
     check_out_time: Optional[str] = None
     currency: Optional[str] = None
     timezone: Optional[str] = None
+    vat_rate: Optional[Decimal] = None
     is_active: Optional[bool] = None
 
     @field_validator("latitude")

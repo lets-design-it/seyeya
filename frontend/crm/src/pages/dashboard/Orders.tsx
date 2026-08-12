@@ -15,7 +15,15 @@ import {
 
 const COLUMNS: RestaurantOrder['status'][] = ['Pending', 'Preparing', 'Ready', 'Completed'];
 
-export const Orders: React.FC = () => {
+interface OrdersProps {
+  activeTab?: 'active' | 'history';
+  setActiveTab?: (tab: 'active' | 'history') => void;
+}
+
+export const Orders: React.FC<OrdersProps> = ({
+  activeTab: propActiveTab,
+  setActiveTab: propSetActiveTab
+}) => {
   const {
     orders,
     updateOrderStatus,
@@ -24,6 +32,43 @@ export const Orders: React.FC = () => {
     updateRestaurantOrder,
     cancelRestaurantOrder
   } = useRestaurant();
+
+  // Dynamic age evaluation states
+  const [now, setNow] = useState(new Date());
+  const [archiveSearch, setArchiveSearch] = useState('');
+
+  const [localActiveTab, localSetActiveTab] = useState<'active' | 'history'>('active');
+  const activeTab = propActiveTab || localActiveTab;
+  const setActiveTab = propSetActiveTab || localSetActiveTab;
+
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 30000); // 30 seconds
+    return () => clearInterval(timer);
+  }, []);
+
+  const isCompletedOlderThan30Mins = (order: RestaurantOrder) => {
+    if (order.status !== 'Completed' || !order.updatedAt) return false;
+    const completedTime = new Date(order.updatedAt).getTime();
+    const thirtyMinutesAgo = now.getTime() - 30 * 60 * 1000;
+    return completedTime < thirtyMinutesAgo;
+  };
+
+  const archivedOrders = orders
+    .filter(o => o.status === 'Completed' && isCompletedOlderThan30Mins(o))
+    .filter(o => {
+      if (!archiveSearch) return true;
+      const term = archiveSearch.toLowerCase();
+      return o.orderNumber.toLowerCase().includes(term) || 
+             o.table.toLowerCase().includes(term) || 
+             o.items.toLowerCase().includes(term);
+    })
+    .sort((a, b) => {
+      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return bTime - aTime; // descending
+    });
 
   // Modal & Drawer states
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -160,29 +205,42 @@ export const Orders: React.FC = () => {
       {/* Header Info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">Orders</h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Monitor and progress culinary ticket orders submitted by guests.</p>
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight font-sans">
+            {activeTab === 'active' ? 'Active Orders' : 'Order History'}
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            {activeTab === 'active' 
+              ? 'Monitor and progress culinary ticket orders submitted by guests.' 
+              : 'View past completed restaurant orders that have been archived.'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-zinc-800 text-white dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-full px-5 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
+            className="flex items-center gap-2 bg-primary hover:bg-zinc-800 text-white dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-full px-5 py-2.5 text-xs font-bold shadow-sm cursor-pointer animate-in fade-in"
           >
             <Plus className="h-4 w-4" />
             Create New Order
           </Button>
           <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-955/40 border border-zinc-150/40 dark:border-zinc-800 rounded-2xl px-4 py-2.5 text-xs font-semibold text-foreground dark:text-zinc-300">
             <ChefHat className="h-4 w-4 text-violet-450 dark:text-violet-400" />
-            <span>Active Tickets: {orders.filter(o => o.status !== 'Completed').length}</span>
+            <span>Active Tickets: {orders.filter(o => o.status !== 'Completed' && o.rawItems && o.rawItems.length > 0).length}</span>
           </div>
         </div>
       </div>
 
       {/* Kanban Board columns */}
-      <div className="flex-1 overflow-x-auto pb-4">
-        <div className="flex gap-4 min-w-[950px] h-full items-start">
+      {activeTab === 'active' && (
+        <div className="flex-1 overflow-x-auto pb-4">
+          <div className="flex gap-4 min-w-[950px] h-full items-start">
           {COLUMNS.map((col) => {
-            const columnOrders = orders.filter(o => o.status === col);
+            const columnOrders = orders.filter(o => {
+              if (o.status !== col || !o.rawItems || o.rawItems.length === 0) return false;
+              if (col === 'Completed') {
+                return !isCompletedOlderThan30Mins(o);
+              }
+              return true;
+            });
             return (
               <div
                 key={col}
@@ -190,7 +248,7 @@ export const Orders: React.FC = () => {
               >
                 {/* Column Title */}
                 <div className="flex items-center justify-between pb-2 mb-3 shrink-0">
-                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-350 uppercase tracking-wide">{col}</span>
+                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-355 uppercase tracking-wide">{col}</span>
                   <span className={`px-2 py-0.5 rounded-md border text-xs font-bold ${getStatusColor(col)}`}>
                     {columnOrders.length}
                   </span>
@@ -199,7 +257,7 @@ export const Orders: React.FC = () => {
                 {/* Tickets list */}
                 <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 py-1">
                   {columnOrders.length === 0 ? (
-                    <div className="h-16 flex items-center justify-center rounded-xl border border-dashed border-zinc-200 dark:border-zinc-800 text-xs text-zinc-400 dark:text-zinc-500 text-center font-medium">
+                    <div className="h-16 flex items-center justify-center rounded-xl border border-dashed border-zinc-200 dark:border-zinc-850 text-xs text-zinc-400 dark:text-zinc-500 text-center font-medium">
                       No tickets
                     </div>
                   ) : (
@@ -213,8 +271,11 @@ export const Orders: React.FC = () => {
                           onClick={() => openDetails(order)}
                         >
                           <div className="flex items-start justify-between">
-                            <span className="text-xs font-bold text-violet-600 dark:text-violet-400 leading-none">{order.table}</span>
-                            <span className="text-xs text-zinc-900 dark:text-zinc-100 font-bold">
+                            <div className="flex flex-col gap-1 min-w-0 pr-2">
+                              <span className="text-xs font-bold text-violet-600 dark:text-violet-400 leading-none truncate">{order.table}</span>
+                              <span className="text-[9px] text-zinc-405 dark:text-zinc-500 font-bold font-mono tracking-tight">{order.orderNumber}</span>
+                            </div>
+                            <span className="text-xs text-zinc-900 dark:text-zinc-100 font-bold shrink-0">
                               UGX {order.value.toLocaleString()}
                             </span>
                           </div>
@@ -236,9 +297,11 @@ export const Orders: React.FC = () => {
                                   e.stopPropagation();
                                   updateOrderStatus(order.id, next);
                                 }}
-                                className="flex items-center gap-1 rounded-lg bg-violet-600/10 dark:bg-violet-500/10 border border-violet-500/20 dark:border-violet-900/50 hover:bg-violet-650 dark:hover:bg-violet-600 hover:text-white dark:hover:text-white! px-2 py-1 text-[10px] font-bold text-violet-550 dark:text-violet-400 transition-colors focus:outline-none cursor-pointer"
+                                className="flex items-center gap-1 rounded-lg bg-violet-600/10 dark:bg-violet-500/10 border border-violet-500/20 dark:border-violet-900/50 hover:bg-violet-650 dark:hover:bg-violet-600 hover:text-white dark:hover:text-white! px-2 py-1 text-[10px] font-bold text-violet-555 dark:text-violet-400 transition-colors focus:outline-none cursor-pointer"
                               >
-                                <span>{next}</span>
+                                <span>
+                                  {next === 'Preparing' ? 'Start Preparing' : next === 'Ready' ? 'Mark Ready' : next === 'Completed' ? 'Complete' : next}
+                                </span>
                                 <ChevronRight className="h-3 w-3" />
                               </button>
                             )}
@@ -257,6 +320,104 @@ export const Orders: React.FC = () => {
           })}
         </div>
       </div>
+      )}
+
+      {/* Completed Orders History Section */}
+      {activeTab === 'history' && (
+        <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div>
+              <h4 className="text-lg font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">Completed Orders History</h4>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Archived list of culinary tickets completed more than 30 minutes ago.</p>
+            </div>
+            <div className="w-full sm:w-64">
+              <input
+                type="text"
+                placeholder="Search history by order, table..."
+                value={archiveSearch}
+                onChange={(e) => setArchiveSearch(e.target.value)}
+                className="w-full rounded-xl bg-white dark:bg-zinc-955 border border-zinc-150/40 dark:border-zinc-850 px-3.5 py-2 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-semibold shadow-2xs"
+              />
+            </div>
+          </div>
+
+          <div className="border border-zinc-150/40 dark:border-zinc-800 rounded-2xl overflow-hidden bg-card text-card-foreground shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-zinc-150/40 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 text-[10px] uppercase font-bold tracking-wider text-zinc-450 dark:text-zinc-550">
+                    <th className="py-3.5 px-4">Order #</th>
+                    <th className="py-3.5 px-4">Seating / Table</th>
+                    <th className="py-3.5 px-4">Items</th>
+                    <th className="py-3.5 px-4">Completed At</th>
+                    <th className="py-3.5 px-4">Payment</th>
+                    <th className="py-3.5 px-4">Amount</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-150/30 dark:divide-zinc-800/40">
+                  {archivedOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-xs text-zinc-405 dark:text-zinc-500 font-medium">
+                        No completed orders in archive history.
+                      </td>
+                    </tr>
+                  ) : (
+                    archivedOrders.map((order) => {
+                      const completedDate = order.updatedAt ? new Date(order.updatedAt) : null;
+                      const completedTimeStr = completedDate 
+                        ? completedDate.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
+                        : order.timestamp;
+
+                      return (
+                        <tr 
+                          key={order.id} 
+                          className="text-xs hover:bg-zinc-50/40 dark:hover:bg-zinc-805/20 transition-colors"
+                        >
+                          <td className="py-3.5 px-4 font-mono font-bold text-zinc-500 dark:text-zinc-400">
+                            {order.orderNumber}
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-violet-600 dark:text-violet-400">
+                            {order.table}
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-zinc-700 dark:text-zinc-300 max-w-[280px] truncate" title={order.items}>
+                            {order.items}
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-zinc-500 dark:text-zinc-400">
+                            {completedTimeStr}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${
+                              order.paymentStatus === 'Paid' 
+                                ? 'border-emerald-500/20 text-emerald-600 bg-emerald-500/5' 
+                                : 'border-amber-500/20 text-amber-600 bg-amber-500/5'
+                            }`}>
+                              {order.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-extrabold text-zinc-900 dark:text-zinc-100">
+                            UGX {order.value.toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <button
+                              onClick={() => openDetails(order)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:border-zinc-800 dark:hover:border-zinc-650 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 text-[11px] font-bold text-zinc-650 dark:text-zinc-300 transition-all cursor-pointer shadow-2xs"
+                            >
+                              Details
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Order Modal */}
 
       {/* Create Order Modal */}
       {isCreateOpen && (
@@ -353,11 +514,14 @@ export const Orders: React.FC = () => {
                   />
                 </div>
 
-                <div className="pt-4 border-t border-zinc-100/60 dark:border-zinc-800 flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Running Total</p>
-                    <p className="text-sm font-bold text-violet-500 dark:text-violet-400">
-                      UGX {cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0).toLocaleString()}
+                 <div className="pt-4 border-t border-zinc-100/60 dark:border-zinc-800 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex gap-4 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+                      <div>Subtotal: <span className="text-zinc-600 dark:text-zinc-300">UGX {cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0).toLocaleString()}</span></div>
+                      <div>VAT (18%): <span className="text-zinc-600 dark:text-zinc-300">UGX {Math.round(cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0) * 0.18).toLocaleString()}</span></div>
+                    </div>
+                    <p className="text-xs font-bold text-violet-550 dark:text-violet-400">
+                      Estimated Total: UGX {Math.round(cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0) * 1.18).toLocaleString()}
                     </p>
                   </div>
                   <Button
@@ -511,7 +675,7 @@ export const Orders: React.FC = () => {
 
                 {selectedOrder.specialInstr && (
                   <div>
-                    <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Special Instructions</span>
+                      <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Special Instructions</span>
                     <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-800 text-xs text-zinc-650 dark:text-zinc-350 italic">
                       "{selectedOrder.specialInstr}"
                     </div>
@@ -521,24 +685,92 @@ export const Orders: React.FC = () => {
                 <div>
                   <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-2">Order Items</span>
                   <div className="space-y-2 border border-zinc-100 dark:border-zinc-800 rounded-2xl p-3 bg-zinc-50/20 dark:bg-zinc-955/10">
-                    {selectedOrder.rawItems.map((it: any) => {
-                      const itemName = it.menu_item?.item_name || `Item #${it.menu_item_id}`;
-                      const price = Number(it.menu_item?.price || 0);
+                    {(() => {
+                      const calculatedSubTotal = selectedOrder.rawItems.reduce((acc: number, it: any) => acc + Number(it.total_price || 0), 0);
+                      const calculatedTax = selectedOrder.taxAmount || Math.round(calculatedSubTotal * 0.18);
+                      const calculatedTotal = calculatedSubTotal + (selectedOrder.deliveryCharge || 0) + calculatedTax;
+
                       return (
-                        <div key={it.order_item_id || it.menu_item_id} className="flex justify-between items-center text-xs">
-                          <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                            {it.quantity}x {itemName}
-                          </span>
-                          <span className="text-zinc-550 dark:text-zinc-400 font-bold">
-                            UGX {(price * it.quantity).toLocaleString()}
-                          </span>
-                        </div>
+                        <>
+                          {selectedOrder.rawItems.map((it: any) => {
+                            const itemName = it.menu_item?.name || `Item #${it.menu_item_id}`;
+                            const itemLineTotal = Number(it.total_price || 0);
+                            const choiceName = it.choice?.name;
+                            const choicePrice = it.choice?.price ? Number(it.choice.price) : 0;
+                            const accomName = it.accompaniment?.name;
+                            const accomPrice = it.accompaniment?.price ? Number(it.accompaniment.price) : 0;
+                            const itemExtras = it.extras || [];
+
+                            return (
+                              <div key={it.order_item_id || it.menu_item_id} className="space-y-1.5 py-1.5 border-b border-zinc-100/50 dark:border-zinc-800/40 last:border-b-0">
+                                {/* Main item line */}
+                                <div className="flex justify-between items-start text-xs">
+                                  <span className="font-bold text-zinc-900 dark:text-zinc-100">
+                                    {it.quantity}x {itemName}
+                                  </span>
+                                  <span className="text-zinc-900 dark:text-zinc-150 font-bold shrink-0">
+                                    UGX {itemLineTotal.toLocaleString()}
+                                  </span>
+                                </div>
+                                
+                                {/* Sub-item option details */}
+                                {(choiceName || accomName || itemExtras.length > 0) && (
+                                  <div className="pl-4 space-y-1 mt-1 text-xs text-zinc-600 dark:text-zinc-300 font-semibold">
+                                    {choiceName && (
+                                      <div className="flex justify-between items-center">
+                                        <span>• Option: {choiceName}</span>
+                                        <span>+UGX {choicePrice.toLocaleString()}</span>
+                                      </div>
+                                    )}
+                                    {accomName && (
+                                      <div className="flex justify-between items-center">
+                                        <span>• Side: {accomName}</span>
+                                        <span>+UGX {accomPrice.toLocaleString()}</span>
+                                      </div>
+                                    )}
+                                    {itemExtras.map((ex: any) => {
+                                      const exName = ex.extra?.extra_name || `Extra #${ex.extra_id}`;
+                                      return (
+                                        <div key={ex.order_item_extra_id || ex.extra_id} className="flex justify-between items-center">
+                                          <span>• Add-on: {exName} x{ex.quantity}</span>
+                                          <span>+UGX {Number(ex.total_price || 0).toLocaleString()}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          
+                          <div className="pt-2.5 border-t border-dashed border-zinc-200 dark:border-zinc-800 mt-2.5 space-y-1.5 text-xs">
+                            <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-semibold">
+                              <span>Subtotal</span>
+                              <span>UGX {calculatedSubTotal.toLocaleString()}</span>
+                            </div>
+                            
+                            {selectedOrder.deliveryOption === 'Delivery' && (selectedOrder.deliveryCharge || 0) > 0 && (
+                              <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-semibold">
+                                <span>Room Service Charge</span>
+                                <span>UGX {selectedOrder.deliveryCharge!.toLocaleString()}</span>
+                              </div>
+                            )}
+                            
+                            {calculatedTax > 0 && (
+                              <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-semibold">
+                                <span>VAT (18%)</span>
+                                <span>UGX {calculatedTax.toLocaleString()}</span>
+                              </div>
+                            )}
+
+                            <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 flex justify-between items-center font-bold text-sm mt-1">
+                              <span className="text-zinc-900 dark:text-zinc-150 uppercase tracking-wider text-[10px]">Aggregate Total</span>
+                              <span className="text-violet-555 dark:text-violet-400">UGX {calculatedTotal.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        </>
                       );
-                    })}
-                    <div className="pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-800 mt-2 flex justify-between items-center text-xs font-bold">
-                      <span className="text-zinc-900 dark:text-zinc-150 uppercase tracking-wider text-[10px]">Total Order Amount</span>
-                      <span className="text-violet-550 dark:text-violet-400 font-bold">UGX {selectedOrder.value.toLocaleString()}</span>
-                    </div>
+                    })()}
                   </div>
                 </div>
 

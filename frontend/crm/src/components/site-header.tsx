@@ -17,6 +17,10 @@ export function SiteHeader({ activeTab }: SiteHeaderProps) {
   }, []);
 
   const getTabLabel = (tab: string) => {
+    if (tab.startsWith('orders-')) return 'Orders'
+    if (tab.startsWith('rooms-')) return 'Rooms'
+    if (tab.startsWith('conferences-')) return 'Conferences'
+    if (tab.startsWith('settings-')) return 'Settings'
     switch (tab) {
       case 'overview': return 'Dashboard'
       case 'orders': return 'Orders'

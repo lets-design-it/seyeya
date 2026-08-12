@@ -1,17 +1,14 @@
 import * as React from "react"
 import { useAuth } from "@/context/AuthContext"
 import { NavUser } from "@/components/nav-user"
+import { NavMain } from "@/components/nav-main"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
 } from "@/components/ui/sidebar"
 import {
   LayoutDashboard,
@@ -21,7 +18,7 @@ import {
   Users,
   Utensils,
   Shield,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
 } from "lucide-react"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -35,18 +32,78 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
 
   if (!user) return null;
 
-  const menuItems = [
-    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager'] },
-    { id: 'orders', label: 'Orders', icon: ShoppingBag, roles: ['admin', 'manager', 'agent'] },
-    { id: 'rooms', label: 'Rooms', icon: Bed, roles: ['admin', 'manager', 'agent'] },
-    { id: 'conferences', label: 'Conferences', icon: CalendarRange, roles: ['admin', 'manager'] },
-    { id: 'clients', label: 'Guests', icon: Users, roles: ['admin', 'manager', 'agent'] },
-    { id: 'menu-editor', label: 'Menu', icon: Utensils, roles: ['admin', 'manager'] },
-    { id: 'users', label: 'Staff', icon: Shield, roles: ['admin'] },
-    { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['admin', 'manager', 'agent'] },
+  // Define settings sub-items based on role
+  const settingsSubItems = [
+    { id: 'settings-profile', title: 'Profile' },
+    ...(user.role === 'admin' ? [{ id: 'settings-hotel', title: 'Hotel Details' }] : []),
+    { id: 'settings-theme', title: 'Theme' },
+    { id: 'settings-notifications', title: 'Notifications' },
   ];
 
-  const allowedMenuItems = menuItems.filter(item => item.roles.includes(user.role));
+  const menuItems = [
+    {
+      id: 'overview',
+      title: 'Dashboard',
+      icon: LayoutDashboard,
+      roles: ['admin', 'manager']
+    },
+    {
+      id: 'orders',
+      title: 'Orders',
+      icon: ShoppingBag,
+      roles: ['admin', 'manager', 'agent'],
+      items: [
+        { id: 'orders-active', title: 'Active Orders' },
+        { id: 'orders-history', title: 'Order History' }
+      ]
+    },
+    {
+      id: 'rooms',
+      title: 'Rooms',
+      icon: Bed,
+      roles: ['admin', 'manager', 'agent'],
+      items: [
+        { id: 'rooms-reservations', title: 'Reservations' },
+        { id: 'rooms-rooms', title: 'Rooms List' },
+        { id: 'rooms-categories', title: 'Categories' }
+      ]
+    },
+    {
+      id: 'conferences',
+      title: 'Conferences',
+      icon: CalendarRange,
+      roles: ['admin', 'manager'],
+      items: [
+        { id: 'conferences-quotes', title: 'Reservations' },
+        { id: 'conferences-halls', title: 'Event Halls' }
+      ]
+    },
+    {
+      id: 'clients',
+      title: 'Guests',
+      icon: Users,
+      roles: ['admin', 'manager', 'agent']
+    },
+    {
+      id: 'menu-editor',
+      title: 'Menu',
+      icon: Utensils,
+      roles: ['admin', 'manager']
+    },
+    {
+      id: 'users',
+      title: 'Staff',
+      icon: Shield,
+      roles: ['admin']
+    },
+    {
+      id: 'settings',
+      title: 'Settings',
+      icon: SettingsIcon,
+      roles: ['admin', 'manager', 'agent'],
+      items: settingsSubItems
+    },
+  ];
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -68,35 +125,12 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
       </SidebarHeader>
 
       <SidebarContent className="py-4 bg-sidebar">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-wider text-zinc-450 px-3.5 mb-2">
-            Workspaces
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="space-y-2 px-2">
-              {allowedMenuItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = activeTab === item.id;
-                return (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton
-                      tooltip={item.label}
-                      onClick={() => setActiveTab(item.id)}
-                      isActive={isActive}
-                      className={`w-full flex items-center gap-3 px-3.5 py-5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${isActive
-                        ? "bg-black! text-white! hover:bg-black! hover:text-white! data-active:bg-black! data-active:text-white! data-active:hover:bg-black! data-active:hover:text-white! shadow-sm dark:bg-white! dark:text-black! dark:hover:bg-white! dark:hover:text-black!"
-                        : "text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                        }`}
-                    >
-                      <Icon className="h-4.5 w-4.5 shrink-0" />
-                      <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <NavMain
+          items={menuItems}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          userRole={user.role}
+        />
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border/40 p-3 bg-sidebar">
