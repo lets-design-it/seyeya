@@ -32,10 +32,13 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
 
   if (!user) return null;
 
+  const isSuperAdmin = user.role === 'admin' || (user as any).roles?.includes('Super Admin');
+
   // Define settings sub-items based on role
   const settingsSubItems = [
     { id: 'settings-profile', title: 'Profile' },
     ...(user.role === 'admin' ? [{ id: 'settings-hotel', title: 'Hotel Details' }] : []),
+    ...(isSuperAdmin ? [{ id: 'settings-permissions', title: 'Role Permissions' }] : []),
     { id: 'settings-theme', title: 'Theme' },
     { id: 'settings-notifications', title: 'Notifications' },
   ];

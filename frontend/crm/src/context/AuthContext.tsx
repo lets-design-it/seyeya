@@ -8,6 +8,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  roles?: string[];
   avatar: string;
   joinedDate: string;
   token?: string;
@@ -22,6 +23,7 @@ interface AuthContextType {
   logout: () => void;
   updateUserRole: (role: UserRole) => void;
   updateUserProfile: (name: string, email: string) => void;
+  refreshCurrentUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -158,13 +160,9 @@ const mapBackendRolesToUserRole = (roles: string[] | undefined): UserRole => {
   const updateUserRole = (role: UserRole) => {
     // Dynamically change role of the current user
     if (user) {
-      const baseUser = MOCK_USERS[role];
-      const updated = {
+      const updated: User = {
         ...user,
         role,
-        name: baseUser.name,
-        email: baseUser.email,
-        avatar: baseUser.avatar,
       };
       setUser(updated);
       localStorage.setItem('seyeya_crm_user', JSON.stringify(updated));
@@ -172,6 +170,26 @@ const mapBackendRolesToUserRole = (roles: string[] | undefined): UserRole => {
       // If no user is logged in, log in as that role
       setUser(MOCK_USERS[role]);
       localStorage.setItem('seyeya_crm_user', JSON.stringify(MOCK_USERS[role]));
+    }
+  };
+
+  const refreshCurrentUser = async () => {
+    try {
+      const res = await api.get('/auth/me');
+      if (res.data && user) {
+        const mappedRole = mapBackendRolesToUserRole(res.data.roles);
+        const updated: User = {
+          ...user,
+          name: res.data.full_name || user.name,
+          email: res.data.email || user.email,
+          role: mappedRole,
+          roles: res.data.roles || user.roles,
+        };
+        setUser(updated);
+        localStorage.setItem('seyeya_crm_user', JSON.stringify(updated));
+      }
+    } catch (e) {
+      console.warn("Failed to refresh current user session:", e);
     }
   };
 
@@ -230,7 +248,7 @@ const mapBackendRolesToUserRole = (roles: string[] | undefined): UserRole => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUserRole, updateUserProfile }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, updateUserRole, updateUserProfile, refreshCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

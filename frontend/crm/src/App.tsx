@@ -162,6 +162,7 @@ const CRMApp: React.FC = () => {
       case 'settings':
       case 'settings-profile':
       case 'settings-hotel':
+      case 'settings-permissions':
       case 'settings-theme':
       case 'settings-notifications': {
         const subTab = activeStaffTab === 'settings'

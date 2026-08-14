@@ -27,11 +27,13 @@ import {
   Check, 
   AlertTriangle,
   Upload,
-  Lock
+  Lock,
+  ShieldAlert
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { RolePermissionsTable } from '@/components/RolePermissionsTable';
 
-type ActiveTab = 'profile' | 'hotel' | 'theme' | 'notifications';
+type ActiveTab = 'profile' | 'hotel' | 'permissions' | 'theme' | 'notifications';
 
 interface ProfileData {
   full_name: string;
@@ -167,9 +169,14 @@ export const Settings: React.FC<SettingsProps> = ({
   });
 
   const isAdmin = user?.role === 'admin';
+  const isSuperAdmin = user?.role === 'admin' || (user as any)?.roles?.includes('Super Admin');
 
   // Load current tab data
   useEffect(() => {
+    if (activeTab === 'permissions' || activeTab === 'theme') {
+      setIsLoading(false);
+      return;
+    }
     const loadData = async () => {
       setIsLoading(true);
       try {
@@ -1039,6 +1046,25 @@ export const Settings: React.FC<SettingsProps> = ({
                 </div>
               </Card>
             </form>
+          )}
+
+          {/* TAB 5: Role Permissions Matrix View (Super Admin Only) */}
+          {activeTab === 'permissions' && (
+            isSuperAdmin ? (
+              <RolePermissionsTable />
+            ) : (
+              <Card className="p-8 bg-card border border-border rounded-2xl text-center">
+                <div className="flex flex-col items-center justify-center max-w-md mx-auto gap-3 py-6">
+                  <div className="h-12 w-12 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center">
+                    <ShieldAlert className="h-6 w-6" />
+                  </div>
+                  <h4 className="text-base font-bold text-red-500">Access Restricted</h4>
+                  <p className="text-xs text-zinc-500 leading-normal font-medium">
+                    Role permissions management is strictly reserved for Super Administrators. Contact your system admin if you require elevated access privileges.
+                  </p>
+                </div>
+              </Card>
+            )
           )}
 
         </div>

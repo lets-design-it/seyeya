@@ -13,7 +13,7 @@ import {
   DollarSign
 } from 'lucide-react';
 
-const COLUMNS: RestaurantOrder['status'][] = ['Pending', 'Preparing', 'Ready', 'Completed'];
+const COLUMNS: RestaurantOrder['status'][] = ['Pending', 'Preparing', 'Ready'];
 
 interface OrdersProps {
   activeTab?: 'active' | 'history';
@@ -231,20 +231,17 @@ export const Orders: React.FC<OrdersProps> = ({
 
       {/* Kanban Board columns */}
       {activeTab === 'active' && (
-        <div className="flex-1 overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-[950px] h-full items-start">
+        <div className="flex-1 pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full h-full items-start">
           {COLUMNS.map((col) => {
             const columnOrders = orders.filter(o => {
               if (o.status !== col || !o.rawItems || o.rawItems.length === 0) return false;
-              if (col === 'Completed') {
-                return !isCompletedOlderThan30Mins(o);
-              }
               return true;
             });
             return (
               <div
                 key={col}
-                className="flex-1 min-w-[220px] bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-150/40 dark:border-zinc-800 rounded-2xl p-3 flex flex-col max-h-[70vh]"
+                className="flex flex-col w-full bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-150/40 dark:border-zinc-800 rounded-2xl p-3 max-h-[70vh]"
               >
                 {/* Column Title */}
                 <div className="flex items-center justify-between pb-2 mb-3 shrink-0">
