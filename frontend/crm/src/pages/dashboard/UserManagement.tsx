@@ -21,15 +21,8 @@ import {
   Pencil,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   X
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Drawer,
   DrawerContent,
@@ -37,21 +30,6 @@ import {
   DrawerTitle,
   DrawerDescription,
 } from "@/components/ui/drawer";
-import {
-  useReactTable,
-  getCoreRowModel,
-  getPaginationRowModel,
-  flexRender,
-  ColumnDef,
-} from "@tanstack/react-table";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface BackendUser {
   user_id: number;
@@ -76,15 +54,11 @@ export const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<BackendUser[]>([]);
   const [roles, setRoles] = useState<BackendRole[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-
-  // Pagination states
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
 
   // Provision modal form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -111,10 +85,6 @@ export const UserManagement: React.FC = () => {
   const [updateError, setUpdateError] = useState('');
   const [isFetchingUser, setIsFetchingUser] = useState(false);
 
-  useEffect(() => {
-    setPagination(p => ({ ...p, pageIndex: 0 }));
-  }, [searchTerm]);
-
   // Fetch initial data
   const fetchData = async () => {
     setIsLoading(true);
@@ -139,6 +109,10 @@ export const UserManagement: React.FC = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   // Filtered users for search
   const filteredUsers = users.filter(u => {
     if (!searchTerm) return true;
@@ -149,6 +123,9 @@ export const UserManagement: React.FC = () => {
       (u.phone_number && u.phone_number.includes(query))
     );
   });
+
+  const totalPages = Math.ceil(filteredUsers.length / pageSize) || 1;
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleOpenModal = () => {
     setFormName('');
@@ -311,132 +288,6 @@ export const UserManagement: React.FC = () => {
     return 'bg-zinc-500/15 text-zinc-400 border border-zinc-500/30';
   };
 
-  const [columnVisibility, setColumnVisibility] = React.useState({});
-
-  const columns = React.useMemo<ColumnDef<BackendUser>[]>(() => [
-    {
-      accessorKey: "full_name",
-      header: "Name / Identity",
-      cell: ({ row }) => {
-        const u = row.original;
-        return (
-          <div className="flex items-center gap-3 pl-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-650 dark:bg-zinc-900 dark:text-zinc-450 font-bold uppercase transition-transform shrink-0">
-              {u.full_name.charAt(0)}
-            </div>
-            <div>
-              <p className="font-bold text-foreground text-xs leading-none">{u.full_name}</p>
-              <p className="text-[10px] text-zinc-450 font-semibold leading-none mt-1">User ID: #{u.user_id}</p>
-            </div>
-          </div>
-        );
-      }
-    },
-    {
-      accessorKey: "email",
-      header: "Contact",
-      cell: ({ row }) => {
-        const u = row.original;
-        return (
-          <div className="flex flex-col gap-0.5">
-            <span className="flex items-center gap-1.5 text-zinc-650 font-medium">
-              <Mail className="h-3.5 w-3.5 text-zinc-400" />
-              {u.email}
-            </span>
-            {u.phone_number && (
-              <span className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium">
-                <Phone className="h-3 w-3 text-zinc-400" />
-                {u.phone_number}
-              </span>
-            )}
-          </div>
-        );
-      }
-    },
-    {
-      accessorKey: "roles",
-      header: "System Roles",
-      cell: ({ row }) => {
-        const u = row.original;
-        return (
-          <div className="flex flex-wrap gap-1">
-            {u.roles && u.roles.length > 0 ? (
-              u.roles.map(r => (
-                <span
-                  key={r}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide leading-none capitalize ${getRoleStyle(u.roles)}`}
-                >
-                  {r}
-                </span>
-              ))
-            ) : (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide leading-none bg-zinc-150 text-zinc-550">
-                No Role Assigned
-              </span>
-            )}
-          </div>
-        );
-      }
-    },
-    {
-      accessorKey: "is_active",
-      header: "Account Status",
-      cell: ({ row }) => {
-        const u = row.original;
-        return u.is_active ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            Active
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-zinc-450">
-            <span className="h-1.5 w-1.5 rounded-full bg-zinc-450" />
-            Inactive
-          </span>
-        );
-      }
-    },
-    {
-      id: "actions",
-      header: () => <div className="text-right pr-2">Actions</div>,
-      cell: ({ row }) => {
-        const u = row.original;
-        if (u.user_id === Number(currentUser?.id)) return null;
-        return (
-          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => handleRowClick(u)}
-              className="p-1.5 rounded-lg text-zinc-500 hover:text-violet-550 hover:bg-violet-550/5 transition-all cursor-pointer"
-              title="Edit User"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => handleDeleteUser(u.user_id, u.full_name)}
-              className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
-              title="Deactivate account"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        );
-      }
-    }
-  ], [currentUser]);
-
-  const table = useReactTable({
-    data: filteredUsers,
-    columns,
-    state: {
-      columnVisibility,
-      pagination,
-    },
-    onColumnVisibilityChange: setColumnVisibility,
-    onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-  });
-
   return (
     <div className="space-y-6 animate-fade-in relative h-full">
       {/* Top Banner/Title */}
@@ -471,7 +322,7 @@ export const UserManagement: React.FC = () => {
 
       {/* Main Grid */}
       <Card className="p-6">
-        {/* Table Filters & Columns Toggle */}
+        {/* Table Filters */}
         <div className="flex items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3 flex-1 max-w-lg">
             <div className="relative flex-1">
@@ -493,36 +344,6 @@ export const UserManagement: React.FC = () => {
               Reset
             </ShadcnButton>
           </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer text-xs font-semibold">
-                Columns
-                <ChevronDown className="h-4 w-4 text-zinc-500" />
-              </ShadcnButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[150px] bg-white border border-zinc-100 rounded-xl shadow-md p-1 mt-1 z-50">
-              {table
-                .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 outline-hidden flex items-center gap-2"
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                    >
-                      {column.id === "full_name"
-                        ? "Name"
-                        : column.id === "is_active"
-                          ? "Status"
-                          : column.id}
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
 
         {/* Directory List / Table */}
@@ -538,55 +359,118 @@ export const UserManagement: React.FC = () => {
             <p className="text-xs text-zinc-500 mt-1">Try adjusting search parameters or create a new profile.</p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-zinc-150 bg-white overflow-hidden shadow-xs">
-            <Table>
-              <TableHeader className="bg-zinc-50/50 border-b border-zinc-150">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100">
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} className="text-zinc-500 text-xs font-medium py-3.5 px-4 text-left">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
+          <div className="rounded-2xl border border-zinc-150 bg-white dark:bg-zinc-900/50 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-zinc-150 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                    <th className="py-3.5 px-4">Name / Identity</th>
+                    <th className="py-3.5 px-4">Contact</th>
+                    <th className="py-3.5 px-4">System Roles</th>
+                    <th className="py-3.5 px-4">Account Status</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-150 dark:divide-zinc-800/60">
+                  {paginatedUsers.map((u) => (
+                    <tr
+                      key={u.user_id}
+                      onClick={() => handleRowClick(u)}
+                      className="cursor-pointer hover:bg-zinc-50/60 dark:hover:bg-zinc-800/40 transition-colors text-xs"
+                    >
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-650 dark:bg-zinc-800 dark:text-zinc-300 font-bold uppercase shrink-0">
+                            {u.full_name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-foreground text-xs leading-none">{u.full_name}</p>
+                            <p className="text-[10px] text-zinc-450 font-semibold leading-none mt-1">User ID: #{u.user_id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="flex items-center gap-1.5 text-zinc-650 dark:text-zinc-300 font-medium">
+                            <Mail className="h-3.5 w-3.5 text-zinc-400" />
+                            {u.email}
+                          </span>
+                          {u.phone_number && (
+                            <span className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-medium">
+                              <Phone className="h-3 w-3 text-zinc-400" />
+                              {u.phone_number}
+                            </span>
                           )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    onClick={() => handleRowClick(row.original)}
-                    className="cursor-pointer hover:bg-zinc-50/60 transition-colors border-zinc-100"
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3 px-4 text-xs">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-wrap gap-1">
+                          {u.roles && u.roles.length > 0 ? (
+                            u.roles.map(r => (
+                              <span
+                                key={r}
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide leading-none capitalize ${getRoleStyle(u.roles)}`}
+                              >
+                                {r}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide leading-none bg-zinc-150 text-zinc-550">
+                              No Role Assigned
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        {u.is_active ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-emerald-500">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-zinc-500/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-zinc-450">
+                            <span className="h-1.5 w-1.5 rounded-full bg-zinc-450" />
+                            Inactive
+                          </span>
                         )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {u.user_id !== Number(currentUser?.id) && (
+                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => handleRowClick(u)}
+                              className="p-1.5 rounded-lg text-zinc-500 hover:text-violet-550 hover:bg-violet-550/5 transition-all cursor-pointer"
+                              title="Edit User"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u.user_id, u.full_name)}
+                              className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all cursor-pointer"
+                              title="Deactivate account"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* Pagination Controls */}
-            {table.getPageCount() > 1 && (
-              <div className="flex items-center justify-between border-t border-zinc-100 p-4 bg-zinc-50/20" onClick={(e) => e.stopPropagation()}>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 p-4 bg-zinc-50/20 dark:bg-zinc-900/20" onClick={(e) => e.stopPropagation()}>
                 <span className="text-[11px] text-zinc-500 font-medium">
-                  Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, filteredUsers.length)} of {filteredUsers.length} entries
+                  Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredUsers.length)} of {filteredUsers.length} entries
                 </span>
                 <div className="flex items-center gap-1.5">
                   <ShadcnButton
                     variant="outline"
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
+                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                    disabled={currentPage === 1}
                     className="h-9 px-3.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer disabled:opacity-50 flex items-center text-xs font-semibold gap-1"
                   >
                     <ChevronLeft className="h-4 w-4 shrink-0" />
@@ -594,8 +478,8 @@ export const UserManagement: React.FC = () => {
                   </ShadcnButton>
                   <ShadcnButton
                     variant="outline"
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
+                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                    disabled={currentPage >= totalPages}
                     className="h-9 px-3.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer disabled:opacity-50 flex items-center text-xs font-semibold gap-1"
                   >
                     Next

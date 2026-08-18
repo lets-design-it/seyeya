@@ -367,6 +367,7 @@ class RestaurantOrder(Base):
     total_amount = Column(DECIMAL(10, 2), nullable=False, default=0)
     amount_paid = Column(DECIMAL(10, 2), default=0)
     balance_due = Column(DECIMAL(10, 2), default=0)
+    tax_amount = Column(DECIMAL(10, 2), default=0)
     order_status = Column(String(20), default="Pending")
     # Pending | Confirmed | Preparing | Ready | Delivered | Cancelled
     payment_status = Column(String(20), default="Pending")
@@ -1105,6 +1106,7 @@ class HotelDetails(Base):
     check_out_time = Column(String(50), nullable=True)
     currency = Column(String(10), nullable=False, default="USD")
     timezone = Column(String(50), nullable=False, default="UTC")
+    vat_rate = Column(DECIMAL(5, 2), nullable=False, default=18.00)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

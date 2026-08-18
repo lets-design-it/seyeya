@@ -37,7 +37,7 @@ const CRMApp: React.FC = () => {
   // Adjust staff tabs when role shifts
   useEffect(() => {
     if (user) {
-      if (user.role === 'agent' && ['overview', 'conferences'].includes(activeStaffTab)) {
+      if (user.role === 'agent' && (activeStaffTab === 'overview' || activeStaffTab.startsWith('conferences'))) {
         // Sales agents don't see overview/conferences, default to orders
         setActiveStaffTab('orders');
       }
@@ -96,23 +96,51 @@ const CRMApp: React.FC = () => {
           </ProtectedRoute>
         );
       case 'orders':
+      case 'orders-active':
+      case 'orders-history': {
+        const subTab = activeStaffTab === 'orders'
+          ? 'active'
+          : (activeStaffTab.split('-')[1] as 'active' | 'history');
         return (
           <ProtectedRoute>
-            <Orders />
+            <Orders 
+              activeTab={subTab}
+              setActiveTab={(tab) => setActiveStaffTab(`orders-${tab}`)}
+            />
           </ProtectedRoute>
         );
+      }
       case 'rooms':
+      case 'rooms-reservations':
+      case 'rooms-rooms':
+      case 'rooms-categories': {
+        const subTab = activeStaffTab === 'rooms' 
+          ? 'reservations' 
+          : (activeStaffTab.split('-')[1] as 'reservations' | 'rooms' | 'categories');
         return (
           <ProtectedRoute>
-            <Rooms />
+            <Rooms 
+              activeTab={subTab} 
+              setActiveTab={(tab) => setActiveStaffTab(`rooms-${tab}`)} 
+            />
           </ProtectedRoute>
         );
+      }
       case 'conferences':
+      case 'conferences-quotes':
+      case 'conferences-halls': {
+        const subTab = activeStaffTab === 'conferences'
+          ? 'quotes'
+          : (activeStaffTab.split('-')[1] as 'quotes' | 'halls');
         return (
           <ProtectedRoute allowedRoles={['admin', 'manager']}>
-            <Conferences />
+            <Conferences 
+              activeTab={subTab}
+              setActiveTab={(tab) => setActiveStaffTab(`conferences-${tab}`)}
+            />
           </ProtectedRoute>
         );
+      }
       case 'clients':
         return (
           <ProtectedRoute>
@@ -132,11 +160,23 @@ const CRMApp: React.FC = () => {
           </ProtectedRoute>
         );
       case 'settings':
+      case 'settings-profile':
+      case 'settings-hotel':
+      case 'settings-permissions':
+      case 'settings-theme':
+      case 'settings-notifications': {
+        const subTab = activeStaffTab === 'settings'
+          ? 'profile'
+          : (activeStaffTab.split('-')[1] as any);
         return (
           <ProtectedRoute>
-            <Settings />
+            <Settings 
+              activeTab={subTab}
+              setActiveTab={(tab) => setActiveStaffTab(`settings-${tab}`)}
+            />
           </ProtectedRoute>
         );
+      }
       default:
         return (
           <ProtectedRoute>

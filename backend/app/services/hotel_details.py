@@ -75,6 +75,7 @@ class HotelDetailsService:
             check_out_time=schema.check_out_time,
             currency=schema.currency,
             timezone=schema.timezone,
+            vat_rate=schema.vat_rate,
             is_active=schema.is_active,
             created_by=user_id,
             updated_by=user_id

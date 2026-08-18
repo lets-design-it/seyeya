@@ -17,7 +17,7 @@ from app.repositories import (
 )
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.models import (
-    User, Customer, RestaurantOrder, OrderItem, MenuExtra, MenuChoice, MenuAccompaniment, AccommodationReservation,
+    User, Customer, RestaurantOrder, OrderItem, OrderItemExtra, MenuExtra, MenuChoice, MenuAccompaniment, AccommodationReservation,
     ConferenceReservation, ConferenceResourceBooking, ConferenceMealBooking, Payment,
     UserSession, ActivityLog, LoginLog, PasswordResetToken,
     Role, Permission, PermissionGroup, UserRole, RolePermission
@@ -606,8 +606,24 @@ class RestaurantOrderService:
                 
                 order.delivery_charge = charge
                 
+            # Get configured VAT rate from hotel details (fallback to 18.00% if missing or error)
+            vat_percent = Decimal("18.00")
+            try:
+                from app.services.hotel_details import HotelDetailsService
+                hotel_service = HotelDetailsService(self.db)
+                active_hotel = await hotel_service.get_active_profile()
+                if active_hotel and active_hotel.vat_rate is not None:
+                    vat_percent = Decimal(str(active_hotel.vat_rate))
+            except Exception:
+                pass
+            
+            tax_rate = vat_percent / Decimal("100.00")
+            tax = total * tax_rate
+            
+            order.tax_amount = tax
             order.sub_total = total
-            order.total_amount = total + charge
+            order.total_amount = total + charge + tax
+            order.balance_due = order.total_amount - (order.amount_paid or Decimal(0))
         
         self.db.add(order)
         await self.db.commit()
@@ -688,7 +704,7 @@ class RestaurantOrderService:
         result = await self.db.execute(
             select(RestaurantOrder)
             .options(
-                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras),
+                selectinload(RestaurantOrder.items).selectinload(OrderItem.extras).selectinload(OrderItemExtra.extra),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.choice),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
