@@ -785,6 +785,16 @@ class RestaurantOrderRepository:
         )
         return result.scalars().all()
 
+    async def delete_order(self, order_id: int) -> bool:
+        """Delete an order by ID"""
+        order = await self.get_by_id(order_id)
+        if not order:
+            return False
+        
+        await self.db.delete(order)
+        await self.db.commit()
+        return True
+
 
 class AccommodationRepository:
     """Repository for accommodation operations"""
