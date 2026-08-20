@@ -432,6 +432,29 @@ async def cancel_restaurant_order(
         )
 
 
+@router.delete("/orders/{order_id}/hard", response_model=dict)
+async def delete_restaurant_order(
+    order_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Hard delete a restaurant order"""
+    try:
+        service = RestaurantOrderService(db)
+        deleted = await service.delete_order(order_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found"
+            )
+        return {"status": "success", "message": "Order deleted successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
 @router.post("/orders/{order_id}/reviews", response_model=CustomerReviewResponse)
 async def create_review(
     order_id: int,
@@ -489,7 +512,7 @@ async def calculate_delivery_pricing(request: DeliveryCalculationRequest, db: As
     """Calculate the delivery fee for a given location"""
     from sqlalchemy.future import select
     from app.models import DeliveryPricing
-    from app.utils.haversine import calculate_haversine_distance
+    from app.utils.haversine import get_driving_distance_km
     from decimal import Decimal
     
     res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True))
@@ -501,7 +524,7 @@ async def calculate_delivery_pricing(request: DeliveryCalculationRequest, db: As
             message="Delivery is currently unavailable (no active pricing)"
         )
         
-    distance_km = calculate_haversine_distance(
+    distance_km = await get_driving_distance_km(
         float(pricing.restaurant_lat), float(pricing.restaurant_lng),
         float(request.delivery_lat), float(request.delivery_lng)
     )
@@ -513,9 +536,12 @@ async def calculate_delivery_pricing(request: DeliveryCalculationRequest, db: As
             message=f"Delivery address is too far. Maximum delivery distance is {pricing.maximum_delivery_distance_km} km"
         )
         
-    calculated_fee = Decimal(distance_km) * pricing.price_per_km
-    if pricing.minimum_delivery_fee and calculated_fee < pricing.minimum_delivery_fee:
-        calculated_fee = pricing.minimum_delivery_fee
+    if distance_km < 1.0:
+        calculated_fee = pricing.minimum_delivery_fee or Decimal(0)
+    else:
+        calculated_fee = Decimal(distance_km) * pricing.price_per_km
+        if pricing.minimum_delivery_fee and calculated_fee < pricing.minimum_delivery_fee:
+            calculated_fee = pricing.minimum_delivery_fee
         
     return DeliveryCalculationResponse(
         is_deliverable=True,

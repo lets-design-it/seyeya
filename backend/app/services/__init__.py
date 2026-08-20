@@ -714,6 +714,10 @@ class RestaurantOrderService:
         )
         return result.scalars().all()
 
+    async def delete_order(self, order_id: int) -> bool:
+        """Delete an order"""
+        return await self.order_repo.delete_order(order_id)
+
 
 class AccommodationService:
     """Accommodation service"""

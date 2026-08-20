@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     API_VERSION: str = "v1"
     DEBUG: bool = True
     ENVIRONMENT: str = "development"
+    GOOGLE_MAPS_API_KEY: Optional[str] = None
 
     # Uploads
     UPLOAD_DIR: str = "uploads"
