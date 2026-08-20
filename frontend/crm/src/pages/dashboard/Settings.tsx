@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme, Theme } from '@/context/ThemeContext';
+import { useVatRate } from '@/context/VatContext';
 import { api } from '@/services/api';
 import { 
   Card, 
@@ -102,6 +103,7 @@ export const Settings: React.FC<SettingsProps> = ({
 }) => {
   const { user, updateUserProfile } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { setVatRate } = useVatRate();
   
   const [localActiveTab, localSetActiveTab] = useState<ActiveTab>('profile');
   const activeTab = propActiveTab || localActiveTab;
@@ -348,9 +350,22 @@ export const Settings: React.FC<SettingsProps> = ({
       if (hotelLogo) form.append('logo', hotelLogo);
       if (hotelCover) form.append('cover_image', hotelCover);
 
+      let targetId = hotelForm.id;
+      if (!targetId) {
+        try {
+          const activeRes = await api.get('/hotel-details');
+          if (activeRes.data && activeRes.data.data && activeRes.data.data.id) {
+            targetId = activeRes.data.data.id;
+          }
+        } catch (e) {
+          // Fallback to profile ID 1
+          targetId = 1;
+        }
+      }
+
       let hotelRes;
-      if (hotelForm.id) {
-        hotelRes = await api.put(`/hotel-details/${hotelForm.id}`, form, {
+      if (targetId) {
+        hotelRes = await api.put(`/hotel-details/${targetId}`, form, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
       } else {
@@ -361,6 +376,13 @@ export const Settings: React.FC<SettingsProps> = ({
 
       if (hotelRes.data && hotelRes.data.success && hotelRes.data.data) {
         setHotelForm(prev => ({ ...prev, id: hotelRes.data.data.id }));
+      }
+
+      if (hotelForm.vat_rate) {
+        const newRate = parseFloat(hotelForm.vat_rate);
+        if (!isNaN(newRate)) {
+          setVatRate(newRate);
+        }
       }
 
       // 2. Delivery pricing parameters

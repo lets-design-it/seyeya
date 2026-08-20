@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useRestaurant, RestaurantOrder, MenuItem } from '../../hooks/useRestaurant';
+import { useVatRate } from '../../context/VatContext';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import {
@@ -24,6 +25,7 @@ export const Orders: React.FC<OrdersProps> = ({
   activeTab: propActiveTab,
   setActiveTab: propSetActiveTab
 }) => {
+  const { vatRate } = useVatRate();
   const {
     orders,
     updateOrderStatus,
@@ -361,10 +363,21 @@ export const Orders: React.FC<OrdersProps> = ({
                     </tr>
                   ) : (
                     archivedOrders.map((order) => {
-                      const completedDate = order.updatedAt ? new Date(order.updatedAt) : null;
-                      const completedTimeStr = completedDate 
-                        ? completedDate.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })
-                        : order.timestamp;
+                      let completedTimeStr = order.timestamp;
+                      if (order.updatedAt) {
+                        const rawStr = String(order.updatedAt).trim();
+                        const isoStr = (rawStr.endsWith('Z') || rawStr.includes('+'))
+                          ? rawStr
+                          : `${rawStr.replace(' ', 'T')}Z`;
+                        const d = new Date(isoStr);
+                        if (!isNaN(d.getTime())) {
+                          completedTimeStr = d.toLocaleString('en-US', {
+                            timeZone: 'Africa/Nairobi',
+                            dateStyle: 'short',
+                            timeStyle: 'short'
+                          });
+                        }
+                      }
 
                       return (
                         <tr 
@@ -513,13 +526,24 @@ export const Orders: React.FC<OrdersProps> = ({
 
                  <div className="pt-4 border-t border-zinc-100/60 dark:border-zinc-800 flex items-center justify-between">
                   <div className="space-y-1">
-                    <div className="flex gap-4 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
-                      <div>Subtotal: <span className="text-zinc-600 dark:text-zinc-300">UGX {cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0).toLocaleString()}</span></div>
-                      <div>VAT (18%): <span className="text-zinc-600 dark:text-zinc-300">UGX {Math.round(cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0) * 0.18).toLocaleString()}</span></div>
-                    </div>
-                    <p className="text-xs font-bold text-violet-550 dark:text-violet-400">
-                      Estimated Total: UGX {Math.round(cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0) * 1.18).toLocaleString()}
-                    </p>
+                    {(() => {
+                      const cartSubTotal = cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
+                      const cartTax = Math.round(cartSubTotal * (vatRate / 100));
+                      const cartEstTotal = cartSubTotal + cartTax;
+                      return (
+                        <>
+                          <div className="flex gap-4 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+                            <div>Subtotal: <span className="text-zinc-600 dark:text-zinc-300">UGX {cartSubTotal.toLocaleString()}</span></div>
+                            {vatRate > 0 && (
+                              <div>VAT ({vatRate}%): <span className="text-zinc-600 dark:text-zinc-300">UGX {cartTax.toLocaleString()}</span></div>
+                            )}
+                          </div>
+                          <p className="text-xs font-bold text-violet-550 dark:text-violet-400">
+                            Estimated Total: UGX {cartEstTotal.toLocaleString()}
+                          </p>
+                        </>
+                      );
+                    })()}
                   </div>
                   <Button
                     type="submit"
@@ -684,7 +708,7 @@ export const Orders: React.FC<OrdersProps> = ({
                   <div className="space-y-2 border border-zinc-100 dark:border-zinc-800 rounded-2xl p-3 bg-zinc-50/20 dark:bg-zinc-955/10">
                     {(() => {
                       const calculatedSubTotal = selectedOrder.rawItems.reduce((acc: number, it: any) => acc + Number(it.total_price || 0), 0);
-                      const calculatedTax = selectedOrder.taxAmount || Math.round(calculatedSubTotal * 0.18);
+                      const calculatedTax = selectedOrder.taxAmount || Math.round(calculatedSubTotal * (vatRate / 100));
                       const calculatedTotal = calculatedSubTotal + (selectedOrder.deliveryCharge || 0) + calculatedTax;
 
                       return (
@@ -697,6 +721,7 @@ export const Orders: React.FC<OrdersProps> = ({
                             const accomName = it.accompaniment?.name;
                             const accomPrice = it.accompaniment?.price ? Number(it.accompaniment.price) : 0;
                             const itemExtras = it.extras || [];
+                            const specialNotes = it.special_notes ? String(it.special_notes).trim() : null;
 
                             return (
                               <div key={it.order_item_id || it.menu_item_id} className="space-y-1.5 py-1.5 border-b border-zinc-100/50 dark:border-zinc-800/40 last:border-b-0">
@@ -709,9 +734,8 @@ export const Orders: React.FC<OrdersProps> = ({
                                     UGX {itemLineTotal.toLocaleString()}
                                   </span>
                                 </div>
-                                
                                 {/* Sub-item option details */}
-                                {(choiceName || accomName || itemExtras.length > 0) && (
+                                {(choiceName || accomName || itemExtras.length > 0 || specialNotes) && (
                                   <div className="pl-4 space-y-1 mt-1 text-xs text-zinc-600 dark:text-zinc-300 font-semibold">
                                     {choiceName && (
                                       <div className="flex justify-between items-center">
@@ -734,6 +758,11 @@ export const Orders: React.FC<OrdersProps> = ({
                                         </div>
                                       );
                                     })}
+                                    {specialNotes && (
+                                      <div className="flex justify-between items-center text-amber-600 dark:text-amber-400 font-medium">
+                                        <span>• Note: {specialNotes.replace(/^Note:\s*/i, '')}</span>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -755,10 +784,12 @@ export const Orders: React.FC<OrdersProps> = ({
                             
                             {calculatedTax > 0 && (
                               <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-semibold">
-                                <span>VAT (18%)</span>
+                                <span>VAT ({vatRate}%)</span>
                                 <span>UGX {calculatedTax.toLocaleString()}</span>
                               </div>
                             )}
+                            
+
 
                             <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 flex justify-between items-center font-bold text-sm mt-1">
                               <span className="text-zinc-900 dark:text-zinc-150 uppercase tracking-wider text-[10px]">Aggregate Total</span>

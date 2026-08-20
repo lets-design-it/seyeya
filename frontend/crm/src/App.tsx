@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth, ProtectedRoute } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { VatProvider } from './context/VatContext';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ClientLayout } from './layouts/ClientLayout';
 import { TooltipProvider } from './components/ui/tooltip';
@@ -202,9 +203,11 @@ function App() {
     <ThemeProvider>
       <TooltipProvider>
         <NotificationProvider>
-          <AuthProvider>
-            <CRMApp />
-          </AuthProvider>
+          <VatProvider>
+            <AuthProvider>
+              <CRMApp />
+            </AuthProvider>
+          </VatProvider>
         </NotificationProvider>
       </TooltipProvider>
     </ThemeProvider>
