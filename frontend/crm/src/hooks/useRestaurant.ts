@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNotification } from '../context/NotificationContext';
+import { useVatRate } from '../context/VatContext';
 import { api } from '../services/api';
 
 export interface MenuExtra {
@@ -67,6 +68,7 @@ export interface RestaurantOrder {
 
 export const useRestaurant = () => {
   const { addNotification } = useNotification();
+  const { vatRate } = useVatRate();
   const [orders, setOrders] = useState<RestaurantOrder[]>([]);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -138,9 +140,34 @@ export const useRestaurant = () => {
         
         let timeStr = '00:00';
         if (o.created_at) {
-          const d = new Date(o.created_at);
-          timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const rawStr = String(o.created_at).trim();
+          const isoStr = (rawStr.endsWith('Z') || rawStr.includes('+'))
+            ? rawStr
+            : `${rawStr.replace(' ', 'T')}Z`;
+          const d = new Date(isoStr);
+          if (!isNaN(d.getTime())) {
+            timeStr = d.toLocaleTimeString('en-US', {
+              timeZone: 'Africa/Nairobi',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            });
+          }
         }
+
+        const rawSubTotal = Number(o.sub_total || 0);
+        const deliveryCharge = Number(o.delivery_charge || 0);
+        const itemsSum = (o.items && Array.isArray(o.items))
+          ? o.items.reduce((acc: number, it: any) => acc + Number(it.total_price || 0), 0)
+          : 0;
+
+        const subTotal = rawSubTotal > 0 ? rawSubTotal : itemsSum;
+        const taxAmount = Math.round(subTotal * (vatRate / 100));
+        
+        // Dynamic order value incorporating current active hotel VAT rate
+        const orderValue = subTotal > 0
+          ? Math.round(subTotal + deliveryCharge + taxAmount)
+          : Number(o.total_amount || 0);
 
         return {
           id: String(o.order_id),
@@ -149,17 +176,17 @@ export const useRestaurant = () => {
           items: itemsStr,
           status: o.order_status || 'Pending',
           timestamp: timeStr,
-          value: Number(o.total_amount || 0),
+          value: orderValue,
           paymentStatus: o.payment_status || 'Pending',
           amountPaid: Number(o.amount_paid || 0),
-          balanceDue: Number(o.balance_due || 0),
+          balanceDue: Math.max(0, orderValue - Number(o.amount_paid || 0)),
           specialInstr: o.special_instr || '',
           deliveryOption: o.delivery_option || 'Premises',
           deliveryAddress: o.delivery_address || '',
           rawItems: o.items || [],
-          subTotal: Number(o.sub_total || 0),
-          deliveryCharge: Number(o.delivery_charge || 0),
-          taxAmount: Number(o.tax_amount || 0),
+          subTotal: subTotal,
+          deliveryCharge: deliveryCharge,
+          taxAmount: taxAmount,
           createdAt: o.created_at || null,
           updatedAt: o.updated_at || null
         };
@@ -174,7 +201,16 @@ export const useRestaurant = () => {
 
   useEffect(() => {
     fetchMenuAndOrders();
-  }, []);
+
+    const handleVatChange = () => {
+      fetchMenuAndOrders();
+    };
+
+    window.addEventListener('seyeya_vat_updated', handleVatChange);
+    return () => {
+      window.removeEventListener('seyeya_vat_updated', handleVatChange);
+    };
+  }, [vatRate]);
 
   const placeOrder = async (cart: Record<string, number>, tableLabel: string) => {
     try {

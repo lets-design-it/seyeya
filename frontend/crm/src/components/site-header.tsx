@@ -3,6 +3,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useTheme } from "@/context/ThemeContext"
 import { Sun, Moon } from "lucide-react"
 import { useEffect, useState } from "react"
+import { EATClock } from "./EATClock"
 
 interface SiteHeaderProps {
   activeTab: string;
@@ -70,8 +71,9 @@ export function SiteHeader({ activeTab }: SiteHeaderProps) {
           </div>
         </div>
 
-        {/* Right Section - Theme Switcher */}
-        <div>
+        {/* Right Section - Clock & Theme Switcher */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <EATClock />
           <button
             onClick={toggleTheme}
             className="p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 transition-all duration-200 cursor-pointer shadow-xs"
@@ -88,3 +90,4 @@ export function SiteHeader({ activeTab }: SiteHeaderProps) {
     </header>
   )
 }
+
