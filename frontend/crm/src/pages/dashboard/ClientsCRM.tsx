@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useCurrency } from '../../context/CurrencyContext';
 import { api } from '../../services/api';
 import {
   DropdownMenu,
@@ -112,6 +113,7 @@ interface CustomerProfile {
 
 export const ClientsCRM: React.FC = () => {
   const { user } = useAuth();
+  const { formatPrice } = useCurrency();
 
   // State
   const [guests, setGuests] = useState<BackendCustomer[]>([]);
@@ -333,7 +335,7 @@ export const ClientsCRM: React.FC = () => {
           const spent = Number(row.original.total_spent || 0);
           return (
             <span className="font-extrabold text-zinc-900 dark:text-zinc-100 text-xs">
-              UGX {spent.toLocaleString()}
+              {formatPrice(spent)}
             </span>
           );
         },

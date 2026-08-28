@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useConference, ConferenceQuote, EventHall } from '../../hooks/useConference';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   useReactTable,
   getCoreRowModel,
@@ -65,6 +66,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
   activeTab: propActiveTab, 
   setActiveTab: propSetActiveTab 
 }) => {
+  const { formatPrice, currency } = useCurrency();
   const {
     quotes,
     halls,
@@ -272,7 +274,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
       header: 'Agreed Pricing',
       cell: ({ row }) => (
         <span className="font-extrabold text-xs text-zinc-950 dark:text-zinc-100">
-          UGX {row.original.totalCostUGX.toLocaleString()}
+          {formatPrice(row.original.totalCostUGX)}
         </span>
       ),
       enableHiding: true,
@@ -356,7 +358,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
       header: 'Hourly Rate',
       cell: ({ row }) => (
         <span className="font-semibold text-xs text-zinc-750 dark:text-zinc-350">
-          {row.original.hourly_rate ? `UGX ${row.original.hourly_rate.toLocaleString()}` : 'Free'}
+          {row.original.hourly_rate ? formatPrice(row.original.hourly_rate) : 'Free'}
         </span>
       ),
       enableHiding: true,
@@ -366,7 +368,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
       header: 'Half Day Rate',
       cell: ({ row }) => (
         <span className="font-semibold text-xs text-zinc-750 dark:text-zinc-350">
-          {row.original.half_day_rate ? `UGX ${row.original.half_day_rate.toLocaleString()}` : 'Free'}
+          {row.original.half_day_rate ? formatPrice(row.original.half_day_rate) : 'Free'}
         </span>
       ),
       enableHiding: true,
@@ -376,7 +378,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
       header: 'Full Day Rate',
       cell: ({ row }) => (
         <span className="font-extrabold text-xs text-zinc-950 dark:text-zinc-100">
-          {row.original.full_day_rate ? `UGX ${row.original.full_day_rate.toLocaleString()}` : 'Free'}
+          {row.original.full_day_rate ? formatPrice(row.original.full_day_rate) : 'Free'}
         </span>
       ),
       enableHiding: true,

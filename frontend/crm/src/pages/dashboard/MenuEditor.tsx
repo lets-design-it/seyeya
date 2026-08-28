@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useRestaurant, MenuItem } from '../../hooks/useRestaurant';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   Card,
   CardContent,
@@ -68,6 +69,7 @@ import {
 } from 'lucide-react';
 
 export const MenuEditor: React.FC = () => {
+  const { formatPrice, currency } = useCurrency();
   const {
     menu,
     addMenuItem,
@@ -312,20 +314,10 @@ export const MenuEditor: React.FC = () => {
     },
     {
       accessorKey: 'priceUGX',
-      header: 'Price (UGX)',
+      header: `Price (${currency})`,
       cell: ({ row }) => (
         <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
-          UGX {row.original.priceUGX.toLocaleString()}
-        </span>
-      ),
-      enableHiding: true,
-    },
-    {
-      accessorKey: 'priceUSD',
-      header: 'Price (USD)',
-      cell: ({ row }) => (
-        <span className="text-zinc-500 dark:text-zinc-400 font-medium text-xs">
-          ${row.original.priceUSD.toFixed(2)}
+          {formatPrice(row.original.priceUGX)}
         </span>
       ),
       enableHiding: true,

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme, Theme } from '@/context/ThemeContext';
 import { useVatRate } from '@/context/VatContext';
+import { useCurrency } from '@/context/CurrencyContext';
 import { api } from '@/services/api';
 import { 
   Card, 
@@ -104,6 +105,8 @@ export const Settings: React.FC<SettingsProps> = ({
   const { user, updateUserProfile } = useAuth();
   const { theme, setTheme } = useTheme();
   const { setVatRate } = useVatRate();
+  const { usdRate, setUsdRate, currency, setCurrency } = useCurrency();
+  const [exchangeRateInput, setExchangeRateInput] = useState<string>(String(usdRate));
   
   const [localActiveTab, localSetActiveTab] = useState<ActiveTab>('profile');
   const activeTab = propActiveTab || localActiveTab;
@@ -135,7 +138,7 @@ export const Settings: React.FC<SettingsProps> = ({
     google_maps_pin: '',
     check_in_time: '14:00',
     check_out_time: '10:00',
-    currency: 'USD',
+    currency: 'UGX',
     timezone: 'UTC',
     vat_rate: '18.00',
     is_active: true,
@@ -864,15 +867,43 @@ export const Settings: React.FC<SettingsProps> = ({
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="curr" className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Currency</Label>
+                      <Label htmlFor="curr" className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Base System Currency</Label>
                       <Input 
                         id="curr" 
                         value={hotelForm.currency}
                         onChange={e => setHotelForm(h => ({ ...h, currency: e.target.value }))}
                         disabled={!isAdmin}
-                        placeholder="USD"
-                        className="rounded-xl h-10 text-xs border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 dark:text-zinc-50"
+                        placeholder="UGX"
+                        className="rounded-xl h-10 text-xs border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 dark:text-zinc-50 font-bold"
                       />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="exchange_rate" className="text-xs font-bold text-zinc-700 dark:text-zinc-300">USD Exchange Rate (1 USD = X UGX)</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          id="exchange_rate" 
+                          type="number"
+                          step="1"
+                          min="1"
+                          value={exchangeRateInput}
+                          onChange={e => setExchangeRateInput(e.target.value)}
+                          disabled={!isAdmin}
+                          placeholder="3700"
+                          className="rounded-xl h-10 text-xs border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 dark:text-zinc-50 font-bold"
+                        />
+                        {isAdmin && (
+                          <ShadcnButton 
+                            type="button"
+                            onClick={() => {
+                              const r = Number(exchangeRateInput);
+                              if (r > 0) setUsdRate(r);
+                            }}
+                            className="h-10 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl cursor-pointer"
+                          >
+                            Update
+                          </ShadcnButton>
+                        )}
+                      </div>
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="tzone" className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Timezone</Label>

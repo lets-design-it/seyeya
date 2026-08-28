@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useRestaurant, RestaurantOrder, MenuItem } from '../../hooks/useRestaurant';
 import { useVatRate } from '../../context/VatContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import {
@@ -26,6 +27,7 @@ export const Orders: React.FC<OrdersProps> = ({
   setActiveTab: propSetActiveTab
 }) => {
   const { vatRate } = useVatRate();
+  const { formatPrice } = useCurrency();
   const {
     orders,
     updateOrderStatus,
@@ -275,7 +277,7 @@ export const Orders: React.FC<OrdersProps> = ({
                               <span className="text-[9px] text-zinc-405 dark:text-zinc-500 font-bold font-mono tracking-tight">{order.orderNumber}</span>
                             </div>
                             <span className="text-xs text-zinc-900 dark:text-zinc-100 font-bold shrink-0">
-                              UGX {order.value.toLocaleString()}
+                              {formatPrice(order.value)}
                             </span>
                           </div>
                           <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-normal font-semibold line-clamp-2">
@@ -406,7 +408,7 @@ export const Orders: React.FC<OrdersProps> = ({
                             </span>
                           </td>
                           <td className="py-3.5 px-4 font-extrabold text-zinc-900 dark:text-zinc-100">
-                            UGX {order.value.toLocaleString()}
+                            {formatPrice(order.value)}
                           </td>
                           <td className="py-3.5 px-4 text-right">
                             <button
@@ -778,22 +780,21 @@ export const Orders: React.FC<OrdersProps> = ({
                             {selectedOrder.deliveryOption === 'Delivery' && (selectedOrder.deliveryCharge || 0) > 0 && (
                               <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-semibold">
                                 <span>Room Service Charge</span>
-                                <span>UGX {selectedOrder.deliveryCharge!.toLocaleString()}</span>
+                                <span>{formatPrice(selectedOrder.deliveryCharge!)}</span>
                               </div>
                             )}
                             
                             {calculatedTax > 0 && (
                               <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-semibold">
                                 <span>VAT ({vatRate}%)</span>
-                                <span>UGX {calculatedTax.toLocaleString()}</span>
+                                <span>{formatPrice(calculatedTax)}</span>
                               </div>
                             )}
                             
 
-
                             <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 flex justify-between items-center font-bold text-sm mt-1">
                               <span className="text-zinc-900 dark:text-zinc-150 uppercase tracking-wider text-[10px]">Aggregate Total</span>
-                              <span className="text-violet-555 dark:text-violet-400">UGX {calculatedTotal.toLocaleString()}</span>
+                              <span className="text-violet-555 dark:text-violet-400">{formatPrice(calculatedTotal)}</span>
                             </div>
                           </div>
                         </>

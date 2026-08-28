@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useRestaurant, MenuItem } from '../../hooks/useRestaurant';
 import { useVatRate } from '../../context/VatContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Search, ShoppingBag, Plus, Minus, X, CheckCircle } from 'lucide-react';
 
 export const Restaurant: React.FC = () => {
   const { vatRate } = useVatRate();
+  const { formatPrice } = useCurrency();
   const { menu, placeOrder, categories } = useRestaurant();
   
   // Search & Category states
@@ -127,7 +129,7 @@ export const Restaurant: React.FC = () => {
 
               <div className="flex items-center justify-between mt-2.5">
                 <span className="text-xs font-semibold text-violet-400">
-                  UGX {item.priceUGX.toLocaleString()} / ${item.priceUSD}
+                  {formatPrice(item.priceUGX)}
                 </span>
 
                 <Button 
@@ -254,12 +256,11 @@ export const Restaurant: React.FC = () => {
                 </div>
 
                 <div className="text-right flex flex-col justify-end space-y-0.5">
-                  <span className="text-[10px] uppercase font-bold text-zinc-500">Subtotal: UGX {cartTotal.ugx.toLocaleString()}</span>
+                  <span className="text-[10px] uppercase font-bold text-zinc-500">Subtotal: {formatPrice(cartTotal.ugx)}</span>
                   {vatRate > 0 && (
-                    <span className="text-[10px] uppercase font-bold text-zinc-500">VAT ({vatRate}%): UGX {Math.round(cartTotal.ugx * (vatRate / 100)).toLocaleString()}</span>
+                    <span className="text-[10px] uppercase font-bold text-zinc-500">VAT ({vatRate}%): {formatPrice(Math.round(cartTotal.ugx * (vatRate / 100)))}</span>
                   )}
-                  <span className="text-xs font-bold text-violet-400 mt-1 block">Total: UGX {Math.round(cartTotal.ugx * (1 + vatRate / 100)).toLocaleString()}</span>
-                  <span className="text-[10px] text-zinc-500 block">~ ${Math.round(cartTotal.usd * (1 + vatRate / 100) * 10) / 10} USD</span>
+                  <span className="text-xs font-bold text-violet-400 mt-1 block">Total: {formatPrice(Math.round(cartTotal.ugx * (1 + vatRate / 100)))}</span>
                 </div>
               </div>
 

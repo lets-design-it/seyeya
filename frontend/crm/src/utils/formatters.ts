@@ -1,17 +1,22 @@
 /**
  * Formats a numeric value into currency strings
  */
-export const formatCurrency = (value: number, currency: 'UGX' | 'USD' = 'UGX'): string => {
+export const formatCurrency = (
+  valueInUGX: number,
+  currency: string = 'UGX',
+  exchangeRate: number = 3700
+): string => {
+  const val = valueInUGX || 0;
   if (currency === 'USD') {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(value);
+    const usdVal = val / exchangeRate;
+    return `$${usdVal.toLocaleString(undefined, {
+      minimumFractionDigits: usdVal % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2
+    })}`;
   }
 
-  // Format as Ugandan Shillings (UGX)
-  return `UGX ${value.toLocaleString()}`;
+  // Default format as Ugandan Shillings (UGX)
+  return `UGX ${Math.round(val).toLocaleString()}`;
 };
 
 /**

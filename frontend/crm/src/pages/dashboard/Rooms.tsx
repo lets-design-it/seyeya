@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { useAccommodation, RoomType, RoomUnit, BookingRecord } from '../../hooks/useAccommodation';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   Card,
   CardContent,
@@ -99,6 +100,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   activeTab: propActiveTab, 
   setActiveTab: propSetActiveTab 
 }) => {
+  const { formatPrice, currency } = useCurrency();
   const {
     categories,
     roomUnits,
@@ -640,7 +642,7 @@ export const Rooms: React.FC<RoomsProps> = ({
       header: 'Paid Value',
       cell: ({ row }) => (
         <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
-          UGX {row.original.totalPaid.toLocaleString()}
+          {formatPrice(row.original.totalPaid)}
         </span>
       )
     },
@@ -819,19 +821,10 @@ export const Rooms: React.FC<RoomsProps> = ({
     },
     {
       accessorKey: 'priceUGX',
-      header: 'Price (UGX)',
+      header: `Base Rate (${currency})`,
       cell: ({ row }) => (
         <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
-          UGX {row.original.priceUGX.toLocaleString()}
-        </span>
-      )
-    },
-    {
-      accessorKey: 'priceUSD',
-      header: 'Price (USD)',
-      cell: ({ row }) => (
-        <span className="text-zinc-500 dark:text-zinc-400 font-medium text-xs">
-          ${row.original.priceUSD.toFixed(2)}
+          {formatPrice(row.original.priceUGX)}
         </span>
       )
     },

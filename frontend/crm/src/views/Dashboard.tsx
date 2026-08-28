@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useCurrency } from '../context/CurrencyContext';
 import { 
   loadLeads, 
   loadActivities, 
@@ -28,6 +29,7 @@ import {
 } from 'recharts';
 
 export const Dashboard: React.FC = () => {
+  const { formatPrice } = useCurrency();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -118,7 +120,7 @@ export const Dashboard: React.FC = () => {
         <div className="glass-panel glass-card-glow rounded-2xl p-5 flex items-center justify-between shadow-lg">
           <div className="space-y-1.5">
             <span className="text-xs font-semibold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Closed Revenue</span>
-            <h4 className="text-2xl font-bold text-white light:text-zinc-900">${kpis.revenue.toLocaleString()}</h4>
+            <h4 className="text-2xl font-bold text-white light:text-zinc-900">{formatPrice(kpis.revenue)}</h4>
             <span className="text-xs text-emerald-400 font-medium">✦ 12% increase from last month</span>
           </div>
           <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400">
@@ -130,7 +132,7 @@ export const Dashboard: React.FC = () => {
         <div className="glass-panel glass-card-glow rounded-2xl p-5 flex items-center justify-between shadow-lg">
           <div className="space-y-1.5">
             <span className="text-xs font-semibold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Pipeline Value</span>
-            <h4 className="text-2xl font-bold text-white light:text-zinc-900">${kpis.pipeline.toLocaleString()}</h4>
+            <h4 className="text-2xl font-bold text-white light:text-zinc-900">{formatPrice(kpis.pipeline)}</h4>
             <span className="text-xs text-indigo-400 font-medium">✦ Active contract negotiations</span>
           </div>
           <div className="h-12 w-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
