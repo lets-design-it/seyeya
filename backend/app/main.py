@@ -18,7 +18,7 @@ import os
 from app.api.v1.payment_methods import router as payment_methods_router
 from app.api.v1.hotel_details import router as hotel_details_router
 from app.api.v1.notifications import router as notifications_router
-from app.api.v1.currencies import router as currencies_router
+from app.api.v1.uploads import router as uploads_router
 from app.db.database import engine, Base
 
 
@@ -53,8 +53,10 @@ async def lifespan(app: FastAPI):
                 ConferenceMealPackage(package_name="Executive Full Day", price_per_person=Decimal("55000"), description="Full Day Executive Catering", is_active=True),
             ])
             
-        # Seed Room Categories
-        from app.models import RoomCategory, Room
+        # Seed Room Categories & Units with Child Data
+        from app.models import (
+            RoomCategory, Room, RoomBed, RoomView, RoomBathroomFeature, RoomFacility, RoomImage
+        )
         cat_count = await session.execute(select(func.count(RoomCategory.room_category_id)))
         if cat_count.scalar_one() == 0:
             c1 = RoomCategory(category_name="Seyeya Deluxe Safari Cottage", description="A luxurious private cottage overlooking the Nile...", base_rate_usd=Decimal("100"), is_active=True)
@@ -68,20 +70,68 @@ async def lifespan(app: FastAPI):
             c3_id = c3.room_category_id
 
             # Seed Room Units
-            r1 = Room(room_category_id=c1_id, room_number="101", floor="1st Floor", room_status="Available", max_occupancy=3, description="Charming cottage overlooking the gardens.", amenities="Nile View, AC, King Bed", is_active=True)
-            r2 = Room(room_category_id=c1_id, room_number="102", floor="1st Floor", room_status="Occupied", max_occupancy=3, description="Luxury cottage close to the pool area.", amenities="Nile View, AC, King Bed", is_active=True)
-            r3 = Room(room_category_id=c1_id, room_number="103", floor="1st Floor", room_status="Available", max_occupancy=3, description="Quiet cottage on the east wing.", amenities="Nile View, AC, King Bed", is_active=True)
-            
-            r4 = Room(room_category_id=c2_id, room_number="201", floor="2nd Floor", room_status="Available", max_occupancy=2, description="Executive style room with workstations.", amenities="Garden View, Work Station, Coffee Machine", is_active=True)
-            r5 = Room(room_category_id=c2_id, room_number="202", floor="2nd Floor", room_status="Available", max_occupancy=2, description="Comfortable double beds.", amenities="Garden View, Work Station, Coffee Machine", is_active=True)
-            r6 = Room(room_category_id=c2_id, room_number="203", floor="2nd Floor", room_status="Available", max_occupancy=2, description="Main road access room.", amenities="Garden View, Work Station, Coffee Machine", is_active=True)
-            
-            r7 = Room(room_category_id=c3_id, room_number="301", floor="3rd Floor", room_status="Reserved", max_occupancy=2, description="Exclusive honeymoon suite.", amenities="Private Jacuzzi, Champagne Bar, Panoramic Deck", is_active=True)
-            r8 = Room(room_category_id=c3_id, room_number="302", floor="3rd Floor", room_status="Available", max_occupancy=2, description="Suite with plunge pool.", amenities="Private Jacuzzi, Champagne Bar, Plunge Pool", is_active=True)
-            
+            r1 = Room(room_category_id=c1_id, room_number="101", room_name="Deluxe Cottage 101", building="Main Cottage", wing="East Wing", floor="1st Floor", room_size=45.0, room_size_unit="m²", room_status="Available", max_occupancy=3, description="Charming cottage overlooking the gardens.", amenities="Nile View, AC, King Bed", is_active=True)
+            r2 = Room(room_category_id=c1_id, room_number="102", room_name="Deluxe Cottage 102", building="Main Cottage", wing="East Wing", floor="1st Floor", room_status="Occupied", max_occupancy=3, description="Luxury cottage close to the pool area.", amenities="Nile View, AC, King Bed", is_active=True)
+            r3 = Room(room_category_id=c1_id, room_number="103", room_name="Deluxe Cottage 103", building="Main Cottage", wing="East Wing", floor="1st Floor", room_status="Available", max_occupancy=3, description="Quiet cottage on the east wing.", amenities="Nile View, AC, King Bed", is_active=True)
+
+            r4 = Room(room_category_id=c2_id, room_number="201", room_name="Executive Room 201", building="Executive Block", wing="North Wing", floor="2nd Floor", room_size=35.0, room_size_unit="m²", room_status="Available", max_occupancy=2, description="Executive style room with workstations.", amenities="Garden View, Work Station, Coffee Machine", is_active=True)
+            r5 = Room(room_category_id=c2_id, room_number="202", room_name="Executive Room 202", building="Executive Block", wing="North Wing", floor="2nd Floor", room_size=35.0, room_size_unit="m²", room_status="Available", max_occupancy=2, description="Comfortable double beds.", amenities="Garden View, Work Station, Coffee Machine", is_active=True)
+            r6 = Room(room_category_id=c2_id, room_number="203", room_name="Executive Room 203", building="Executive Block", wing="North Wing", floor="2nd Floor", room_size=35.0, room_size_unit="m²", room_status="Available", max_occupancy=2, description="Main road access room.", amenities="Garden View, Work Station, Coffee Machine", is_active=True)
+
+            r7 = Room(room_category_id=c3_id, room_number="301", room_name="Royal Suite 301", building="Royal Villa", wing="West Wing", floor="3rd Floor", room_size=75.0, room_size_unit="m²", room_status="Reserved", max_occupancy=2, description="Exclusive honeymoon suite.", amenities="Private Jacuzzi, Champagne Bar, Panoramic Deck", is_active=True)
+            r8 = Room(room_category_id=c3_id, room_number="302", room_name="Royal Suite 302", building="Royal Villa", wing="West Wing", floor="3rd Floor", room_size=75.0, room_size_unit="m²", room_status="Available", max_occupancy=2, description="Suite with plunge pool.", amenities="Private Jacuzzi, Champagne Bar, Plunge Pool", is_active=True)
+
             session.add_all([r1, r2, r3, r4, r5, r6, r7, r8])
-            
-        await session.commit()
+            await session.commit()
+
+            # Seed child records for Deluxe Cottages (r1, r2, r3)
+            for room_obj in [r1, r2, r3]:
+                session.add_all([
+                    RoomBed(room_id=room_obj.room_id, bed_type="King Bed", quantity=1),
+                    RoomView(room_id=room_obj.room_id, view_name="Nile River View"),
+                    RoomView(room_id=room_obj.room_id, view_name="Garden View"),
+                    RoomBathroomFeature(room_id=room_obj.room_id, feature_name="Rain Shower"),
+                    RoomBathroomFeature(room_id=room_obj.room_id, feature_name="Free-standing Bathtub"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="High-Speed Wi-Fi"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="Air Conditioning"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="Private Patio"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="Mini Fridge"),
+                    RoomImage(room_id=room_obj.room_id, image_url="https://images.unsplash.com/photo-1566665797739-1674de7a421a", display_order=0, is_primary=True, caption="Cottage Exterior & Deck"),
+                    RoomImage(room_id=room_obj.room_id, image_url="https://images.unsplash.com/photo-1590490360182-c33d57733427", display_order=1, is_primary=False, caption="Bedroom Interior")
+                ])
+
+            # Seed child records for Executive Rooms (r4, r5, r6)
+            for room_obj in [r4, r5, r6]:
+                session.add_all([
+                    RoomBed(room_id=room_obj.room_id, bed_type="Twin Bed", quantity=2),
+                    RoomView(room_id=room_obj.room_id, view_name="Garden View"),
+                    RoomBathroomFeature(room_id=room_obj.room_id, feature_name="Glass Walk-in Shower"),
+                    RoomBathroomFeature(room_id=room_obj.room_id, feature_name="Hair Dryer"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="High-Speed Wi-Fi"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="Ergonomic Work Desk"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="Espresso Coffee Machine"),
+                    RoomImage(room_id=room_obj.room_id, image_url="https://images.unsplash.com/photo-1618773928121-c32242e63f39", display_order=0, is_primary=True, caption="Executive Bedroom"),
+                    RoomImage(room_id=room_obj.room_id, image_url="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b", display_order=1, is_primary=False, caption="Workstation Area")
+                ])
+
+            # Seed child records for Royal Suites (r7, r8)
+            for room_obj in [r7, r8]:
+                session.add_all([
+                    RoomBed(room_id=room_obj.room_id, bed_type="Super King Bed", quantity=1),
+                    RoomView(room_id=room_obj.room_id, view_name="Panoramic Nile View"),
+                    RoomView(room_id=room_obj.room_id, view_name="Sunset Deck View"),
+                    RoomBathroomFeature(room_id=room_obj.room_id, feature_name="Hydro-massage Jacuzzi"),
+                    RoomBathroomFeature(room_id=room_obj.room_id, feature_name="Double Vanity"),
+                    RoomBathroomFeature(room_id=room_obj.room_id, feature_name="Luxury Bathrobes"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="Private Plunge Pool"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="Champagne Mini Bar"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="Smart Home Automation"),
+                    RoomFacility(room_id=room_obj.room_id, facility_name="Free High-Speed Wi-Fi"),
+                    RoomImage(room_id=room_obj.room_id, image_url="https://images.unsplash.com/photo-1578683010236-d716f9a3f461", display_order=0, is_primary=True, caption="Royal Suite Master Bedroom"),
+                    RoomImage(room_id=room_obj.room_id, image_url="https://images.unsplash.com/photo-1584622650111-993a426fbf0a", display_order=1, is_primary=False, caption="Private Jacuzzi & Balcony")
+                ])
+
+            await session.commit()
         
     yield
     
@@ -118,7 +168,7 @@ app.include_router(roles_router)
 app.include_router(payment_methods_router)
 app.include_router(hotel_details_router)
 app.include_router(notifications_router)
-app.include_router(currencies_router)
+app.include_router(uploads_router)
 
 # Mount upload directory to serve files statically
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

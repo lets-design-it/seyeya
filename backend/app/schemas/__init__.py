@@ -3,7 +3,7 @@ Pydantic schemas for request/response validation
 """
 from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from datetime import datetime, date, time
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Union
 from decimal import Decimal
 
 
@@ -627,27 +627,142 @@ class RoomCategoryResponse(BaseModel):
         from_attributes = True
 
 
+class BedItem(BaseModel):
+    type: str
+    quantity: int = Field(default=1, ge=1)
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_bed_type(cls, data):
+        if hasattr(data, 'bed_type'):
+            return {"type": data.bed_type, "quantity": getattr(data, 'quantity', 1)}
+        if isinstance(data, dict):
+            if 'bed_type' in data and 'type' not in data:
+                data['type'] = data['bed_type']
+        return data
+
+    class Config:
+        from_attributes = True
+
+
+class ImageItem(BaseModel):
+    url: str
+    is_primary: bool = False
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_image(cls, data):
+        if isinstance(data, str):
+            return {"url": data, "is_primary": False}
+        if hasattr(data, 'image_url'):
+            return {"url": data.image_url, "is_primary": getattr(data, 'is_primary', False)}
+        if hasattr(data, 'photo_url'):
+            return {"url": data.photo_url, "is_primary": getattr(data, 'is_primary', False)}
+        if isinstance(data, dict):
+            if 'image_url' in data and 'url' not in data:
+                data['url'] = data['image_url']
+            elif 'photo_url' in data and 'url' not in data:
+                data['url'] = data['photo_url']
+        return data
+
+    class Config:
+        from_attributes = True
+
+
 class RoomPhotoResponse(BaseModel):
-    photo_id: int
+    photo_id: Optional[int] = None
     photo_url: str
     caption: Optional[str] = None
-    sort_order: int
-    
+    sort_order: int = 0
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_photo(cls, data):
+        if hasattr(data, 'image_url'):
+            return {
+                "photo_id": getattr(data, 'id', None),
+                "photo_url": data.image_url,
+                "caption": getattr(data, 'caption', None),
+                "sort_order": getattr(data, 'display_order', 0)
+            }
+        return data
+
     class Config:
         from_attributes = True
 
 
 class RoomResponse(BaseModel):
+    id: int
     room_id: int
     room_category_id: int
     room_number: str
+    room_name: Optional[str] = None
+    building: Optional[str] = None
+    wing: Optional[str] = None
     floor: Optional[str] = None
+    room_size: Optional[float] = None
+    room_size_unit: Optional[str] = "m²"
     room_status: str
     max_occupancy: int
     description: Optional[str] = None
     amenities: Optional[str] = None
-    photos: List[RoomPhotoResponse]
-    
+    is_active: bool
+    beds: List[BedItem] = []
+    views: List[str] = []
+    bathroom_features: List[str] = []
+    room_facilities: List[str] = []
+    images: List[ImageItem] = []
+    photos: List[RoomPhotoResponse] = []
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_room_orm(cls, data):
+        if isinstance(data, dict):
+            if 'id' not in data and 'room_id' in data:
+                data['id'] = data['room_id']
+            elif 'room_id' not in data and 'id' in data:
+                data['room_id'] = data['id']
+            return data
+        
+        if hasattr(data, 'room_id'):
+            d = getattr(data, '__dict__', {})
+            beds_val = d.get('beds', []) or []
+            views_raw = d.get('views', []) or []
+            views_val = [v.view_name if hasattr(v, 'view_name') else str(v) for v in views_raw]
+            bf_raw = d.get('bathroom_features', []) or []
+            bf_val = [f.feature_name if hasattr(f, 'feature_name') else str(f) for f in bf_raw]
+            rf_raw = d.get('room_facilities', []) or []
+            rf_val = [f.facility_name if hasattr(f, 'facility_name') else str(f) for f in rf_raw]
+            imgs_val = d.get('images', None) if 'images' in d else (d.get('photos', None) if 'photos' in d else [])
+            if imgs_val is None:
+                imgs_val = []
+
+            res = {
+                'id': data.room_id,
+                'room_id': data.room_id,
+                'room_category_id': data.room_category_id,
+                'room_number': data.room_number,
+                'room_name': getattr(data, 'room_name', None),
+                'building': getattr(data, 'building', None),
+                'wing': getattr(data, 'wing', None),
+                'floor': getattr(data, 'floor', None),
+                'room_size': getattr(data, 'room_size', None),
+                'room_size_unit': getattr(data, 'room_size_unit', 'm²'),
+                'room_status': data.room_status,
+                'max_occupancy': data.max_occupancy,
+                'description': data.description,
+                'amenities': getattr(data, 'amenities', None),
+                'is_active': data.is_active,
+                'beds': beds_val,
+                'views': views_val,
+                'bathroom_features': bf_val,
+                'room_facilities': rf_val,
+                'images': imgs_val,
+                'photos': imgs_val,
+            }
+            return res
+        return data
+
     class Config:
         from_attributes = True
 
@@ -668,26 +783,63 @@ class RoomCategoryUpdate(BaseModel):
     photos: Optional[List[str]] = None
 
 
+ALLOWED_ROOM_STATUSES = {"Available", "Occupied", "Reserved", "Maintenance", "Out of Service"}
+
+
 class RoomCreate(BaseModel):
     room_category_id: int
     room_number: str
+    room_name: Optional[str] = None
+    building: Optional[str] = None
+    wing: Optional[str] = None
     floor: Optional[str] = None
+    room_size: Optional[float] = Field(None, gt=0)
+    room_size_unit: Optional[str] = "m²"
     room_status: str = "Available"
-    max_occupancy: int = 2
+    max_occupancy: int = Field(2, gt=0)
     description: Optional[str] = None
     amenities: Optional[str] = None
+    beds: List[BedItem] = []
+    views: List[str] = []
+    bathroom_features: List[str] = []
+    room_facilities: List[str] = []
+    images: List[Union[ImageItem, str]] = []
     is_active: bool = True
+
+    @field_validator("room_status")
+    @classmethod
+    def validate_room_status(cls, v):
+        if v not in ALLOWED_ROOM_STATUSES:
+            raise ValueError(f"room_status must be one of: {', '.join(sorted(ALLOWED_ROOM_STATUSES))}")
+        return v
 
 
 class RoomUpdate(BaseModel):
     room_category_id: Optional[int] = None
     room_number: Optional[str] = None
+    room_name: Optional[str] = None
+    building: Optional[str] = None
+    wing: Optional[str] = None
     floor: Optional[str] = None
+    room_size: Optional[float] = Field(None, gt=0)
+    room_size_unit: Optional[str] = None
     room_status: Optional[str] = None
-    max_occupancy: Optional[int] = None
+    max_occupancy: Optional[int] = Field(None, gt=0)
     description: Optional[str] = None
     amenities: Optional[str] = None
+    beds: Optional[List[BedItem]] = None
+    views: Optional[List[str]] = None
+    bathroom_features: Optional[List[str]] = None
+    room_facilities: Optional[List[str]] = None
+    images: Optional[List[Union[ImageItem, str]]] = None
     is_active: Optional[bool] = None
+
+    @field_validator("room_status")
+    @classmethod
+    def validate_room_status(cls, v):
+        if v is not None and v not in ALLOWED_ROOM_STATUSES:
+            raise ValueError(f"room_status must be one of: {', '.join(sorted(ALLOWED_ROOM_STATUSES))}")
+        return v
 
 
 
