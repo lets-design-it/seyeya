@@ -3,6 +3,7 @@ import { AuthProvider, useAuth, ProtectedRoute } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { VatProvider } from './context/VatContext';
+import { CurrencyProvider } from './context/CurrencyContext';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { ClientLayout } from './layouts/ClientLayout';
 import { TooltipProvider } from './components/ui/tooltip';
@@ -204,9 +205,11 @@ function App() {
       <TooltipProvider>
         <NotificationProvider>
           <VatProvider>
-            <AuthProvider>
-              <CRMApp />
-            </AuthProvider>
+            <CurrencyProvider>
+              <AuthProvider>
+                <CRMApp />
+              </AuthProvider>
+            </CurrencyProvider>
           </VatProvider>
         </NotificationProvider>
       </TooltipProvider>

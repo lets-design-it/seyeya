@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth, UserRole } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { 
   loadLeads, 
   saveLeads, 
@@ -23,6 +24,7 @@ import {
 
 export const Leads: React.FC = () => {
   const { user } = useAuth();
+  const { formatPrice, currency } = useCurrency();
   const [leads, setLeads] = useState<Lead[]>(() => loadLeads());
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStage, setSelectedStage] = useState<string>('all');
@@ -306,7 +308,7 @@ export const Leads: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3.5 px-5 font-semibold text-foreground">
-                      ${lead.value.toLocaleString()}
+                      {formatPrice(lead.value)}
                     </td>
                     <td className="py-3.5 px-5">
                       <div className="flex items-center gap-1.5">
@@ -409,7 +411,7 @@ export const Leads: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550 mb-1.5">Deal Value ($)</label>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-550 mb-1.5">Deal Value ({currency})</label>
                   <input
                     type="number"
                     placeholder="50000"

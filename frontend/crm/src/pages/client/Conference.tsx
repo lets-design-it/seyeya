@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useConference, EventHall, ConferenceQuote } from '../../hooks/useConference';
+import { useCurrency } from '../../context/CurrencyContext';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Calculator, CheckCircle, Volume2, Video, Coffee, Users, Calendar } from 'lucide-react';
 
 export const Conference: React.FC = () => {
+  const { formatPrice } = useCurrency();
   const { halls, requestQuote, calculateQuoteCost } = useConference();
 
   // Contact details
@@ -275,9 +277,8 @@ export const Conference: React.FC = () => {
             <span>Estimated quote</span>
           </div>
           <span className="text-sm font-bold text-white mt-1.5 block leading-none">
-            UGX {totalCostUGX.toLocaleString()}
+            {formatPrice(totalCostUGX)}
           </span>
-          <span className="text-xs text-zinc-500 mt-1 block">~ ${(totalCostUGX / 3700).toLocaleString(undefined, { maximumFractionDigits: 0 })} USD</span>
         </div>
 
         <Button 

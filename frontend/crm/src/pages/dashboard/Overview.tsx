@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAnalytics } from '../../hooks/useAnalytics';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   TrendingUp,
   Users,
@@ -8,7 +9,8 @@ import {
   ShoppingBag,
   Bed,
   CalendarRange,
-  Layers
+  Layers,
+  Coins
 } from 'lucide-react';
 import {
   AreaChart,
@@ -33,6 +35,7 @@ import {
 
 export const Overview: React.FC = () => {
   const analytics = useAnalytics();
+  const { formatPrice, currency, usdRate } = useCurrency();
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -58,14 +61,16 @@ export const Overview: React.FC = () => {
         <Card className="shadow-sm border-zinc-150">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-550">Gross Income</CardTitle>
-            <DollarSign className="h-4 w-4 text-zinc-400" />
+            <Coins className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
             <div className="text-lg font-extrabold text-zinc-900 leading-none">
-              UGX {analytics.revenueUGX.toLocaleString()}
+              {formatPrice(analytics.revenueUGX)}
             </div>
             <p className="text-[10px] text-zinc-450 mt-1 font-medium">
-              ~ ${analytics.revenueUSD.toLocaleString(undefined, { maximumFractionDigits: 0 })} USD
+              {currency === 'UGX' 
+                ? `~ $${(analytics.revenueUGX / usdRate).toLocaleString(undefined, { maximumFractionDigits: 0 })} USD` 
+                : `~ UGX ${analytics.revenueUGX.toLocaleString()}`}
             </p>
           </CardContent>
         </Card>
@@ -126,7 +131,7 @@ export const Overview: React.FC = () => {
           <CardHeader className="flex flex-row items-start justify-between pb-4">
             <div>
               <CardTitle className="text-xs font-bold uppercase tracking-wider text-zinc-800">Revenue Stream Projections</CardTitle>
-              <CardDescription className="text-xs text-zinc-500">Departmental earnings trends over the current semester (in UGX).</CardDescription>
+              <CardDescription className="text-xs text-zinc-500">Departmental earnings trends over the current semester ({currency}).</CardDescription>
             </div>
             <div className="flex items-center gap-3 text-xs">
               <div className="flex items-center gap-1">
@@ -159,9 +164,14 @@ export const Overview: React.FC = () => {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" opacity={0.25} />
                   <XAxis dataKey="name" stroke="#71717a" fontSize={9} tickLine={false} />
-                  <YAxis stroke="#71717a" fontSize={9} tickLine={false} tickFormatter={(val) => `${(val / 1000000).toFixed(1)}M`} />
+                  <YAxis 
+                    stroke="#71717a" 
+                    fontSize={9} 
+                    tickLine={false} 
+                    tickFormatter={(val) => formatPrice(val, { compact: true })} 
+                  />
                   <Tooltip
-                    formatter={(value: any) => [`UGX ${value.toLocaleString()}`]}
+                    formatter={(value: any) => [formatPrice(Number(value))]}
                     contentStyle={{
                       backgroundColor: 'rgba(9, 9, 11, 0.95)',
                       borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -191,7 +201,7 @@ export const Overview: React.FC = () => {
                 <div className="flex items-center justify-between text-xs font-semibold">
                   <span className="text-foreground light:text-zinc-700">{dept.name}</span>
                   <span className="text-zinc-550">
-                    {dept.pct}% ({dept.value > 0 ? `UGX ${(dept.value / 1000000).toFixed(1)}M` : '0M'})
+                    {dept.pct}% ({dept.value > 0 ? formatPrice(dept.value, { compact: true }) : '0'})
                   </span>
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-zinc-100 light:bg-zinc-200 overflow-hidden">

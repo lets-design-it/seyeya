@@ -18,6 +18,7 @@ import os
 from app.api.v1.payment_methods import router as payment_methods_router
 from app.api.v1.hotel_details import router as hotel_details_router
 from app.api.v1.notifications import router as notifications_router
+from app.api.v1.currencies import router as currencies_router
 from app.db.database import engine, Base
 
 
@@ -117,6 +118,7 @@ app.include_router(roles_router)
 app.include_router(payment_methods_router)
 app.include_router(hotel_details_router)
 app.include_router(notifications_router)
+app.include_router(currencies_router)
 
 # Mount upload directory to serve files statically
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

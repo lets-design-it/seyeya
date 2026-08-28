@@ -1,11 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useAccommodation, RoomType } from '../../hooks/useAccommodation';
+import { useCurrency } from '../../context/CurrencyContext';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { Bed, Calendar, CheckCircle, Flame } from 'lucide-react';
 
 export const Accommodation: React.FC = () => {
+  const { formatPrice } = useCurrency();
   const { rooms, reserveRoom } = useAccommodation();
   
   // Date and Guest Form states
@@ -150,7 +152,7 @@ export const Accommodation: React.FC = () => {
                 <div className="text-right">
                   <span className="text-xs uppercase font-bold text-zinc-500 block leading-none">Price per Night</span>
                   <span className="text-xs font-bold text-violet-400 mt-1 block leading-none">
-                    UGX {room.priceUGX.toLocaleString()} / ${room.priceUSD}
+                    {formatPrice(room.priceUGX)}
                   </span>
                 </div>
               </div>
@@ -168,9 +170,8 @@ export const Accommodation: React.FC = () => {
               <span>{nightsCount} Nights Selection</span>
             </div>
             <span className="text-sm font-bold text-white mt-1.5 block leading-none">
-              UGX {totalCost.ugx.toLocaleString()}
+              {formatPrice(totalCost.ugx)}
             </span>
-            <span className="text-xs text-zinc-500 mt-1 block">~ ${totalCost.usd} USD</span>
           </div>
 
           <Button 
