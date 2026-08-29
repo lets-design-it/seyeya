@@ -9,9 +9,10 @@ from datetime import datetime, date
 from decimal import Decimal
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
-    ConferenceReservation, MenuItem, MenuCategory, Room, ConferenceHall,
+    ConferenceReservation, MenuItem, MenuCategory, Room, RoomCategory, ConferenceHall,
     Payment, CustomerReview, OrderItem, OrderItemExtra, MenuExtra, MenuChoice, MenuAccompaniment,
-    Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken
+    Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken,
+    RoomAmenity, Amenity, RoomRatePlan, RoomPolicy
 )
 
 
@@ -807,12 +808,14 @@ class AccommodationRepository:
         result = await self.db.execute(
             select(Room)
             .options(
-                selectinload(Room.category),
-                selectinload(Room.beds),
-                selectinload(Room.views),
-                selectinload(Room.bathroom_features),
-                selectinload(Room.room_facilities),
-                selectinload(Room.images)
+                selectinload(Room.category).selectinload(RoomCategory.beds),
+                selectinload(Room.category).selectinload(RoomCategory.views),
+                selectinload(Room.category).selectinload(RoomCategory.bathroom_features),
+                selectinload(Room.category).selectinload(RoomCategory.room_facilities),
+                selectinload(Room.category).selectinload(RoomCategory.images),
+                selectinload(Room.category).selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+                selectinload(Room.category).selectinload(RoomCategory.available_rates),
+                selectinload(Room.category).selectinload(RoomCategory.policies)
             )
             .where(
                 and_(
@@ -828,12 +831,14 @@ class AccommodationRepository:
         result = await self.db.execute(
             select(Room)
             .options(
-                selectinload(Room.category),
-                selectinload(Room.beds),
-                selectinload(Room.views),
-                selectinload(Room.bathroom_features),
-                selectinload(Room.room_facilities),
-                selectinload(Room.images)
+                selectinload(Room.category).selectinload(RoomCategory.beds),
+                selectinload(Room.category).selectinload(RoomCategory.views),
+                selectinload(Room.category).selectinload(RoomCategory.bathroom_features),
+                selectinload(Room.category).selectinload(RoomCategory.room_facilities),
+                selectinload(Room.category).selectinload(RoomCategory.images),
+                selectinload(Room.category).selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+                selectinload(Room.category).selectinload(RoomCategory.available_rates),
+                selectinload(Room.category).selectinload(RoomCategory.policies)
             )
             .where(Room.room_id == room_id)
         )

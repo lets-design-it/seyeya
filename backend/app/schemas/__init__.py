@@ -1,7 +1,7 @@
 """
 Pydantic schemas for request/response validation
 """
-from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator, model_validator
 from datetime import datetime, date, time
 from typing import Optional, List, Any, Union
 from decimal import Decimal
@@ -615,17 +615,6 @@ class RoomCategoryPhotoResponse(BaseModel):
         from_attributes = True
 
 
-class RoomCategoryResponse(BaseModel):
-    room_category_id: int
-    category_name: str
-    description: Optional[str] = None
-    base_rate_usd: Decimal
-    is_active: bool
-    photos: List[RoomCategoryPhotoResponse] = []
-    
-    class Config:
-        from_attributes = True
-
 
 class BedItem(BaseModel):
     type: str
@@ -691,6 +680,283 @@ class RoomPhotoResponse(BaseModel):
         from_attributes = True
 
 
+class AmenityCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    is_active: Optional[bool] = True
+
+
+class AmenityCategoryCreate(AmenityCategoryBase):
+    pass
+
+
+class AmenityCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class AmenityCategoryResponse(AmenityCategoryBase):
+    category_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AmenityBase(BaseModel):
+    category_id: Optional[int] = None
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    price: Optional[Decimal] = Field(default=0.00)
+    is_active: Optional[bool] = True
+
+
+class AmenityCreate(AmenityBase):
+    pass
+
+
+class AmenityUpdate(BaseModel):
+    category_id: Optional[int] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class AmenityResponse(AmenityBase):
+    amenity_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RoomAmenityItem(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    price: Optional[Decimal] = Field(default=0.00)
+
+    class Config:
+        from_attributes = True
+
+
+class GroupedRoomAmenity(BaseModel):
+    category_id: Optional[int] = None
+    category_name: str
+    amenities: List[RoomAmenityItem]
+
+
+class RoomRatePlanBase(BaseModel):
+    rate_name: str
+    rate_code: Optional[str] = None
+    description: Optional[str] = None
+    price: Decimal
+    currency: Optional[str] = "USD"
+    pricing_basis: Optional[str] = "PER_NIGHT"
+    meal_plan: Optional[str] = None
+    cancellation_policy: Optional[str] = None
+    includes_breakfast: Optional[bool] = False
+    includes_wifi: Optional[bool] = False
+    includes_gym: Optional[bool] = False
+    includes_spa: Optional[bool] = False
+    includes_parking: Optional[bool] = False
+    taxes_included: Optional[bool] = False
+    fees_included: Optional[bool] = False
+    refundable: Optional[bool] = False
+    minimum_nights: Optional[int] = 1
+    maximum_nights: Optional[int] = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    is_active: Optional[bool] = True
+
+
+class RoomRatePlanCreate(RoomRatePlanBase):
+    pass
+
+
+class RoomRatePlanUpdate(BaseModel):
+    rate_name: Optional[str] = None
+    rate_code: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[Decimal] = None
+    currency: Optional[str] = None
+    pricing_basis: Optional[str] = None
+    meal_plan: Optional[str] = None
+    cancellation_policy: Optional[str] = None
+    includes_breakfast: Optional[bool] = None
+    includes_wifi: Optional[bool] = None
+    includes_gym: Optional[bool] = None
+    includes_spa: Optional[bool] = None
+    includes_parking: Optional[bool] = None
+    taxes_included: Optional[bool] = None
+    fees_included: Optional[bool] = None
+    refundable: Optional[bool] = None
+    minimum_nights: Optional[int] = None
+    maximum_nights: Optional[int] = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    is_active: Optional[bool] = None
+
+
+class RoomRatePlanResponse(RoomRatePlanBase):
+    rate_id: int
+    room_category_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PolicyBase(BaseModel):
+    policy_type: str
+    title: str
+    description: Optional[str] = None
+    is_active: Optional[bool] = True
+
+class PolicyCreate(PolicyBase):
+    pass
+
+class PolicyUpdate(BaseModel):
+    policy_type: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class PolicyResponse(PolicyBase):
+    policy_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RoomPolicyBase(BaseModel):
+    policy_id: int
+    value: Optional[str] = None
+    is_active: Optional[bool] = True
+
+
+class RoomPolicyCreate(RoomPolicyBase):
+    pass
+
+
+class RoomPolicyUpdate(BaseModel):
+    policy_id: Optional[int] = None
+    value: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class RoomPolicyResponse(RoomPolicyBase):
+    id: int
+    room_category_id: int
+    policy: PolicyResponse
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RoomCategoryResponse(BaseModel):
+    room_category_id: int
+    category_name: str
+    description: Optional[str] = None
+    base_rate_usd: Decimal
+    room_size: Optional[float] = None
+    room_size_unit: Optional[str] = "m²"
+    max_occupancy: Optional[int] = None
+    is_active: bool
+    amenities: Optional[Union[str, List[GroupedRoomAmenity]]] = None
+    beds: List[BedItem] = []
+    views: List[str] = []
+    bathroom_features: List[str] = []
+    room_facilities: List[str] = []
+    images: List[ImageItem] = []
+    photos: List[Union[RoomCategoryPhotoResponse, ImageItem]] = []
+    available_rates: List[RoomRatePlanResponse] = []
+    policies: List[RoomPolicyResponse] = []
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_category_orm(cls, data):
+        if isinstance(data, dict):
+            return data
+        
+        if hasattr(data, 'room_category_id'):
+            d = getattr(data, '__dict__', {})
+            beds_val = d.get('beds', []) or []
+            views_raw = d.get('views', []) or []
+            views_val = [v.view_name if hasattr(v, 'view_name') else str(v) for v in views_raw]
+            bf_raw = d.get('bathroom_features', []) or []
+            bf_val = [f.feature_name if hasattr(f, 'feature_name') else str(f) for f in bf_raw]
+            rf_raw = d.get('room_facilities', []) or []
+            rf_val = [f.facility_name if hasattr(f, 'facility_name') else str(f) for f in rf_raw]
+            imgs_val = d.get('images', None) if 'images' in d else (d.get('photos', None) if 'photos' in d else [])
+            if imgs_val is None:
+                imgs_val = []
+                
+            grouped_amenities = []
+            if hasattr(data, 'amenity_assignments') and data.amenity_assignments:
+                cat_dict = {}
+                for assignment in data.amenity_assignments:
+                    am = getattr(assignment, 'amenity', None)
+                    if not am: continue
+                    cat = getattr(am, 'category', None)
+                    
+                    cat_id = cat.category_id if cat else 0
+                    cat_name = cat.name if cat else "Other Room Amenities"
+                    
+                    if cat_id not in cat_dict:
+                        cat_dict[cat_id] = {
+                            "category_id": cat_id if cat_id != 0 else None,
+                            "category_name": cat_name,
+                            "amenities": []
+                        }
+                    cat_dict[cat_id]["amenities"].append({
+                        "id": am.amenity_id,
+                        "name": am.name,
+                        "description": am.description,
+                        "icon": am.icon,
+                        "price": getattr(am, 'price', 0.00)
+                    })
+                
+                grouped_amenities = sorted(cat_dict.values(), key=lambda x: (x["category_id"] is None, x["category_name"]))
+            
+            final_amenities = grouped_amenities
+
+            rates_val = getattr(data, 'available_rates', []) or []
+            policies_val = getattr(data, 'policies', []) or []
+
+            res = {
+                'room_category_id': data.room_category_id,
+                'category_name': data.category_name,
+                'description': data.description,
+                'base_rate_usd': data.base_rate_usd,
+                'room_size': getattr(data, 'room_size', None),
+                'room_size_unit': getattr(data, 'room_size_unit', 'm²'),
+                'max_occupancy': getattr(data, 'max_occupancy', 2),
+                'amenities': final_amenities,
+                'is_active': data.is_active,
+                'beds': beds_val,
+                'views': views_val,
+                'bathroom_features': bf_val,
+                'room_facilities': rf_val,
+                'images': imgs_val,
+                'photos': imgs_val,
+                'available_rates': rates_val,
+                'policies': policies_val
+            }
+            return res
+        return data
+
+    class Config:
+        from_attributes = True
 class RoomResponse(BaseModel):
     id: int
     room_id: int
@@ -700,19 +966,8 @@ class RoomResponse(BaseModel):
     building: Optional[str] = None
     wing: Optional[str] = None
     floor: Optional[str] = None
-    room_size: Optional[float] = None
-    room_size_unit: Optional[str] = "m²"
     room_status: str
-    max_occupancy: int
-    description: Optional[str] = None
-    amenities: Optional[str] = None
     is_active: bool
-    beds: List[BedItem] = []
-    views: List[str] = []
-    bathroom_features: List[str] = []
-    room_facilities: List[str] = []
-    images: List[ImageItem] = []
-    photos: List[RoomPhotoResponse] = []
 
     @model_validator(mode='before')
     @classmethod
@@ -725,18 +980,6 @@ class RoomResponse(BaseModel):
             return data
         
         if hasattr(data, 'room_id'):
-            d = getattr(data, '__dict__', {})
-            beds_val = d.get('beds', []) or []
-            views_raw = d.get('views', []) or []
-            views_val = [v.view_name if hasattr(v, 'view_name') else str(v) for v in views_raw]
-            bf_raw = d.get('bathroom_features', []) or []
-            bf_val = [f.feature_name if hasattr(f, 'feature_name') else str(f) for f in bf_raw]
-            rf_raw = d.get('room_facilities', []) or []
-            rf_val = [f.facility_name if hasattr(f, 'facility_name') else str(f) for f in rf_raw]
-            imgs_val = d.get('images', None) if 'images' in d else (d.get('photos', None) if 'photos' in d else [])
-            if imgs_val is None:
-                imgs_val = []
-
             res = {
                 'id': data.room_id,
                 'room_id': data.room_id,
@@ -746,19 +989,8 @@ class RoomResponse(BaseModel):
                 'building': getattr(data, 'building', None),
                 'wing': getattr(data, 'wing', None),
                 'floor': getattr(data, 'floor', None),
-                'room_size': getattr(data, 'room_size', None),
-                'room_size_unit': getattr(data, 'room_size_unit', 'm²'),
                 'room_status': data.room_status,
-                'max_occupancy': data.max_occupancy,
-                'description': data.description,
-                'amenities': getattr(data, 'amenities', None),
-                'is_active': data.is_active,
-                'beds': beds_val,
-                'views': views_val,
-                'bathroom_features': bf_val,
-                'room_facilities': rf_val,
-                'images': imgs_val,
-                'photos': imgs_val,
+                'is_active': data.is_active
             }
             return res
         return data
@@ -771,16 +1003,32 @@ class RoomCategoryCreate(BaseModel):
     category_name: str
     description: Optional[str] = None
     base_rate_usd: Decimal
+    room_size: Optional[float] = Field(None, gt=0)
+    room_size_unit: Optional[str] = "m²"
+    max_occupancy: int = Field(2, gt=0)
     is_active: bool = True
     photos: Optional[List[str]] = []
+    beds: List[BedItem] = []
+    views: List[str] = []
+    bathroom_features: List[str] = []
+    room_facilities: List[str] = []
+    images: List[Union[ImageItem, str]] = []
 
 
 class RoomCategoryUpdate(BaseModel):
     category_name: Optional[str] = None
     description: Optional[str] = None
     base_rate_usd: Optional[Decimal] = None
+    room_size: Optional[float] = Field(None, gt=0)
+    room_size_unit: Optional[str] = None
+    max_occupancy: Optional[int] = Field(None, gt=0)
     is_active: Optional[bool] = None
     photos: Optional[List[str]] = None
+    beds: Optional[List[BedItem]] = None
+    views: Optional[List[str]] = None
+    bathroom_features: Optional[List[str]] = None
+    room_facilities: Optional[List[str]] = None
+    images: Optional[List[Union[ImageItem, str]]] = None
 
 
 ALLOWED_ROOM_STATUSES = {"Available", "Occupied", "Reserved", "Maintenance", "Out of Service"}
@@ -793,17 +1041,7 @@ class RoomCreate(BaseModel):
     building: Optional[str] = None
     wing: Optional[str] = None
     floor: Optional[str] = None
-    room_size: Optional[float] = Field(None, gt=0)
-    room_size_unit: Optional[str] = "m²"
     room_status: str = "Available"
-    max_occupancy: int = Field(2, gt=0)
-    description: Optional[str] = None
-    amenities: Optional[str] = None
-    beds: List[BedItem] = []
-    views: List[str] = []
-    bathroom_features: List[str] = []
-    room_facilities: List[str] = []
-    images: List[Union[ImageItem, str]] = []
     is_active: bool = True
 
     @field_validator("room_status")
@@ -821,17 +1059,7 @@ class RoomUpdate(BaseModel):
     building: Optional[str] = None
     wing: Optional[str] = None
     floor: Optional[str] = None
-    room_size: Optional[float] = Field(None, gt=0)
-    room_size_unit: Optional[str] = None
     room_status: Optional[str] = None
-    max_occupancy: Optional[int] = Field(None, gt=0)
-    description: Optional[str] = None
-    amenities: Optional[str] = None
-    beds: Optional[List[BedItem]] = None
-    views: Optional[List[str]] = None
-    bathroom_features: Optional[List[str]] = None
-    room_facilities: Optional[List[str]] = None
-    images: Optional[List[Union[ImageItem, str]]] = None
     is_active: Optional[bool] = None
 
     @field_validator("room_status")
