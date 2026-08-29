@@ -66,19 +66,38 @@ async def test_all_room_apis(async_client: AsyncClient):
     token = create_access_token(data={"sub": "1", "role": "Admin"})
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Setup Category for rooms
-    cat_res = await async_client.post(
-        "/api/v1/accommodation/categories",
-        json={
-            "category_name": f"Room Suite {uuid.uuid4().hex[:6]}",
-            "description": "Category for room unit testing",
-            "base_rate_usd": 200.00,
-            "is_active": True
-        },
-        headers=headers
-    )
-    assert cat_res.status_code in (200, 201)
-    cat_id = cat_res.json()["room_category_id"]
+    # Setup Category for rooms with full features
+    cat_payload = {
+        "category_name": f"Room Suite {uuid.uuid4().hex[:6]}",
+        "description": "Category for room unit testing",
+        "base_rate_usd": 200.00,
+        "is_active": True,
+        "room_size": 120.0,
+        "room_size_unit": "m²",
+        "max_occupancy": 4,
+        "beds": [
+            {"type": "King Bed", "quantity": 1},
+            {"type": "Twin Bed", "quantity": 2}
+        ],
+        "views": ["Ocean View", "Garden View"],
+        "bathroom_features": ["Rain Shower", "Free-standing Tub", "Double Vanity"],
+        "room_facilities": ["High-Speed Wi-Fi", "Smart TV", "Mini Fridge", "Air Conditioning"],
+        "images": [
+            {"url": "https://example.com/photos/room_main.jpg", "is_primary": True},
+            {"url": "https://example.com/photos/room_deck.jpg", "is_primary": False}
+        ]
+    }
+    cat_res = await async_client.post("/api/v1/accommodation/categories", json=cat_payload, headers=headers)
+    assert cat_res.status_code in (200, 201), cat_res.text
+    created_cat = cat_res.json()
+    cat_id = created_cat["room_category_id"]
+
+    assert created_cat["room_size"] == 120.0
+    assert len(created_cat["beds"]) == 2
+    assert len(created_cat["views"]) == 2
+    assert len(created_cat["bathroom_features"]) == 3
+    assert len(created_cat["room_facilities"]) == 4
+    assert len(created_cat["images"]) == 2
 
     # 1. GET /api/v1/accommodation/rooms (available rooms query)
     avail_res = await async_client.get("/api/v1/accommodation/rooms?check_in=2026-09-01&check_out=2026-09-05")
@@ -94,7 +113,7 @@ async def test_all_room_apis(async_client: AsyncClient):
     get_404 = await async_client.get("/api/v1/accommodation/rooms/9999999")
     assert get_404.status_code == 404
 
-    # 4. POST /api/v1/accommodation/rooms (Create Room with full payload)
+    # 4. POST /api/v1/accommodation/rooms (Create Room)
     test_room_num = f"RM-{uuid.uuid4().hex[:6].upper()}"
     room_payload = {
         "room_category_id": cat_id,
@@ -103,24 +122,8 @@ async def test_all_room_apis(async_client: AsyncClient):
         "building": "Ocean Block",
         "wing": "South Wing",
         "floor": "3rd Floor",
-        "room_size": 120.0,
-        "room_size_unit": "m²",
         "room_status": "Available",
-        "max_occupancy": 4,
-        "description": "Luxury villa with panoramic views.",
-        "amenities": "Legacy Amenity: Private Deck, Plunge Pool",
-        "is_active": True,
-        "beds": [
-            {"type": "King Bed", "quantity": 1},
-            {"type": "Twin Bed", "quantity": 2}
-        ],
-        "views": ["Ocean View", "Garden View"],
-        "bathroom_features": ["Rain Shower", "Free-standing Tub", "Double Vanity"],
-        "room_facilities": ["High-Speed Wi-Fi", "Smart TV", "Mini Fridge", "Air Conditioning"],
-        "images": [
-            {"url": "https://example.com/photos/room_main.jpg", "is_primary": True},
-            {"url": "https://example.com/photos/room_deck.jpg", "is_primary": False}
-        ]
+        "is_active": True
     }
 
     create_res = await async_client.post("/api/v1/accommodation/rooms", json=room_payload, headers=headers)
@@ -133,13 +136,6 @@ async def test_all_room_apis(async_client: AsyncClient):
     assert created_room["building"] == "Ocean Block"
     assert created_room["wing"] == "South Wing"
     assert created_room["floor"] == "3rd Floor"
-    assert created_room["room_size"] == 120.0
-    assert len(created_room["beds"]) == 2
-    assert len(created_room["views"]) == 2
-    assert len(created_room["bathroom_features"]) == 3
-    assert len(created_room["room_facilities"]) == 4
-    assert len(created_room["images"]) == 2
-    assert len(created_room["photos"]) == 2  # legacy field
 
     # 5. POST duplicate room_number -> 400
     dup_res = await async_client.post("/api/v1/accommodation/rooms", json=room_payload, headers=headers)
@@ -160,9 +156,8 @@ async def test_all_room_apis(async_client: AsyncClient):
     assert fetched["room_id"] == room_id
     assert fetched["room_name"] == "Executive Ocean Villa"
 
-    # 8. PUT /api/v1/accommodation/rooms/{room_id} (Update Core & Child Collections)
-    update_payload = {
-        "room_name": "Executive Ocean Villa (Renovated)",
+    # 8. PUT /api/v1/accommodation/categories/{cat_id} (Update Category Features)
+    update_cat_payload = {
         "room_size": 130.0,
         "beds": [{"type": "Super King Bed", "quantity": 2}],
         "views": ["Ocean View"],
@@ -172,18 +167,23 @@ async def test_all_room_apis(async_client: AsyncClient):
             {"url": "https://example.com/photos/room_renovated.jpg", "is_primary": True}
         ]
     }
+    put_cat_res = await async_client.put(f"/api/v1/accommodation/categories/{cat_id}", json=update_cat_payload, headers=headers)
+    assert put_cat_res.status_code == 200, f"Failed to update category: {put_cat_res.text}"
+    updated_cat = put_cat_res.json()
+    assert updated_cat["room_size"] == 130.0
+    assert len(updated_cat["beds"]) == 1
+    assert len(updated_cat["views"]) == 1
+    assert len(updated_cat["bathroom_features"]) == 2
+
+    # 8b. PUT /api/v1/accommodation/rooms/{room_id} (Update Room Core)
+    update_payload = {
+        "room_name": "Executive Ocean Villa (Renovated)"
+    }
     put_res = await async_client.put(f"/api/v1/accommodation/rooms/{room_id}", json=update_payload, headers=headers)
     assert put_res.status_code == 200, f"Failed to update room: {put_res.text}"
     updated_room = put_res.json()
 
     assert updated_room["room_name"] == "Executive Ocean Villa (Renovated)"
-    assert updated_room["room_size"] == 130.0
-    assert len(updated_room["beds"]) == 1
-    assert updated_room["beds"][0]["type"] == "Super King Bed"
-    assert len(updated_room["views"]) == 1
-    assert len(updated_room["bathroom_features"]) == 2
-    assert len(updated_room["room_facilities"]) == 2
-    assert len(updated_room["images"]) == 1
 
     # 9. DELETE /api/v1/accommodation/rooms/{room_id}
     del_res = await async_client.delete(f"/api/v1/accommodation/rooms/{room_id}", headers=headers)

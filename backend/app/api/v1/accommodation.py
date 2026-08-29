@@ -38,17 +38,19 @@ async def get_all_rooms_list(
     current_user: dict = Depends(get_current_user)
 ):
     """Retrieve all rooms (both available and unavailable)"""
-    from app.models import Room
+    from app.models import Room, RoomCategory, RoomAmenity, Amenity, RoomPolicy
     from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(Room)
         .options(
-            selectinload(Room.category),
-            selectinload(Room.beds),
-            selectinload(Room.views),
-            selectinload(Room.bathroom_features),
-            selectinload(Room.room_facilities),
-            selectinload(Room.images)
+            selectinload(Room.category).selectinload(RoomCategory.beds),
+            selectinload(Room.category).selectinload(RoomCategory.views),
+            selectinload(Room.category).selectinload(RoomCategory.bathroom_features),
+            selectinload(Room.category).selectinload(RoomCategory.room_facilities),
+            selectinload(Room.category).selectinload(RoomCategory.images),
+            selectinload(Room.category).selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(Room.category).selectinload(RoomCategory.available_rates),
+            selectinload(Room.category).selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
         )
         .order_by(Room.room_number)
     )
@@ -350,11 +352,21 @@ async def get_all_categories(
     current_user: dict = Depends(get_current_user)
 ):
     """Retrieve all room categories"""
-    from app.models import RoomCategory
+    from app.models import RoomCategory, RoomCategoryPhoto, RoomBed, RoomView, RoomBathroomFeature, RoomFacility, RoomImage, RoomAmenity, Amenity, RoomRatePlan, RoomPolicy
     from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(RoomCategory)
-        .options(selectinload(RoomCategory.photos))
+        .options(
+            selectinload(RoomCategory.photos),
+            selectinload(RoomCategory.beds),
+            selectinload(RoomCategory.views),
+            selectinload(RoomCategory.bathroom_features),
+            selectinload(RoomCategory.room_facilities),
+            selectinload(RoomCategory.images),
+            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(RoomCategory.available_rates),
+            selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
+        )
         .order_by(RoomCategory.room_category_id)
     )
     return result.scalars().all()
@@ -367,14 +379,45 @@ async def create_room_category(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new room category"""
-    from app.models import RoomCategory, RoomCategoryPhoto
+    from app.models import RoomCategory, RoomCategoryPhoto, RoomBed, RoomView, RoomBathroomFeature, RoomFacility, RoomImage, RoomAmenity, Amenity, RoomRatePlan, RoomPolicy
     from sqlalchemy.orm import selectinload
     category = RoomCategory(
         category_name=request.category_name,
         description=request.description,
         base_rate_usd=request.base_rate_usd,
+        room_size=request.room_size,
+        room_size_unit=request.room_size_unit,
+        max_occupancy=request.max_occupancy,
         is_active=request.is_active
     )
+    db.add(category)
+    await db.flush()
+    
+    # Save beds
+    for bed in request.beds:
+        db.add(RoomBed(room_category_id=category.room_category_id, bed_type=bed.type, quantity=bed.quantity))
+
+    # Save views
+    for view_name in request.views:
+        db.add(RoomView(room_category_id=category.room_category_id, view_name=view_name))
+
+    # Save bathroom features
+    for feature_name in request.bathroom_features:
+        db.add(RoomBathroomFeature(room_category_id=category.room_category_id, feature_name=feature_name))
+
+    # Save facilities
+    for facility_name in request.room_facilities:
+        db.add(RoomFacility(room_category_id=category.room_category_id, facility_name=facility_name))
+
+    # Save images
+    for idx, img in enumerate(request.images):
+        if isinstance(img, str):
+            image_url = img
+            is_primary = (idx == 0)
+        else:
+            image_url = img.url
+            is_primary = img.is_primary if hasattr(img, 'is_primary') else (idx == 0)
+        db.add(RoomImage(room_category_id=category.room_category_id, image_url=image_url, display_order=idx, is_primary=is_primary))
     db.add(category)
     await db.flush()
     
@@ -388,10 +431,20 @@ async def create_room_category(
             
     await db.commit()
     
-    # Reload with photos
+    # Reload with photos and all relationships
     result = await db.execute(
         select(RoomCategory)
-        .options(selectinload(RoomCategory.photos))
+        .options(
+            selectinload(RoomCategory.photos),
+            selectinload(RoomCategory.beds),
+            selectinload(RoomCategory.views),
+            selectinload(RoomCategory.bathroom_features),
+            selectinload(RoomCategory.room_facilities),
+            selectinload(RoomCategory.images),
+            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(RoomCategory.available_rates),
+            selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
+        )
         .where(RoomCategory.room_category_id == category.room_category_id)
     )
     return result.scalar_one()
@@ -405,13 +458,20 @@ async def update_room_category(
     current_user: dict = Depends(get_current_user)
 ):
     """Update room category details"""
-    from app.models import RoomCategory, RoomCategoryPhoto
+    from app.models import RoomCategory, RoomCategoryPhoto, RoomBed, RoomView, RoomBathroomFeature, RoomFacility, RoomImage, RoomAmenity, Amenity, RoomRatePlan, RoomPolicy
     from sqlalchemy import delete
     from sqlalchemy.orm import selectinload
     
     result = await db.execute(
         select(RoomCategory)
-        .options(selectinload(RoomCategory.photos))
+        .options(
+            selectinload(RoomCategory.photos),
+            selectinload(RoomCategory.beds),
+            selectinload(RoomCategory.views),
+            selectinload(RoomCategory.bathroom_features),
+            selectinload(RoomCategory.room_facilities),
+            selectinload(RoomCategory.images)
+        )
         .where(RoomCategory.room_category_id == category_id)
     )
     category = result.scalar_one_or_none()
@@ -424,8 +484,45 @@ async def update_room_category(
         category.description = request.description
     if request.base_rate_usd is not None:
         category.base_rate_usd = request.base_rate_usd
+    if request.room_size is not None:
+        category.room_size = request.room_size
+    if request.room_size_unit is not None:
+        category.room_size_unit = request.room_size_unit
+    if request.max_occupancy is not None:
+        category.max_occupancy = request.max_occupancy
     if request.is_active is not None:
         category.is_active = request.is_active
+
+    if request.beds is not None:
+        category.beds.clear()
+        for bed in request.beds:
+            category.beds.append(RoomBed(room_category_id=category_id, bed_type=bed.type, quantity=bed.quantity))
+
+    if request.views is not None:
+        category.views.clear()
+        for view_name in request.views:
+            category.views.append(RoomView(room_category_id=category_id, view_name=view_name))
+
+    if request.bathroom_features is not None:
+        category.bathroom_features.clear()
+        for feature_name in request.bathroom_features:
+            category.bathroom_features.append(RoomBathroomFeature(room_category_id=category_id, feature_name=feature_name))
+
+    if request.room_facilities is not None:
+        category.room_facilities.clear()
+        for facility_name in request.room_facilities:
+            category.room_facilities.append(RoomFacility(room_category_id=category_id, facility_name=facility_name))
+
+    if request.images is not None:
+        category.images.clear()
+        for idx, img in enumerate(request.images):
+            if isinstance(img, str):
+                image_url = img
+                is_primary = (idx == 0)
+            else:
+                image_url = img.url
+                is_primary = img.is_primary if hasattr(img, 'is_primary') else (idx == 0)
+            category.images.append(RoomImage(room_category_id=category_id, image_url=image_url, display_order=idx, is_primary=is_primary))
         
     if request.photos is not None:
         category.photos.clear()
@@ -439,10 +536,20 @@ async def update_room_category(
     db.add(category)
     await db.commit()
     
-    # Reload category with photos
+    # Reload category with all relationships
     result = await db.execute(
         select(RoomCategory)
-        .options(selectinload(RoomCategory.photos))
+        .options(
+            selectinload(RoomCategory.photos),
+            selectinload(RoomCategory.beds),
+            selectinload(RoomCategory.views),
+            selectinload(RoomCategory.bathroom_features),
+            selectinload(RoomCategory.room_facilities),
+            selectinload(RoomCategory.images),
+            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(RoomCategory.available_rates),
+            selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
+        )
         .where(RoomCategory.room_category_id == category_id)
     )
     return result.scalar_one()
@@ -514,42 +621,10 @@ async def create_room_unit(
             building=request.building,
             wing=request.wing,
             floor=request.floor,
-            room_size=request.room_size,
-            room_size_unit=request.room_size_unit,
             room_status=request.room_status,
-            max_occupancy=request.max_occupancy,
-            description=request.description,
-            amenities=request.amenities,
             is_active=request.is_active
         )
         db.add(room)
-        await db.flush()
-
-        # Save beds
-        for bed in request.beds:
-            db.add(RoomBed(room_id=room.room_id, bed_type=bed.type, quantity=bed.quantity))
-
-        # Save views
-        for view_name in request.views:
-            db.add(RoomView(room_id=room.room_id, view_name=view_name))
-
-        # Save bathroom features
-        for feature_name in request.bathroom_features:
-            db.add(RoomBathroomFeature(room_id=room.room_id, feature_name=feature_name))
-
-        # Save facilities
-        for facility_name in request.room_facilities:
-            db.add(RoomFacility(room_id=room.room_id, facility_name=facility_name))
-
-        # Save images
-        for idx, img in enumerate(request.images):
-            if isinstance(img, str):
-                image_url = img
-                is_primary = (idx == 0)
-            else:
-                image_url = img.url
-                is_primary = img.is_primary if hasattr(img, 'is_primary') else (idx == 0)
-            db.add(RoomImage(room_id=room.room_id, image_url=image_url, display_order=idx, is_primary=is_primary))
 
         await db.commit()
     except IntegrityError as e:
@@ -565,18 +640,11 @@ async def create_room_unit(
             detail=f"Failed to create room: {str(e)}"
         )
 
-    # Reload with full options
+    # Reload with category
     result = await db.execute(
         select(Room)
         .where(Room.room_id == room.room_id)
-        .options(
-            selectinload(Room.category),
-            selectinload(Room.beds),
-            selectinload(Room.views),
-            selectinload(Room.bathroom_features),
-            selectinload(Room.room_facilities),
-            selectinload(Room.images)
-        )
+        .options(selectinload(Room.category))
     )
     return result.scalar_one()
 
@@ -597,13 +665,7 @@ async def update_room_unit(
     result = await db.execute(
         select(Room)
         .where(Room.room_id == room_id)
-        .options(
-            selectinload(Room.beds),
-            selectinload(Room.views),
-            selectinload(Room.bathroom_features),
-            selectinload(Room.room_facilities),
-            selectinload(Room.images)
-        )
+        .options(selectinload(Room.category))
     )
     room = result.scalar_one_or_none()
     if not room:
@@ -632,53 +694,12 @@ async def update_room_unit(
         room.wing = request.wing
     if request.floor is not None:
         room.floor = request.floor
-    if request.room_size is not None:
-        room.room_size = request.room_size
-    if request.room_size_unit is not None:
-        room.room_size_unit = request.room_size_unit
     if request.room_status is not None:
         room.room_status = request.room_status
-    if request.max_occupancy is not None:
-        room.max_occupancy = request.max_occupancy
-    if request.description is not None:
-        room.description = request.description
-    if request.amenities is not None:
-        room.amenities = request.amenities
     if request.is_active is not None:
         room.is_active = request.is_active
 
     try:
-        if request.beds is not None:
-            room.beds.clear()
-            for bed in request.beds:
-                room.beds.append(RoomBed(room_id=room_id, bed_type=bed.type, quantity=bed.quantity))
-
-        if request.views is not None:
-            room.views.clear()
-            for view_name in request.views:
-                room.views.append(RoomView(room_id=room_id, view_name=view_name))
-
-        if request.bathroom_features is not None:
-            room.bathroom_features.clear()
-            for feature_name in request.bathroom_features:
-                room.bathroom_features.append(RoomBathroomFeature(room_id=room_id, feature_name=feature_name))
-
-        if request.room_facilities is not None:
-            room.room_facilities.clear()
-            for facility_name in request.room_facilities:
-                room.room_facilities.append(RoomFacility(room_id=room_id, facility_name=facility_name))
-
-        if request.images is not None:
-            room.images.clear()
-            for idx, img in enumerate(request.images):
-                if isinstance(img, str):
-                    image_url = img
-                    is_primary = (idx == 0)
-                else:
-                    image_url = img.url
-                    is_primary = img.is_primary if hasattr(img, 'is_primary') else (idx == 0)
-                room.images.append(RoomImage(room_id=room_id, image_url=image_url, display_order=idx, is_primary=is_primary))
-
         db.add(room)
         await db.commit()
     except IntegrityError as e:
@@ -697,14 +718,7 @@ async def update_room_unit(
     res = await db.execute(
         select(Room)
         .where(Room.room_id == room_id)
-        .options(
-            selectinload(Room.category),
-            selectinload(Room.beds),
-            selectinload(Room.views),
-            selectinload(Room.bathroom_features),
-            selectinload(Room.room_facilities),
-            selectinload(Room.images)
-        )
+        .options(selectinload(Room.category))
     )
     return res.scalar_one()
 
@@ -788,3 +802,382 @@ async def delete_reservation(
     await db.delete(res)
     await db.commit()
     return {"message": "Reservation deleted successfully"}
+
+
+# =====================================================================
+# ROOM AMENITIES, RATES, AND POLICIES ADMIN ENDPOINTS
+# =====================================================================
+
+from app.schemas import (
+    AmenityCategoryCreate, AmenityCategoryUpdate, AmenityCategoryResponse,
+    AmenityCreate, AmenityUpdate, AmenityResponse,
+    RoomRatePlanCreate, RoomRatePlanUpdate, RoomRatePlanResponse,
+    PolicyCreate, PolicyUpdate, PolicyResponse,
+    RoomPolicyCreate, RoomPolicyUpdate, RoomPolicyResponse
+)
+
+@router.get("/amenity-categories", response_model=List[AmenityCategoryResponse])
+async def get_amenity_categories(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import AmenityCategory
+    result = await db.execute(select(AmenityCategory).order_by(AmenityCategory.name))
+    return result.scalars().all()
+
+@router.post("/amenity-categories", response_model=AmenityCategoryResponse)
+async def create_amenity_category(
+    request: AmenityCategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import AmenityCategory
+    cat = AmenityCategory(**request.model_dump())
+    db.add(cat)
+    await db.commit()
+    await db.refresh(cat)
+    return cat
+
+@router.put("/amenity-categories/{category_id}", response_model=AmenityCategoryResponse)
+async def update_amenity_category(
+    category_id: int,
+    request: AmenityCategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import AmenityCategory
+    result = await db.execute(select(AmenityCategory).where(AmenityCategory.category_id == category_id))
+    cat = result.scalar_one_or_none()
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    for key, value in request.dict(exclude_unset=True).items():
+        setattr(cat, key, value)
+        
+    await db.commit()
+    await db.refresh(cat)
+    return cat
+
+@router.delete("/amenity-categories/{category_id}")
+async def delete_amenity_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import AmenityCategory
+    result = await db.execute(select(AmenityCategory).where(AmenityCategory.category_id == category_id))
+    cat = result.scalar_one_or_none()
+    if not cat:
+        raise HTTPException(status_code=404, detail="Category not found")
+    await db.delete(cat)
+    await db.commit()
+    return {"message": "Deleted successfully"}
+
+@router.get("/amenities", response_model=List[AmenityResponse])
+async def get_amenities(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import Amenity
+    result = await db.execute(select(Amenity).order_by(Amenity.name))
+    return result.scalars().all()
+
+@router.post("/amenities", response_model=AmenityResponse)
+async def create_amenity(
+    request: AmenityCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import Amenity
+    amenity = Amenity(**request.model_dump())
+    db.add(amenity)
+    await db.commit()
+    await db.refresh(amenity)
+    return amenity
+
+@router.put("/amenities/{amenity_id}", response_model=AmenityResponse)
+async def update_amenity(
+    amenity_id: int,
+    request: AmenityUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import Amenity
+    result = await db.execute(select(Amenity).where(Amenity.amenity_id == amenity_id))
+    amenity = result.scalar_one_or_none()
+    if not amenity:
+        raise HTTPException(status_code=404, detail="Amenity not found")
+    
+    for key, value in request.dict(exclude_unset=True).items():
+        setattr(amenity, key, value)
+        
+    await db.commit()
+    await db.refresh(amenity)
+    return amenity
+
+@router.delete("/amenities/{amenity_id}")
+async def delete_amenity(
+    amenity_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import Amenity
+    result = await db.execute(select(Amenity).where(Amenity.amenity_id == amenity_id))
+    amenity = result.scalar_one_or_none()
+    if not amenity:
+        raise HTTPException(status_code=404, detail="Amenity not found")
+    await db.delete(amenity)
+    await db.commit()
+    return {"message": "Deleted successfully"}
+
+@router.post("/categories/{category_id}/amenities")
+async def assign_amenities_to_room(
+    category_id: int,
+    amenity_ids: List[int],
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import RoomCategory, Amenity, RoomAmenity
+    from sqlalchemy.exc import IntegrityError
+    
+    room_res = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == category_id))
+    if not room_res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    # Clear existing
+    await db.execute(RoomAmenity.__table__.delete().where(RoomAmenity.room_category_id == category_id))
+    
+    for a_id in amenity_ids:
+        db.add(RoomAmenity(room_category_id=category_id, amenity_id=a_id))
+        
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Invalid amenity ID provided")
+        
+    return {"message": "Amenities assigned successfully"}
+
+@router.get("/categories/{category_id}/rates", response_model=List[RoomRatePlanResponse])
+async def get_room_rates(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import RoomRatePlan
+    result = await db.execute(select(RoomRatePlan).where(RoomRatePlan.room_category_id == category_id))
+    return result.scalars().all()
+
+@router.post("/categories/{category_id}/rates", response_model=RoomRatePlanResponse)
+async def create_room_rate(
+    category_id: int,
+    request: RoomRatePlanCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import RoomRatePlan, RoomCategory
+    room_res = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == category_id))
+    if not room_res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    rate = RoomRatePlan(room_category_id=category_id, **request.model_dump())
+    db.add(rate)
+    await db.commit()
+    await db.refresh(rate)
+    return rate
+
+@router.put("/categories/{category_id}/rates/{rate_id}", response_model=RoomRatePlanResponse)
+async def update_room_rate(
+    category_id: int,
+    rate_id: int,
+    request: RoomRatePlanUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import RoomRatePlan
+    result = await db.execute(select(RoomRatePlan).where(
+        and_(RoomRatePlan.rate_id == rate_id, RoomRatePlan.room_category_id == category_id)
+    ))
+    rate = result.scalar_one_or_none()
+    if not rate:
+        raise HTTPException(status_code=404, detail="Rate plan not found")
+        
+    for key, value in request.dict(exclude_unset=True).items():
+        setattr(rate, key, value)
+        
+    await db.commit()
+    await db.refresh(rate)
+    return rate
+
+@router.delete("/categories/{category_id}/rates/{rate_id}")
+async def delete_room_rate(
+    category_id: int,
+    rate_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import RoomRatePlan
+    result = await db.execute(select(RoomRatePlan).where(
+        and_(RoomRatePlan.rate_id == rate_id, RoomRatePlan.room_category_id == category_id)
+    ))
+    rate = result.scalar_one_or_none()
+    if not rate:
+        raise HTTPException(status_code=404, detail="Rate plan not found")
+    await db.delete(rate)
+    await db.commit()
+    return {"message": "Deleted successfully"}
+
+# --- Policy Management ---
+
+@router.get("/policies", response_model=List[PolicyResponse], tags=["Policies"])
+async def get_policies(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import Policy
+    result = await db.execute(select(Policy).order_by(Policy.title))
+    return result.scalars().all()
+
+
+@router.post("/policies", response_model=PolicyResponse, tags=["Policies"])
+async def create_policy(
+    request: PolicyCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import Policy
+    policy = Policy(**request.model_dump())
+    db.add(policy)
+    await db.commit()
+    await db.refresh(policy)
+    return policy
+
+
+@router.put("/policies/{policy_id}", response_model=PolicyResponse, tags=["Policies"])
+async def update_policy(
+    policy_id: int,
+    request: PolicyUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import Policy
+    result = await db.execute(select(Policy).where(Policy.policy_id == policy_id))
+    policy = result.scalar_one_or_none()
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+        
+    for key, value in request.model_dump(exclude_unset=True).items():
+        setattr(policy, key, value)
+        
+    await db.commit()
+    await db.refresh(policy)
+    return policy
+
+
+@router.delete("/policies/{policy_id}", tags=["Policies"])
+async def delete_policy(
+    policy_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import Policy
+    result = await db.execute(select(Policy).where(Policy.policy_id == policy_id))
+    policy = result.scalar_one_or_none()
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    await db.delete(policy)
+    await db.commit()
+    return {"message": "Deleted successfully"}
+
+
+# --- Room Category Policy Assignments ---
+
+@router.get("/categories/{category_id}/policies", response_model=List[RoomPolicyResponse], summary="Get Room Category Policies")
+async def get_room_category_policies(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import RoomPolicy, Policy
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(RoomPolicy)
+        .options(selectinload(RoomPolicy.policy))
+        .where(RoomPolicy.room_category_id == category_id)
+    )
+    return result.scalars().all()
+
+@router.post("/categories/{category_id}/policies", response_model=RoomPolicyResponse, summary="Assign Policy To Category")
+async def assign_policy_to_category(
+    category_id: int,
+    request: RoomPolicyCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import RoomPolicy, RoomCategory, Policy
+    from sqlalchemy.orm import selectinload
+    room_res = await db.execute(select(RoomCategory).where(RoomCategory.room_category_id == category_id))
+    if not room_res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    policy_res = await db.execute(select(Policy).where(Policy.policy_id == request.policy_id))
+    if not policy_res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Policy not found")
+        
+    policy_assignment = RoomPolicy(room_category_id=category_id, **request.model_dump())
+    db.add(policy_assignment)
+    await db.commit()
+    
+    # Reload with policy relation
+    result = await db.execute(
+        select(RoomPolicy)
+        .options(selectinload(RoomPolicy.policy))
+        .where(RoomPolicy.id == policy_assignment.id)
+    )
+    return result.scalar_one()
+
+@router.put("/categories/{category_id}/policies/{assignment_id}", response_model=RoomPolicyResponse)
+async def update_room_policy(
+    category_id: int,
+    assignment_id: int,
+    request: RoomPolicyUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import RoomPolicy, Policy
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(RoomPolicy)
+        .options(selectinload(RoomPolicy.policy))
+        .where(
+            and_(RoomPolicy.id == assignment_id, RoomPolicy.room_category_id == category_id)
+        )
+    )
+    policy_assignment = result.scalar_one_or_none()
+    if not policy_assignment:
+        raise HTTPException(status_code=404, detail="Policy assignment not found")
+        
+    for key, value in request.model_dump(exclude_unset=True).items():
+        setattr(policy_assignment, key, value)
+        
+    await db.commit()
+    await db.refresh(policy_assignment)
+    return policy_assignment
+
+@router.delete("/categories/{category_id}/policies/{assignment_id}")
+async def delete_room_policy(
+    category_id: int,
+    assignment_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    from app.models import RoomPolicy
+    result = await db.execute(select(RoomPolicy).where(
+        and_(RoomPolicy.id == assignment_id, RoomPolicy.room_category_id == category_id)
+    ))
+    policy_assignment = result.scalar_one_or_none()
+    if not policy_assignment:
+        raise HTTPException(status_code=404, detail="Policy assignment not found")
+    await db.delete(policy_assignment)
+    await db.commit()
+    return {"message": "Deleted successfully"}
