@@ -450,6 +450,36 @@ async def create_room_category(
     return result.scalar_one()
 
 
+@router.get("/categories/{category_id}", response_model=RoomCategoryResponse)
+async def get_room_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Retrieve a single room category by ID"""
+    from app.models import RoomCategory, RoomAmenity, Amenity, RoomPolicy
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(RoomCategory)
+        .options(
+            selectinload(RoomCategory.photos),
+            selectinload(RoomCategory.beds),
+            selectinload(RoomCategory.views),
+            selectinload(RoomCategory.bathroom_features),
+            selectinload(RoomCategory.room_facilities),
+            selectinload(RoomCategory.images),
+            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(RoomCategory.available_rates),
+            selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
+        )
+        .where(RoomCategory.room_category_id == category_id)
+    )
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    return category
+
+
 @router.put("/categories/{category_id}", response_model=RoomCategoryResponse)
 async def update_room_category(
     category_id: int,
