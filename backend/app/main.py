@@ -59,9 +59,9 @@ async def lifespan(app: FastAPI):
         )
         cat_count = await session.execute(select(func.count(RoomCategory.room_category_id)))
         if cat_count.scalar_one() == 0:
-            c1 = RoomCategory(category_name="Seyeya Deluxe Safari Cottage", description="A luxurious private cottage overlooking the Nile...", base_rate_usd=Decimal("100"), is_active=True)
-            c2 = RoomCategory(category_name="Executive Twin Room", description="Perfect for business travelers or friends traveling together...", base_rate_usd=Decimal("75"), is_active=True)
-            c3 = RoomCategory(category_name="Seyeya Royal Honeymoon Suite", description="The peak of luxury. Provides a completely secluded villa feel...", base_rate_usd=Decimal("150"), is_active=True)
+            c1 = RoomCategory(category_name="Seyeya Deluxe Safari Cottage", description="A luxurious private cottage overlooking the Nile...", base_rate=Decimal("100"), is_active=True)
+            c2 = RoomCategory(category_name="Executive Twin Room", description="Perfect for business travelers or friends traveling together...", base_rate=Decimal("75"), is_active=True)
+            c3 = RoomCategory(category_name="Seyeya Royal Honeymoon Suite", description="The peak of luxury. Provides a completely secluded villa feel...", base_rate=Decimal("150"), is_active=True)
             session.add_all([c1, c2, c3])
             await session.commit()
 

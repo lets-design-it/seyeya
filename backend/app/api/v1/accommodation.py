@@ -110,7 +110,7 @@ async def create_reservation(
         if adults_count > room.max_occupancy:
             raise ValueError(f"Room maximum capacity is {room.max_occupancy} adults. You cannot add {adults_count} adults.")
         
-        rate_per_night = room.category.base_rate_usd
+        rate_per_night = getattr(room.category, 'base_rate', getattr(room.category, 'base_rate_usd', 0))
         total_amount = rate_per_night * num_nights
         
         reservation = await service.create_reservation(
@@ -384,7 +384,7 @@ async def create_room_category(
     category = RoomCategory(
         category_name=request.category_name,
         description=request.description,
-        base_rate_usd=request.base_rate_usd,
+        base_rate=request.base_rate,
         room_size=request.room_size,
         room_size_unit=request.room_size_unit,
         max_occupancy=request.max_occupancy,
@@ -482,8 +482,8 @@ async def update_room_category(
         category.category_name = request.category_name
     if request.description is not None:
         category.description = request.description
-    if request.base_rate_usd is not None:
-        category.base_rate_usd = request.base_rate_usd
+    if request.base_rate is not None:
+        category.base_rate = request.base_rate
     if request.room_size is not None:
         category.room_size = request.room_size
     if request.room_size_unit is not None:
@@ -879,7 +879,8 @@ async def get_amenities(
     current_user: dict = Depends(get_current_user)
 ):
     from app.models import Amenity
-    result = await db.execute(select(Amenity).order_by(Amenity.name))
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(select(Amenity).options(selectinload(Amenity.category)).order_by(Amenity.name))
     return result.scalars().all()
 
 @router.post("/amenities", response_model=AmenityResponse)

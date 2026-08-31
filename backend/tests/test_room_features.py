@@ -76,7 +76,7 @@ async def test_room_amenity_features(async_client: AsyncClient):
     # 5. Create Room Category and Room to assign amenities
     room_cat_payload = {
         "category_name": f"Room Cat {unique_suffix}",
-        "base_rate_usd": 100.0,
+        "base_rate": 100.0,
         "is_active": True
     }
     room_cat_res = await async_client.post("/api/v1/accommodation/categories", json=room_cat_payload, headers=headers)
