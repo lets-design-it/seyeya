@@ -68,7 +68,9 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
       items: [
         { id: 'rooms-reservations', title: 'Reservations' },
         { id: 'rooms-rooms', title: 'Rooms List' },
-        { id: 'rooms-categories', title: 'Categories' }
+        { id: 'rooms-categories', title: 'Categories' },
+        { id: 'rooms-amenities', title: 'Amenities' },
+        { id: 'rooms-policies', title: 'Policies' }
       ]
     },
     {
