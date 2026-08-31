@@ -83,14 +83,15 @@ import {
   Check,
   Sparkles,
   FileText,
-  Tag
+  Tag,
+  ShieldCheck
 } from 'lucide-react';
 
 export interface CategoryRateOption {
   id: string;
   name: string;
-  priceUGX: number;
-  priceUSD: number;
+  priceUGX: number | string;
+  priceUSD: number | string;
   description?: string;
   inclusions?: string[];
   isActive: boolean;
@@ -116,7 +117,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   activeTab: propActiveTab, 
   setActiveTab: propSetActiveTab 
 }) => {
-  const { formatPrice, currency } = useCurrency();
+  const { formatPrice, convert, currency } = useCurrency();
   const { amenities: managedAmenities, policies: managedPolicies } = useRoomAssets();
   const {
     categories,
@@ -184,13 +185,14 @@ export const Rooms: React.FC<RoomsProps> = ({
   // Category Form & Upload/Crop State
   // -------------------------------------------------------------
   const [catName, setCatName] = useState('');
-  const [catPriceUGX, setCatPriceUGX] = useState<number>(300000);
-  const [catPriceUSD, setCatPriceUSD] = useState<number>(85);
+  const [catPriceUGX, setCatPriceUGX] = useState<number | string>(300000);
+  const [catPriceUSD, setCatPriceUSD] = useState<number | string>(85);
   const [catAdults, setCatAdults] = useState<number>(2);
   const [catChildren, setCatChildren] = useState<number>(1);
   const [catAmenities, setCatAmenities] = useState('');
   const [catDescription, setCatDescription] = useState('');
   const [catImage, setCatImage] = useState('');
+  const [catSelectedPolicies, setCatSelectedPolicies] = useState<string[]>([]);
   
   // Category Photos Upload State
   const [catPhotos, setCatPhotos] = useState<string[]>([]);
@@ -217,14 +219,53 @@ export const Rooms: React.FC<RoomsProps> = ({
     }
   ]);
 
-  const handleAddPresetRate = (name: string, priceUGXOffset: number, priceUSDOffset: number, inclusions: string[]) => {
+  const handleCatPriceUGXChange = (valStr: string) => {
+    const cleaned = valStr.length > 1 && valStr.startsWith('0') ? valStr.replace(/^0+/, '') : valStr;
+    setCatPriceUGX(cleaned);
+    const num = Number(cleaned);
+    if (cleaned !== '' && !isNaN(num) && num >= 0) {
+      const usdVal = Math.round(convert(num, 'UGX', 'USD'));
+      setCatPriceUSD(usdVal);
+    } else if (cleaned === '') {
+      setCatPriceUSD('');
+    }
+  };
+
+  const handleCatPriceUSDChange = (valStr: string) => {
+    const cleaned = valStr.length > 1 && valStr.startsWith('0') ? valStr.replace(/^0+/, '') : valStr;
+    setCatPriceUSD(cleaned);
+    const num = Number(cleaned);
+    if (cleaned !== '' && !isNaN(num) && num >= 0) {
+      const ugxVal = Math.round(convert(num, 'USD', 'UGX'));
+      setCatPriceUGX(ugxVal);
+    } else if (cleaned === '') {
+      setCatPriceUGX('');
+    }
+  };
+
+  const handleRateOptionUGXChange = (id: string, valStr: string) => {
+    const cleaned = valStr.length > 1 && valStr.startsWith('0') ? valStr.replace(/^0+/, '') : valStr;
+    const num = Number(cleaned);
+    const usdVal = (cleaned !== '' && !isNaN(num) && num >= 0) ? Math.round(convert(num, 'UGX', 'USD')) : '';
+    updateRateOption(id, { priceUGX: cleaned, priceUSD: usdVal });
+  };
+
+  const handleRateOptionUSDChange = (id: string, valStr: string) => {
+    const cleaned = valStr.length > 1 && valStr.startsWith('0') ? valStr.replace(/^0+/, '') : valStr;
+    const num = Number(cleaned);
+    const ugxVal = (cleaned !== '' && !isNaN(num) && num >= 0) ? Math.round(convert(num, 'USD', 'UGX')) : '';
+    updateRateOption(id, { priceUGX: ugxVal, priceUSD: cleaned });
+  };
+
+  const handleAddPresetRate = (name: string, priceUGXOffset: number, _priceUSDOffset: number, inclusions: string[]) => {
     const baseUGX = Number(catPriceUGX) || 300000;
-    const baseUSD = Number(catPriceUSD) || 85;
+    const newUGX = Math.max(0, baseUGX + priceUGXOffset);
+    const newUSD = Math.round(convert(newUGX, 'UGX', 'USD'));
     const newRate: CategoryRateOption = {
       id: `ro-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
       name,
-      priceUGX: Math.max(0, baseUGX + priceUGXOffset),
-      priceUSD: Math.max(0, baseUSD + priceUSDOffset),
+      priceUGX: newUGX,
+      priceUSD: newUSD,
       inclusions,
       isActive: true
     };
@@ -233,7 +274,7 @@ export const Rooms: React.FC<RoomsProps> = ({
 
   const addNewRateOption = () => {
     const baseUGX = Number(catPriceUGX) || 300000;
-    const baseUSD = Number(catPriceUSD) || 85;
+    const baseUSD = Math.round(convert(baseUGX, 'UGX', 'USD'));
     const newRate: CategoryRateOption = {
       id: `ro-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
       name: `Option ${catRateOptions.length + 1}`,
@@ -295,6 +336,7 @@ export const Rooms: React.FC<RoomsProps> = ({
     setCatDescription('');
     setCatImage('https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
     setCatPhotos([]);
+    setCatSelectedPolicies([]);
     setCatRateOptions([
       {
         id: 'ro-1',
@@ -349,6 +391,7 @@ export const Rooms: React.FC<RoomsProps> = ({
     setCatDescription(item.description);
     setCatImage(item.image);
     setCatPhotos(item.photos || []);
+    setCatSelectedPolicies((item.selectedPolicyIds || []).map(id => String(id)));
 
     if ((item as any).rateOptions && Array.isArray((item as any).rateOptions) && (item as any).rateOptions.length > 0) {
       setCatRateOptions((item as any).rateOptions);
@@ -388,6 +431,12 @@ export const Rooms: React.FC<RoomsProps> = ({
       : (catChildren === 1 ? "1 Child" : `${catChildren} Children`);
     const capacityString = childrenText ? `${adultsText}, ${childrenText}` : adultsText;
 
+    // Map amenity IDs from managedAmenities
+    const selectedAmenityList = catAmenities.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    const amenityIds = managedAmenities
+      .filter(am => selectedAmenityList.some(s => s === am.name.toLowerCase()))
+      .map(am => am.id);
+
     const data = {
       name: catName.trim(),
       priceUGX: Number(catPriceUGX),
@@ -397,7 +446,9 @@ export const Rooms: React.FC<RoomsProps> = ({
       description: catDescription.trim(),
       image: catImage.trim() || (catPhotos.length > 0 ? catPhotos[0] : 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300'),
       photos: catPhotos,
-      rateOptions: catRateOptions
+      rateOptions: catRateOptions,
+      selectedAmenityIds: amenityIds,
+      selectedPolicyIds: catSelectedPolicies
     };
 
     if (editCategoryItem) {
@@ -1527,7 +1578,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                   min={0}
                   placeholder="300000"
                   value={catPriceUGX}
-                  onChange={(e) => setCatPriceUGX(Number(e.target.value))}
+                  onChange={(e) => handleCatPriceUGXChange(e.target.value)}
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
@@ -1539,7 +1590,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                   min={0}
                   placeholder="85"
                   value={catPriceUSD}
-                  onChange={(e) => setCatPriceUSD(Number(e.target.value))}
+                  onChange={(e) => handleCatPriceUSDChange(e.target.value)}
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
@@ -1679,7 +1730,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                             type="number"
                             min={0}
                             value={rate.priceUGX}
-                            onChange={(e) => updateRateOption(rate.id, { priceUGX: Number(e.target.value) })}
+                            onChange={(e) => handleRateOptionUGXChange(rate.id, e.target.value)}
                             className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50 outline-hidden font-mono"
                           />
                         </div>
@@ -1691,7 +1742,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                             type="number"
                             min={0}
                             value={rate.priceUSD}
-                            onChange={(e) => updateRateOption(rate.id, { priceUSD: Number(e.target.value) })}
+                            onChange={(e) => handleRateOptionUSDChange(rate.id, e.target.value)}
                             className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50 outline-hidden font-mono"
                           />
                         </div>
@@ -1772,6 +1823,51 @@ export const Rooms: React.FC<RoomsProps> = ({
                 onChange={(e) => setCatAmenities(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-foreground dark:text-zinc-50 outline-hidden font-semibold"
               />
+            </div>
+
+            {/* Category Stay Policies Multi-Select Tag Picker */}
+            <div className="space-y-1.5 pt-2 border-t border-zinc-150 dark:border-zinc-800">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 font-sans flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>Category Stay Policies</span>
+                </label>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Auto-Icon Match
+                </span>
+              </div>
+              
+              {/* Quick Select Badges */}
+              <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 max-h-36 overflow-y-auto">
+                {managedPolicies.map(pol => {
+                  const isSelected = catSelectedPolicies.includes(pol.id) || catSelectedPolicies.includes(pol.title);
+                  
+                  const togglePolicy = () => {
+                    if (isSelected) {
+                      setCatSelectedPolicies(prev => prev.filter(p => p !== pol.id && p !== pol.title));
+                    } else {
+                      setCatSelectedPolicies(prev => [...prev, pol.id]);
+                    }
+                  };
+
+                  return (
+                    <button
+                      key={pol.id}
+                      type="button"
+                      onClick={togglePolicy}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                        isSelected 
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 shadow-2xs' 
+                          : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+                      }`}
+                    >
+                      {renderAssetIcon(pol.iconName || autoDetectPolicyIcon(pol.title), 'h-3.5 w-3.5 text-indigo-500')}
+                      <span>{pol.title}</span>
+                      {isSelected && <Check className="h-3 w-3 text-indigo-600 dark:text-indigo-400 ml-0.5" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div>

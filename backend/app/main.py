@@ -19,6 +19,7 @@ from app.api.v1.payment_methods import router as payment_methods_router
 from app.api.v1.hotel_details import router as hotel_details_router
 from app.api.v1.notifications import router as notifications_router
 from app.api.v1.uploads import router as uploads_router
+from app.api.v1.currencies import router as currencies_router
 from app.db.database import engine, Base
 
 
@@ -150,7 +151,8 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -169,6 +171,7 @@ app.include_router(payment_methods_router)
 app.include_router(hotel_details_router)
 app.include_router(notifications_router)
 app.include_router(uploads_router)
+app.include_router(currencies_router)
 
 # Mount upload directory to serve files statically
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

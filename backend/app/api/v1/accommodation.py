@@ -48,7 +48,7 @@ async def get_all_rooms_list(
             selectinload(Room.category).selectinload(RoomCategory.bathroom_features),
             selectinload(Room.category).selectinload(RoomCategory.room_facilities),
             selectinload(Room.category).selectinload(RoomCategory.images),
-            selectinload(Room.category).selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(Room.category).selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity),
             selectinload(Room.category).selectinload(RoomCategory.available_rates),
             selectinload(Room.category).selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
         )
@@ -363,7 +363,7 @@ async def get_all_categories(
             selectinload(RoomCategory.bathroom_features),
             selectinload(RoomCategory.room_facilities),
             selectinload(RoomCategory.images),
-            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity),
             selectinload(RoomCategory.available_rates),
             selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
         )
@@ -441,7 +441,7 @@ async def create_room_category(
             selectinload(RoomCategory.bathroom_features),
             selectinload(RoomCategory.room_facilities),
             selectinload(RoomCategory.images),
-            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity),
             selectinload(RoomCategory.available_rates),
             selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
         )
@@ -546,7 +546,7 @@ async def update_room_category(
             selectinload(RoomCategory.bathroom_features),
             selectinload(RoomCategory.room_facilities),
             selectinload(RoomCategory.images),
-            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity),
             selectinload(RoomCategory.available_rates),
             selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
         )

@@ -902,12 +902,13 @@ class RoomCategoryResponse(BaseModel):
                 imgs_val = []
                 
             grouped_amenities = []
-            if hasattr(data, 'amenity_assignments') and data.amenity_assignments:
+            amenity_assignments = data.__dict__.get('amenity_assignments') or []
+            if amenity_assignments:
                 cat_dict = {}
-                for assignment in data.amenity_assignments:
-                    am = getattr(assignment, 'amenity', None)
+                for assignment in amenity_assignments:
+                    am = assignment.__dict__.get('amenity') if hasattr(assignment, '__dict__') else None
                     if not am: continue
-                    cat = getattr(am, 'category', None)
+                    cat = am.__dict__.get('category') if hasattr(am, '__dict__') else None
                     
                     cat_id = cat.category_id if cat else 0
                     cat_name = cat.name if cat else "Other Room Amenities"

@@ -475,7 +475,7 @@ class RoomCategory(Base):
     room_category_id = Column(Integer, primary_key=True)
     category_name = Column(String(100), nullable=False)
     description = Column(String(500))
-    base_rate_usd = Column(DECIMAL(10, 2), nullable=False)
+    base_rate_usd = Column("base_rate", DECIMAL(10, 2), nullable=False)
     room_size = Column(Float, nullable=True)
     room_size_unit = Column(String(20), default="m²")
     max_occupancy = Column(Integer, default=2)
