@@ -762,7 +762,7 @@ class RoomRatePlanBase(BaseModel):
     rate_code: Optional[str] = None
     description: Optional[str] = None
     price: Decimal
-    currency: Optional[str] = "USD"
+    currency: Optional[str] = None
     pricing_basis: Optional[str] = "PER_NIGHT"
     meal_plan: Optional[str] = None
     cancellation_policy: Optional[str] = None
@@ -959,7 +959,7 @@ class RoomCategoryResponse(BaseModel):
                 'room_category_id': data.room_category_id,
                 'category_name': data.category_name,
                 'description': data.description,
-                'base_rate': getattr(data, 'base_rate', getattr(data, 'base_rate_usd', 0)),
+                'base_rate': getattr(data, 'base_rate', 0),
                 'room_size': getattr(data, 'room_size', None),
                 'room_size_unit': getattr(data, 'room_size_unit', 'm²'),
                 'max_occupancy': getattr(data, 'max_occupancy', 2),
