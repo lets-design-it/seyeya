@@ -1035,6 +1035,13 @@ class RoomCategoryCreate(BaseModel):
     bathroom_features: List[str] = []
     room_facilities: List[str] = []
     images: List[Union[ImageItem, str]] = []
+    amenity_ids: Optional[List[int]] = []
+    amenities: Optional[List[Union[int, dict]]] = []
+    available_rates: Optional[List[RoomRatePlanCreate]] = []
+    rates: Optional[List[RoomRatePlanCreate]] = []
+    price_rates: Optional[List[RoomRatePlanCreate]] = []
+    policy_ids: Optional[List[int]] = []
+    policies: Optional[List[Union[int, RoomPolicyCreate, dict]]] = []
 
 
 class RoomCategoryUpdate(BaseModel):
@@ -1051,6 +1058,13 @@ class RoomCategoryUpdate(BaseModel):
     bathroom_features: Optional[List[str]] = None
     room_facilities: Optional[List[str]] = None
     images: Optional[List[Union[ImageItem, str]]] = None
+    amenity_ids: Optional[List[int]] = None
+    amenities: Optional[List[Union[int, dict]]] = None
+    available_rates: Optional[List[RoomRatePlanCreate]] = None
+    rates: Optional[List[RoomRatePlanCreate]] = None
+    price_rates: Optional[List[RoomRatePlanCreate]] = None
+    policy_ids: Optional[List[int]] = None
+    policies: Optional[List[Union[int, RoomPolicyCreate, dict]]] = None
 
 
 ALLOWED_ROOM_STATUSES = {"Available", "Occupied", "Reserved", "Maintenance", "Out of Service"}

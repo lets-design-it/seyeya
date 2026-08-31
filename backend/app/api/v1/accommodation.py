@@ -428,6 +428,53 @@ async def create_room_category(
                 photo_url=photo_url
             )
             db.add(photo)
+
+    # Save amenities
+    amenity_ids_to_add = []
+    seen_amenity_ids = set()
+    if request.amenity_ids:
+        for aid in request.amenity_ids:
+            if aid not in seen_amenity_ids:
+                seen_amenity_ids.add(aid)
+                amenity_ids_to_add.append(aid)
+    if request.amenities:
+        for item in request.amenities:
+            aid = item if isinstance(item, int) else (item.get("id") or item.get("amenity_id") if isinstance(item, dict) else None)
+            if aid and int(aid) not in seen_amenity_ids:
+                seen_amenity_ids.add(int(aid))
+                amenity_ids_to_add.append(int(aid))
+
+    for aid in amenity_ids_to_add:
+        db.add(RoomAmenity(room_category_id=category.room_category_id, amenity_id=aid))
+
+    # Save rates (price rates)
+    rate_list = request.available_rates or request.rates or request.price_rates or []
+    for rate_item in rate_list:
+        rate_dict = rate_item.model_dump() if hasattr(rate_item, 'model_dump') else (rate_item.dict() if hasattr(rate_item, 'dict') else dict(rate_item))
+        db.add(RoomRatePlan(room_category_id=category.room_category_id, **rate_dict))
+
+    # Save policies
+    policy_assignments = []
+    if request.policy_ids:
+        for pid in request.policy_ids:
+            policy_assignments.append({"policy_id": pid})
+    if request.policies:
+        for item in request.policies:
+            if isinstance(item, int):
+                policy_assignments.append({"policy_id": item})
+            elif hasattr(item, 'model_dump'):
+                policy_assignments.append(item.model_dump())
+            elif hasattr(item, 'dict'):
+                policy_assignments.append(item.dict())
+            elif isinstance(item, dict):
+                policy_assignments.append(item)
+
+    for pas in policy_assignments:
+        pid = pas.get("policy_id")
+        if pid:
+            val = pas.get("value")
+            is_act = pas.get("is_active", True)
+            db.add(RoomPolicy(room_category_id=category.room_category_id, policy_id=pid, value=val, is_active=is_act))
             
     await db.commit()
     
@@ -562,7 +609,62 @@ async def update_room_category(
                 photo_url=photo_url
             )
             category.photos.append(photo)
-            
+
+    # Sync amenities if provided
+    if request.amenities is not None or request.amenity_ids is not None:
+        await db.execute(delete(RoomAmenity).where(RoomAmenity.room_category_id == category_id))
+        amenity_ids_to_add = []
+        seen_amenity_ids = set()
+        if request.amenity_ids:
+            for aid in request.amenity_ids:
+                if aid not in seen_amenity_ids:
+                    seen_amenity_ids.add(aid)
+                    amenity_ids_to_add.append(aid)
+        if request.amenities:
+            for item in request.amenities:
+                aid = item if isinstance(item, int) else (item.get("id") or item.get("amenity_id") if isinstance(item, dict) else None)
+                if aid and int(aid) not in seen_amenity_ids:
+                    seen_amenity_ids.add(int(aid))
+                    amenity_ids_to_add.append(int(aid))
+        for aid in amenity_ids_to_add:
+            db.add(RoomAmenity(room_category_id=category_id, amenity_id=aid))
+
+    # Sync rate plans (price rates) if provided
+    rate_list = request.available_rates if request.available_rates is not None else (
+        request.rates if request.rates is not None else (
+            request.price_rates if request.price_rates is not None else None
+        )
+    )
+    if rate_list is not None:
+        await db.execute(delete(RoomRatePlan).where(RoomRatePlan.room_category_id == category_id))
+        for rate_item in rate_list:
+            rate_dict = rate_item.model_dump() if hasattr(rate_item, 'model_dump') else (rate_item.dict() if hasattr(rate_item, 'dict') else dict(rate_item))
+            db.add(RoomRatePlan(room_category_id=category_id, **rate_dict))
+
+    # Sync policies if provided
+    if request.policies is not None or request.policy_ids is not None:
+        await db.execute(delete(RoomPolicy).where(RoomPolicy.room_category_id == category_id))
+        policy_assignments = []
+        if request.policy_ids:
+            for pid in request.policy_ids:
+                policy_assignments.append({"policy_id": pid})
+        if request.policies:
+            for item in request.policies:
+                if isinstance(item, int):
+                    policy_assignments.append({"policy_id": item})
+                elif hasattr(item, 'model_dump'):
+                    policy_assignments.append(item.model_dump())
+                elif hasattr(item, 'dict'):
+                    policy_assignments.append(item.dict())
+                elif isinstance(item, dict):
+                    policy_assignments.append(item)
+        for pas in policy_assignments:
+            pid = pas.get("policy_id")
+            if pid:
+                val = pas.get("value")
+                is_act = pas.get("is_active", True)
+                db.add(RoomPolicy(room_category_id=category_id, policy_id=pid, value=val, is_active=is_act))
+
     db.add(category)
     await db.commit()
     
