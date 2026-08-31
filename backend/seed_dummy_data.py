@@ -22,7 +22,7 @@ async def seed_data():
         cat_payload_1 = {
             "category_name": f"Deluxe Ocean Suite {uuid.uuid4().hex[:4]}",
             "description": "A beautiful suite with panoramic ocean views and premium amenities.",
-            "base_rate_usd": 350.00,
+            "base_rate": 350.00,
             "room_size": 85.5,
             "room_size_unit": "m²",
             "max_occupancy": 3,
@@ -76,7 +76,7 @@ async def seed_data():
         cat_payload_2 = {
             "category_name": f"Standard City Room {uuid.uuid4().hex[:4]}",
             "description": "Comfortable room for business and leisure travelers.",
-            "base_rate_usd": 120.00,
+            "base_rate": 120.00,
             "room_size": 35.0,
             "room_size_unit": "m²",
             "max_occupancy": 2,
@@ -106,7 +106,7 @@ async def seed_data():
             print(f"✅ Successfully fetched {len(categories)} categories!")
             for c in categories[:2]:  # show top 2
                 print(f"\n--- {c['category_name']} ---")
-                print(f"Price: ${c['base_rate_usd']}")
+                print(f"Price: {c.get('base_rate', c.get('base_rate_usd', 0))}")
                 print(f"Max Occupancy: {c['max_occupancy']}")
                 print(f"Beds: {[b['quantity'] for b in c['beds']]}x {[b['type'] for b in c['beds']]}")
                 print(f"Facilities: {c['room_facilities']}")
