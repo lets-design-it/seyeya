@@ -115,10 +115,12 @@ const CRMApp: React.FC = () => {
       case 'rooms':
       case 'rooms-reservations':
       case 'rooms-rooms':
-      case 'rooms-categories': {
+      case 'rooms-categories':
+      case 'rooms-amenities':
+      case 'rooms-policies': {
         const subTab = activeStaffTab === 'rooms' 
           ? 'reservations' 
-          : (activeStaffTab.split('-')[1] as 'reservations' | 'rooms' | 'categories');
+          : (activeStaffTab.split('-')[1] as 'reservations' | 'rooms' | 'categories' | 'amenities' | 'policies');
         return (
           <ProtectedRoute>
             <Rooms 
