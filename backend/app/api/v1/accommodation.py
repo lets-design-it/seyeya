@@ -890,11 +890,13 @@ async def create_amenity(
     current_user: dict = Depends(get_current_user)
 ):
     from app.models import Amenity
+    from sqlalchemy.orm import selectinload
     amenity = Amenity(**request.model_dump())
     db.add(amenity)
     await db.commit()
-    await db.refresh(amenity)
-    return amenity
+    
+    res = await db.execute(select(Amenity).options(selectinload(Amenity.category)).where(Amenity.amenity_id == amenity.amenity_id))
+    return res.scalar_one()
 
 @router.put("/amenities/{amenity_id}", response_model=AmenityResponse)
 async def update_amenity(
@@ -904,7 +906,8 @@ async def update_amenity(
     current_user: dict = Depends(get_current_user)
 ):
     from app.models import Amenity
-    result = await db.execute(select(Amenity).where(Amenity.amenity_id == amenity_id))
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(select(Amenity).options(selectinload(Amenity.category)).where(Amenity.amenity_id == amenity_id))
     amenity = result.scalar_one_or_none()
     if not amenity:
         raise HTTPException(status_code=404, detail="Amenity not found")
@@ -913,8 +916,9 @@ async def update_amenity(
         setattr(amenity, key, value)
         
     await db.commit()
-    await db.refresh(amenity)
-    return amenity
+    
+    res = await db.execute(select(Amenity).options(selectinload(Amenity.category)).where(Amenity.amenity_id == amenity_id))
+    return res.scalar_one()
 
 @router.delete("/amenities/{amenity_id}")
 async def delete_amenity(
