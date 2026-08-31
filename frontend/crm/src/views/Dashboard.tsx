@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useCurrency } from '../context/CurrencyContext';
 import { 
   loadLeads, 
   loadActivities, 
@@ -28,6 +29,13 @@ import {
 } from 'recharts';
 
 export const Dashboard: React.FC = () => {
+  const { formatPrice } = useCurrency();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const leads = useMemo(() => loadLeads(), []);
   const activities = useMemo(() => loadActivities(), []);
 
@@ -112,7 +120,7 @@ export const Dashboard: React.FC = () => {
         <div className="glass-panel glass-card-glow rounded-2xl p-5 flex items-center justify-between shadow-lg">
           <div className="space-y-1.5">
             <span className="text-xs font-semibold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Closed Revenue</span>
-            <h4 className="text-2xl font-bold text-white light:text-zinc-900">${kpis.revenue.toLocaleString()}</h4>
+            <h4 className="text-2xl font-bold text-white light:text-zinc-900">{formatPrice(kpis.revenue)}</h4>
             <span className="text-xs text-emerald-400 font-medium">✦ 12% increase from last month</span>
           </div>
           <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-400">
@@ -124,7 +132,7 @@ export const Dashboard: React.FC = () => {
         <div className="glass-panel glass-card-glow rounded-2xl p-5 flex items-center justify-between shadow-lg">
           <div className="space-y-1.5">
             <span className="text-xs font-semibold text-zinc-500 light:text-zinc-550 uppercase tracking-wider">Pipeline Value</span>
-            <h4 className="text-2xl font-bold text-white light:text-zinc-900">${kpis.pipeline.toLocaleString()}</h4>
+            <h4 className="text-2xl font-bold text-white light:text-zinc-900">{formatPrice(kpis.pipeline)}</h4>
             <span className="text-xs text-indigo-400 font-medium">✦ Active contract negotiations</span>
           </div>
           <div className="h-12 w-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
@@ -178,29 +186,31 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div className="h-[260px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={timelineData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" opacity={0.3} />
-                <XAxis dataKey="name" stroke="#71717a" fontSize={10} tickLine={false} />
-                <YAxis stroke="#71717a" fontSize={10} tickLine={false} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(9, 9, 11, 0.9)', 
-                    borderColor: 'rgba(255, 255, 255, 0.08)',
-                    borderRadius: '12px',
-                    fontSize: '11px'
-                  }} 
-                />
-                <Area type="monotone" dataKey="Sales" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" />
-                <Area type="monotone" dataKey="Target" stroke="#6366f1" strokeDasharray="4 4" strokeWidth={1.5} fillOpacity={0} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {isMounted && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <AreaChart data={timelineData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" opacity={0.3} />
+                  <XAxis dataKey="name" stroke="#71717a" fontSize={10} tickLine={false} />
+                  <YAxis stroke="#71717a" fontSize={10} tickLine={false} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(9, 9, 11, 0.9)', 
+                      borderColor: 'rgba(255, 255, 255, 0.08)',
+                      borderRadius: '12px',
+                      fontSize: '11px'
+                    }} 
+                  />
+                  <Area type="monotone" dataKey="Sales" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorSales)" />
+                  <Area type="monotone" dataKey="Target" stroke="#6366f1" strokeDasharray="4 4" strokeWidth={1.5} fillOpacity={0} />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -211,27 +221,29 @@ export const Dashboard: React.FC = () => {
             <p className="text-xs text-zinc-500">Distribution of leads across each sales stage.</p>
           </div>
           <div className="h-[220px] w-full my-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stageData} barSize={24}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" opacity={0.2} vertical={false} />
-                <XAxis dataKey="name" stroke="#71717a" fontSize={9} tickLine={false} />
-                <YAxis stroke="#71717a" fontSize={9} tickLine={false} allowDecimals={false} />
-                <Tooltip 
-                  cursor={{ fill: 'rgba(255, 255, 255, 0.02)' }}
-                  contentStyle={{ 
-                    backgroundColor: 'rgba(9, 9, 11, 0.9)', 
-                    borderColor: 'rgba(255, 255, 255, 0.08)',
-                    borderRadius: '12px',
-                    fontSize: '11px'
-                  }}
-                />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                  {stageData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {isMounted && (
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <BarChart data={stageData} barSize={24}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" opacity={0.2} vertical={false} />
+                  <XAxis dataKey="name" stroke="#71717a" fontSize={9} tickLine={false} />
+                  <YAxis stroke="#71717a" fontSize={9} tickLine={false} allowDecimals={false} />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(255, 255, 255, 0.02)' }}
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(9, 9, 11, 0.9)', 
+                      borderColor: 'rgba(255, 255, 255, 0.08)',
+                      borderRadius: '12px',
+                      fontSize: '11px'
+                    }}
+                  />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {stageData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
           <div className="grid grid-cols-3 gap-1.5 text-xs text-zinc-500 text-center font-medium  pt-3">
             {stageData.slice(0, 3).map((item, index) => (

@@ -1,11 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { useRestaurant, MenuItem } from '../../hooks/useRestaurant';
+import { useVatRate } from '../../context/VatContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { Search, ShoppingBag, Plus, Minus, X, CheckCircle } from 'lucide-react';
 
 export const Restaurant: React.FC = () => {
-  const { menu, placeOrder } = useRestaurant();
+  const { vatRate } = useVatRate();
+  const { formatPrice } = useCurrency();
+  const { menu, placeOrder, categories } = useRestaurant();
   
   // Search & Category states
   const [search, setSearch] = useState('');
@@ -17,7 +21,9 @@ export const Restaurant: React.FC = () => {
   const [tableNumber, setTableNumber] = useState('Table 1');
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const categories = ['All', 'Local Food', 'Continental', 'Drinks', 'Desserts'];
+  const categoryList = useMemo(() => {
+    return ['All', ...categories.map((c: any) => c.category_name)];
+  }, [categories]);
 
   // Filter menu items
   const filteredMenu = useMemo(() => {
@@ -66,26 +72,21 @@ export const Restaurant: React.FC = () => {
 
   const cartItemsCount = Object.values(cart).reduce((sum, q) => sum + q, 0);
 
-  const handleCheckout = (e: React.FormEvent) => {
+  const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cartItemsCount === 0) return;
 
-    // Build items string
-    const itemsSummary = Object.entries(cart)
-      .map(([itemId, qty]) => {
-        const item = menu.find(m => m.id === itemId);
-        return item ? `${qty}x ${item.name.replace('Seyeya ', '')}` : '';
-      })
-      .filter(Boolean)
-      .join(', ');
+    try {
+      // Place order
+      await placeOrder(cart, tableNumber);
 
-    // Place order
-    placeOrder(itemsSummary, tableNumber, cartTotal.ugx);
-
-    // Show success overlay
-    setCart({});
-    setShowCart(false);
-    setIsSuccess(true);
+      // Show success overlay
+      setCart({});
+      setShowCart(false);
+      setIsSuccess(true);
+    } catch (err) {
+      console.error("Failed to checkout:", err);
+    }
   };
 
   return (
@@ -93,7 +94,7 @@ export const Restaurant: React.FC = () => {
       
       {/* Category Horizontal list */}
       <div className="flex gap-2 overflow-x-auto pb-1.5 -mx-4 px-4 scrollbar-none shrink-0">
-        {categories.map((cat) => (
+        {categoryList.map((cat) => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
@@ -128,7 +129,7 @@ export const Restaurant: React.FC = () => {
 
               <div className="flex items-center justify-between mt-2.5">
                 <span className="text-xs font-semibold text-violet-400">
-                  UGX {item.priceUGX.toLocaleString()} / ${item.priceUSD}
+                  {formatPrice(item.priceUGX)}
                 </span>
 
                 <Button 
@@ -254,10 +255,12 @@ export const Restaurant: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="text-right flex flex-col justify-end">
-                  <span className="text-xs uppercase font-bold text-zinc-550 block">Aggregate Total</span>
-                  <span className="text-xs font-bold text-white mt-1 block">UGX {cartTotal.ugx.toLocaleString()}</span>
-                  <span className="text-xs text-zinc-500">~ ${cartTotal.usd} USD</span>
+                <div className="text-right flex flex-col justify-end space-y-0.5">
+                  <span className="text-[10px] uppercase font-bold text-zinc-500">Subtotal: {formatPrice(cartTotal.ugx)}</span>
+                  {vatRate > 0 && (
+                    <span className="text-[10px] uppercase font-bold text-zinc-500">VAT ({vatRate}%): {formatPrice(Math.round(cartTotal.ugx * (vatRate / 100)))}</span>
+                  )}
+                  <span className="text-xs font-bold text-violet-400 mt-1 block">Total: {formatPrice(Math.round(cartTotal.ugx * (1 + vatRate / 100)))}</span>
                 </div>
               </div>
 

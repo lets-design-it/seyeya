@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { 
   loadLeads, 
   saveLeads, 
@@ -20,6 +21,7 @@ const STAGES: Lead['stage'][] = ['New', 'Contacted', 'Qualified', 'Proposal', 'W
 
 export const DealsPipeline: React.FC = () => {
   const { user } = useAuth();
+  const { formatPrice } = useCurrency();
   const [leads, setLeads] = useState<Lead[]>(() => loadLeads());
 
   // Filter deals based on role
@@ -126,7 +128,7 @@ export const DealsPipeline: React.FC = () => {
           <TrendingUp className="h-4.5 w-4.5 text-violet-400" />
           <div className="flex flex-col">
             <span className="text-xs uppercase tracking-wider text-zinc-500 leading-none">Total Unclosed Pipeline</span>
-            <span className="text-sm font-bold text-foreground mt-1">${totalPipelineVal.toLocaleString()}</span>
+            <span className="text-sm font-bold text-foreground mt-1">{formatPrice(totalPipelineVal)}</span>
           </div>
         </div>
       </div>
@@ -151,7 +153,7 @@ export const DealsPipeline: React.FC = () => {
                   </div>
                   <div className="flex items-center justify-between mt-1.5 text-xs text-zinc-500 font-semibold">
                     <span>Column Value:</span>
-                    <span className="text-zinc-450">${aggregate.total.toLocaleString()}</span>
+                    <span className="text-zinc-450">{formatPrice(aggregate.total, { compact: true })}</span>
                   </div>
                 </div>
 
@@ -173,7 +175,7 @@ export const DealsPipeline: React.FC = () => {
                             {deal.company}
                           </h4>
                           <span className="text-xs font-semibold text-foreground shrink-0">
-                            ${deal.value >= 1000 ? `${(deal.value / 1000).toFixed(0)}k` : deal.value}
+                            {formatPrice(deal.value, { compact: true })}
                           </span>
                         </div>
 

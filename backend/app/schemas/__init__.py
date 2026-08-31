@@ -1,0 +1,1937 @@
+"""
+Pydantic schemas for request/response validation
+"""
+from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator, model_validator
+from datetime import datetime, date, time
+from typing import Optional, List, Any, Union
+from decimal import Decimal
+
+
+# =====================================================================
+# AUTH SCHEMAS
+# =====================================================================
+
+class UserRegisterRequest(BaseModel):
+    full_name: str
+    email: EmailStr
+    phone_number: Optional[str] = None
+    password: str
+    confirm_password: str
+    role_ids: Optional[List[int]] = None
+    is_staff: Optional[bool] = False
+    
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+
+class UserLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user_id: Optional[int] = None
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_staff: Optional[bool] = False
+    customer_id: Optional[int] = None
+    roles: Optional[List[str]] = []
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
+
+# =====================================================================
+# USER SCHEMAS
+# =====================================================================
+
+class UserBase(BaseModel):
+    full_name: str
+    email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    is_staff: Optional[bool] = False
+    is_active: Optional[bool] = True
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    password: Optional[str] = None
+    is_staff: Optional[bool] = None
+    is_active: Optional[bool] = None
+    role_ids: Optional[List[int]] = None
+
+
+class UserResponse(UserBase):
+    user_id: int
+    last_login_at: Optional[datetime] = None
+    roles: Optional[List[str]] = []
+    
+    @model_validator(mode="before")
+    @classmethod
+    def extract_roles(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return data
+            
+        roles_list = []
+        if hasattr(data, "roles") and data.roles:
+            roles_list = [ur.role.role_name for ur in data.roles if ur.role]
+            
+        # Create dictionary from ORM attributes
+        return {
+            "user_id": data.user_id,
+            "full_name": data.full_name,
+            "email": data.email,
+            "phone_number": data.phone_number,
+            "is_staff": data.is_staff,
+            "is_active": data.is_active,
+            "last_login_at": data.last_login_at,
+            "roles": roles_list
+        }
+
+    class Config:
+        from_attributes = True
+
+
+# =====================================================================
+# CUSTOMER SCHEMAS
+# =====================================================================
+
+class CustomerBase(BaseModel):
+    full_name: str
+    phone_number: Optional[str] = None
+    email: Optional[EmailStr] = None
+    gender: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    nationality: Optional[str] = None
+    address: Optional[str] = None
+    nin: Optional[str] = None
+    passport_number: Optional[str] = None
+    customer_type: Optional[str] = "Registered"
+    is_contract_client: Optional[bool] = False
+    is_active: Optional[bool] = True
+    is_child: Optional[bool] = False
+    parent_id: Optional[int] = None
+
+
+class CustomerCreate(CustomerBase):
+    user_id: Optional[int] = None
+    total_spent: Optional[Decimal] = Decimal(0)
+    visit_count: Optional[int] = 0
+    loyalty_points: Optional[int] = 0
+
+
+class CustomerUpdate(BaseModel):
+    full_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    email: Optional[EmailStr] = None
+    gender: Optional[str] = None
+    date_of_birth: Optional[date] = None
+    nationality: Optional[str] = None
+    address: Optional[str] = None
+    nin: Optional[str] = None
+    passport_number: Optional[str] = None
+    customer_type: Optional[str] = None
+    is_contract_client: Optional[bool] = None
+    is_active: Optional[bool] = None
+    is_child: Optional[bool] = None
+    parent_id: Optional[int] = None
+
+
+class CustomerResponse(CustomerBase):
+    customer_id: int
+    customer_code: str
+    user_id: Optional[int] = None
+    total_spent: Decimal
+    visit_count: int
+    loyalty_points: int
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# =====================================================================
+# ROLES AND PERMISSIONS SCHEMAS
+# =====================================================================
+
+class PermissionResponse(BaseModel):
+    permission_id: int
+    group_id: Optional[int] = None
+    permission_key: str
+    display_name: str
+    description: Optional[str] = None
+    is_active: Optional[bool] = True
+
+    class Config:
+        from_attributes = True
+
+
+class PermissionGroupResponse(BaseModel):
+    group_id: int
+    group_name: str
+    permissions: List[PermissionResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class RolePermissionResponse(BaseModel):
+    role_permission_id: int
+    role_id: int
+    permission_id: int
+    permission: Optional[PermissionResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class RoleResponse(BaseModel):
+    role_id: int
+    role_name: str
+    description: Optional[str] = None
+    parent_role_id: Optional[int] = None
+    is_active: bool
+    is_system_role: bool
+    permissions: List[RolePermissionResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class RoleCreate(BaseModel):
+    role_name: str
+    description: Optional[str] = None
+    parent_role_id: Optional[int] = None
+    is_active: Optional[bool] = True
+    is_system_role: Optional[bool] = False
+    permission_ids: Optional[List[int]] = []
+
+
+class RoleUpdate(BaseModel):
+    role_name: Optional[str] = None
+    description: Optional[str] = None
+    parent_role_id: Optional[int] = None
+    is_active: Optional[bool] = None
+    permission_ids: Optional[List[int]] = None
+
+
+class UserRoleAssign(BaseModel):
+    role_id: int
+    expires_at: Optional[datetime] = None
+
+
+class RolePermissionAssign(BaseModel):
+    permission_ids: List[int]
+
+
+class TransactionResponse(BaseModel):
+    type: str
+    reference_id: int
+    amount: Optional[Decimal] = None
+    currency: Optional[str] = None
+    date: datetime
+    description: Optional[str] = None
+
+
+class CustomerProfileResponse(CustomerResponse):
+    num_restaurant_orders: int
+    num_accommodation_reservations: int
+    num_conference_reservations: int
+    recent_transactions: List[TransactionResponse] = []
+    reviews: Optional[List[str]] = []
+    customer_tier: Optional[str] = None
+
+
+class TopCustomerResponse(BaseModel):
+    customer_id: int
+    customer_code: str
+    full_name: str
+    total_spent: Decimal
+
+    class Config:
+        from_attributes = True
+
+
+# =====================================================================
+# RESTAURANT SCHEMAS
+# =====================================================================
+
+class MenuCategoryResponse(BaseModel):
+    category_id: int
+    category_name: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    sort_order: int
+    is_active: bool
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuCategoryCreate(BaseModel):
+    category_name: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    sort_order: Optional[int] = 0
+    is_active: Optional[bool] = True
+
+
+class MenuCategoryUpdate(BaseModel):
+    category_name: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class MenuExtraResponse(BaseModel):
+    extra_id: int
+    extra_name: str
+    price: Decimal
+    is_available: bool
+    image_url: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuChoiceCreate(BaseModel):
+    choice_name: str
+    price: Optional[Decimal] = None
+    is_available: Optional[bool] = True
+
+
+class MenuChoiceUpdate(BaseModel):
+    choice_name: Optional[str] = None
+    price: Optional[Decimal] = None
+    is_available: Optional[bool] = None
+
+
+class MenuChoiceResponse(BaseModel):
+    choice_id: int
+    menu_item_id: int
+    choice_name: str
+    price: Optional[Decimal] = None
+    is_available: bool
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuAccompanimentCreate(BaseModel):
+    accompaniment_name: str
+    price: Optional[Decimal] = None
+    is_available: Optional[bool] = True
+
+
+class MenuAccompanimentUpdate(BaseModel):
+    accompaniment_name: Optional[str] = None
+    price: Optional[Decimal] = None
+    is_available: Optional[bool] = None
+
+
+class MenuAccompanimentResponse(BaseModel):
+    accompaniment_id: int
+    menu_item_id: int
+    accompaniment_name: str
+    price: Optional[Decimal] = None
+    is_available: bool
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuExtraUpdate(BaseModel):
+    extra_name: Optional[str] = None
+    price: Optional[Decimal] = None
+    is_available: Optional[bool] = None
+    image_url: Optional[str] = None
+
+
+class MenuItemResponse(BaseModel):
+    menu_item_id: int
+    category_id: int
+    item_name: str
+    description: Optional[str] = None
+    price: Decimal
+    quantity: int
+    image_url: Optional[str] = None
+    allergen_info: Optional[str] = None
+    preparation_time: Optional[int] = None
+    is_available: bool
+    is_active: bool
+    extras: Optional[List[MenuExtraResponse]] = []
+    choices: Optional[List[MenuChoiceResponse]] = []
+    accompaniments: Optional[List[MenuAccompanimentResponse]] = []
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuItemCreate(BaseModel):
+    category_id: int
+    item_name: str
+    description: Optional[str] = None
+    price: Decimal
+    quantity: Optional[int] = 0
+    image_url: Optional[str] = None
+    allergen_info: Optional[str] = None
+    preparation_time: Optional[int] = None
+    is_available: Optional[bool] = True
+    is_active: Optional[bool] = True
+
+
+class MenuItemUpdate(BaseModel):
+    category_id: Optional[int] = None
+    item_name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[Decimal] = None
+    quantity: Optional[int] = None
+    image_url: Optional[str] = None
+    allergen_info: Optional[str] = None
+    preparation_time: Optional[int] = None
+    is_available: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
+class MenuExtraCreate(BaseModel):
+    extra_name: str
+    price: Decimal = 0
+    is_available: Optional[bool] = True
+    image_url: Optional[str] = None
+
+
+class MenuExtraResponse(BaseModel):
+    extra_id: int
+    extra_name: str
+    price: Decimal
+    is_available: bool
+    
+    class Config:
+        from_attributes = True
+
+
+class OrderItemExtraCreate(BaseModel):
+    extra_id: int
+    quantity: int = 1
+
+
+class OrderItemCreate(BaseModel):
+    menu_item_id: int
+    quantity: int = 1
+    special_notes: Optional[str] = None
+    choice_id: Optional[int] = None
+    accompaniment_id: Optional[int] = None
+    extras: Optional[List[OrderItemExtraCreate]] = None
+
+
+class RestaurantOrderCreate(BaseModel):
+    customer_id: Optional[int] = None
+    seating_location: Optional[str] = None
+    delivery_option: str = "Premises"
+    delivery_address: Optional[str] = None
+    delivery_lat: Optional[Decimal] = None
+    delivery_lng: Optional[Decimal] = None
+    delivery_charge: Optional[Decimal] = None
+    preferred_time: Optional[datetime] = None
+    special_instr: Optional[str] = None
+    items: List[OrderItemCreate]
+
+
+class RestaurantOrderUpdate(BaseModel):
+    order_status: Optional[str] = None
+    payment_status: Optional[str] = None
+    amount_paid: Optional[Decimal] = None
+
+
+class OrderItemExtraResponse(BaseModel):
+    order_item_extra_id: int
+    extra_id: int
+    quantity: int
+    unit_price: Decimal
+    total_price: Decimal
+    extra: Optional[MenuExtraResponse] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuItemSummary(BaseModel):
+    menu_item_id: int
+    name: str
+    price: Decimal
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuChoiceSummary(BaseModel):
+    choice_id: int
+    name: str
+    price: Optional[Decimal] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class MenuAccompanimentSummary(BaseModel):
+    accompaniment_id: int
+    name: str
+    price: Optional[Decimal] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class OrderItemResponse(BaseModel):
+    order_item_id: int
+    menu_item_id: int
+    quantity: int
+    unit_price: Decimal
+    total_price: Decimal
+    special_notes: Optional[str] = None
+    choice_id: Optional[int] = None
+    accompaniment_id: Optional[int] = None
+    
+    menu_item: Optional[MenuItemSummary] = None
+    choice: Optional[MenuChoiceSummary] = None
+    accompaniment: Optional[MenuAccompanimentSummary] = None
+    extras: List[OrderItemExtraResponse] = []
+    
+    class Config:
+        from_attributes = True
+
+
+class RestaurantOrderResponse(BaseModel):
+    order_id: int
+    customer_id: Optional[int] = None
+    order_number: str
+    seating_location: Optional[str] = None
+    delivery_option: Optional[str] = None
+    delivery_distance_km: Optional[Decimal] = Decimal(0)
+    price_per_km_used: Optional[Decimal] = Decimal(0)
+    delivery_charge: Optional[Decimal] = Decimal(0)
+    tax_amount: Optional[Decimal] = Decimal(0)
+    sub_total: Optional[Decimal] = Decimal(0)
+    total_amount: Optional[Decimal] = Decimal(0)
+    amount_paid: Optional[Decimal] = Decimal(0)
+    balance_due: Optional[Decimal] = Decimal(0)
+    order_status: Optional[str] = "Pending"
+    payment_status: Optional[str] = "Pending"
+    items: List[OrderItemResponse]
+    created_at: datetime
+    updated_at: datetime
+    cancelled_at: Optional[datetime] = None
+    cancel_reason: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class DeliveryPricingCreate(BaseModel):
+    restaurant_lat: Decimal
+    restaurant_lng: Decimal
+    price_per_km: Decimal
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: Optional[bool] = True
+
+
+class DeliveryPricingUpdate(BaseModel):
+    restaurant_lat: Optional[Decimal] = None
+    restaurant_lng: Optional[Decimal] = None
+    price_per_km: Optional[Decimal] = None
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: Optional[bool] = None
+
+
+class DeliveryPricingResponse(BaseModel):
+    pricing_id: int
+    restaurant_lat: Decimal
+    restaurant_lng: Decimal
+    price_per_km: Decimal
+    minimum_delivery_fee: Optional[Decimal] = None
+    maximum_delivery_distance_km: Optional[Decimal] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class DeliveryCalculationRequest(BaseModel):
+    delivery_lat: Decimal
+    delivery_lng: Decimal
+
+
+class DeliveryCalculationResponse(BaseModel):
+    is_deliverable: bool
+    distance_km: Optional[Decimal] = None
+    price_per_km: Optional[Decimal] = None
+    delivery_charge: Optional[Decimal] = None
+    message: str
+
+
+class CustomerOrdersResponse(BaseModel):
+    customer_id: int
+    total_orders: int
+    orders: List[RestaurantOrderResponse]
+
+    class Config:
+        from_attributes = True
+
+
+# =====================================================================
+# ACCOMMODATION SCHEMAS
+# =====================================================================
+
+class RoomCategoryPhotoResponse(BaseModel):
+    photo_id: int
+    photo_url: str
+    
+    class Config:
+        from_attributes = True
+
+
+
+class BedItem(BaseModel):
+    type: str
+    quantity: int = Field(default=1, ge=1)
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_bed_type(cls, data):
+        if hasattr(data, 'bed_type'):
+            return {"type": data.bed_type, "quantity": getattr(data, 'quantity', 1)}
+        if isinstance(data, dict):
+            if 'bed_type' in data and 'type' not in data:
+                data['type'] = data['bed_type']
+        return data
+
+    class Config:
+        from_attributes = True
+
+
+class ImageItem(BaseModel):
+    url: str
+    is_primary: bool = False
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_image(cls, data):
+        if isinstance(data, str):
+            return {"url": data, "is_primary": False}
+        if hasattr(data, 'image_url'):
+            return {"url": data.image_url, "is_primary": getattr(data, 'is_primary', False)}
+        if hasattr(data, 'photo_url'):
+            return {"url": data.photo_url, "is_primary": getattr(data, 'is_primary', False)}
+        if isinstance(data, dict):
+            if 'image_url' in data and 'url' not in data:
+                data['url'] = data['image_url']
+            elif 'photo_url' in data and 'url' not in data:
+                data['url'] = data['photo_url']
+        return data
+
+    class Config:
+        from_attributes = True
+
+
+class RoomPhotoResponse(BaseModel):
+    photo_id: Optional[int] = None
+    photo_url: str
+    caption: Optional[str] = None
+    sort_order: int = 0
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_photo(cls, data):
+        if hasattr(data, 'image_url'):
+            return {
+                "photo_id": getattr(data, 'id', None),
+                "photo_url": data.image_url,
+                "caption": getattr(data, 'caption', None),
+                "sort_order": getattr(data, 'display_order', 0)
+            }
+        return data
+
+    class Config:
+        from_attributes = True
+
+
+class AmenityCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    is_active: Optional[bool] = True
+
+
+class AmenityCategoryCreate(AmenityCategoryBase):
+    pass
+
+
+class AmenityCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class AmenityCategoryResponse(AmenityCategoryBase):
+    category_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AmenityBase(BaseModel):
+    category_id: Optional[int] = None
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    price: Optional[Decimal] = Field(default=0.00)
+    is_active: Optional[bool] = True
+
+
+class AmenityCreate(AmenityBase):
+    pass
+
+
+class AmenityUpdate(BaseModel):
+    category_id: Optional[int] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class AmenityResponse(AmenityBase):
+    amenity_id: int
+    category: Optional[AmenityCategoryResponse] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class RoomAmenityItem(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    icon: Optional[str] = None
+    price: Optional[Decimal] = Field(default=0.00)
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    category: Optional[AmenityCategoryResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class GroupedRoomAmenity(BaseModel):
+    category_id: Optional[int] = None
+    category_name: str
+    category_description: Optional[str] = None
+    amenities: List[RoomAmenityItem]
+
+
+class RoomRatePlanBase(BaseModel):
+    rate_name: str
+    rate_code: Optional[str] = None
+    description: Optional[str] = None
+    price: Decimal
+    currency: Optional[str] = "USD"
+    pricing_basis: Optional[str] = "PER_NIGHT"
+    meal_plan: Optional[str] = None
+    cancellation_policy: Optional[str] = None
+    includes_breakfast: Optional[bool] = False
+    includes_wifi: Optional[bool] = False
+    includes_gym: Optional[bool] = False
+    includes_spa: Optional[bool] = False
+    includes_parking: Optional[bool] = False
+    taxes_included: Optional[bool] = False
+    fees_included: Optional[bool] = False
+    refundable: Optional[bool] = False
+    minimum_nights: Optional[int] = 1
+    maximum_nights: Optional[int] = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    is_active: Optional[bool] = True
+
+
+class RoomRatePlanCreate(RoomRatePlanBase):
+    pass
+
+
+class RoomRatePlanUpdate(BaseModel):
+    rate_name: Optional[str] = None
+    rate_code: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[Decimal] = None
+    currency: Optional[str] = None
+    pricing_basis: Optional[str] = None
+    meal_plan: Optional[str] = None
+    cancellation_policy: Optional[str] = None
+    includes_breakfast: Optional[bool] = None
+    includes_wifi: Optional[bool] = None
+    includes_gym: Optional[bool] = None
+    includes_spa: Optional[bool] = None
+    includes_parking: Optional[bool] = None
+    taxes_included: Optional[bool] = None
+    fees_included: Optional[bool] = None
+    refundable: Optional[bool] = None
+    minimum_nights: Optional[int] = None
+    maximum_nights: Optional[int] = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    is_active: Optional[bool] = None
+
+
+class RoomRatePlanResponse(RoomRatePlanBase):
+    rate_id: int
+    room_category_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class PolicyBase(BaseModel):
+    policy_type: str
+    title: str
+    description: Optional[str] = None
+    is_active: Optional[bool] = True
+
+class PolicyCreate(PolicyBase):
+    pass
+
+class PolicyUpdate(BaseModel):
+    policy_type: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class PolicyResponse(PolicyBase):
+    policy_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RoomPolicyBase(BaseModel):
+    policy_id: int
+    value: Optional[str] = None
+    is_active: Optional[bool] = True
+
+
+class RoomPolicyCreate(RoomPolicyBase):
+    pass
+
+
+class RoomPolicyUpdate(BaseModel):
+    policy_id: Optional[int] = None
+    value: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class RoomPolicyResponse(RoomPolicyBase):
+    id: int
+    room_category_id: int
+    policy: PolicyResponse
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RoomCategoryResponse(BaseModel):
+    room_category_id: int
+    category_name: str
+    description: Optional[str] = None
+    base_rate: Decimal
+    room_size: Optional[float] = None
+    room_size_unit: Optional[str] = "m²"
+    max_occupancy: Optional[int] = None
+    is_active: bool
+    amenities: List[GroupedRoomAmenity] = []
+    beds: List[BedItem] = []
+    views: List[str] = []
+    bathroom_features: List[str] = []
+    room_facilities: List[str] = []
+    images: List[ImageItem] = []
+    photos: List[Union[RoomCategoryPhotoResponse, ImageItem]] = []
+    available_rates: List[RoomRatePlanResponse] = []
+    policies: List[RoomPolicyResponse] = []
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_category_orm(cls, data):
+        if isinstance(data, dict):
+            return data
+        
+        if hasattr(data, 'room_category_id'):
+            d = getattr(data, '__dict__', {})
+            beds_val = d.get('beds', []) or []
+            views_raw = d.get('views', []) or []
+            views_val = [v.view_name if hasattr(v, 'view_name') else str(v) for v in views_raw]
+            bf_raw = d.get('bathroom_features', []) or []
+            bf_val = [f.feature_name if hasattr(f, 'feature_name') else str(f) for f in bf_raw]
+            rf_raw = d.get('room_facilities', []) or []
+            rf_val = [f.facility_name if hasattr(f, 'facility_name') else str(f) for f in rf_raw]
+            imgs_val = d.get('images', None) if 'images' in d else (d.get('photos', None) if 'photos' in d else [])
+            if imgs_val is None:
+                imgs_val = []
+                
+            grouped_amenities = []
+            if hasattr(data, 'amenity_assignments') and data.amenity_assignments:
+                cat_dict = {}
+                for assignment in data.amenity_assignments:
+                    am = getattr(assignment, 'amenity', None)
+                    if not am: continue
+                    cat = getattr(am, 'category', None)
+                    
+                    cat_id = cat.category_id if cat else 0
+                    cat_name = cat.name if cat else "Other Room Amenities"
+                    cat_desc = cat.description if cat else None
+                    
+                    if cat_id not in cat_dict:
+                        cat_dict[cat_id] = {
+                            "category_id": cat_id if cat_id != 0 else None,
+                            "category_name": cat_name,
+                            "category_description": cat_desc,
+                            "amenities": []
+                        }
+                    
+                    cat_obj = None
+                    if cat:
+                        cat_obj = {
+                            "category_id": cat.category_id,
+                            "name": cat.name,
+                            "description": cat.description,
+                            "is_active": cat.is_active,
+                            "created_at": getattr(cat, 'created_at', None),
+                            "updated_at": getattr(cat, 'updated_at', None)
+                        }
+
+                    cat_dict[cat_id]["amenities"].append({
+                        "id": am.amenity_id,
+                        "name": am.name,
+                        "description": am.description,
+                        "icon": am.icon,
+                        "price": getattr(am, 'price', 0.00),
+                        "category_id": cat_id if cat_id != 0 else None,
+                        "category_name": cat_name,
+                        "category": cat_obj
+                    })
+                
+                grouped_amenities = sorted(cat_dict.values(), key=lambda x: (x["category_id"] is None, x["category_name"]))
+            
+            final_amenities = grouped_amenities
+
+            rates_val = getattr(data, 'available_rates', []) or []
+            policies_val = getattr(data, 'policies', []) or []
+
+            res = {
+                'room_category_id': data.room_category_id,
+                'category_name': data.category_name,
+                'description': data.description,
+                'base_rate': getattr(data, 'base_rate', getattr(data, 'base_rate_usd', 0)),
+                'room_size': getattr(data, 'room_size', None),
+                'room_size_unit': getattr(data, 'room_size_unit', 'm²'),
+                'max_occupancy': getattr(data, 'max_occupancy', 2),
+                'amenities': final_amenities,
+                'is_active': data.is_active,
+                'beds': beds_val,
+                'views': views_val,
+                'bathroom_features': bf_val,
+                'room_facilities': rf_val,
+                'images': imgs_val,
+                'photos': imgs_val,
+                'available_rates': rates_val,
+                'policies': policies_val
+            }
+            return res
+        return data
+
+    class Config:
+        from_attributes = True
+class RoomResponse(BaseModel):
+    id: int
+    room_id: int
+    room_category_id: int
+    room_number: str
+    room_name: Optional[str] = None
+    building: Optional[str] = None
+    wing: Optional[str] = None
+    floor: Optional[str] = None
+    room_status: str
+    is_active: bool
+
+    @model_validator(mode='before')
+    @classmethod
+    def map_room_orm(cls, data):
+        if isinstance(data, dict):
+            if 'id' not in data and 'room_id' in data:
+                data['id'] = data['room_id']
+            elif 'room_id' not in data and 'id' in data:
+                data['room_id'] = data['id']
+            return data
+        
+        if hasattr(data, 'room_id'):
+            res = {
+                'id': data.room_id,
+                'room_id': data.room_id,
+                'room_category_id': data.room_category_id,
+                'room_number': data.room_number,
+                'room_name': getattr(data, 'room_name', None),
+                'building': getattr(data, 'building', None),
+                'wing': getattr(data, 'wing', None),
+                'floor': getattr(data, 'floor', None),
+                'room_status': data.room_status,
+                'is_active': data.is_active
+            }
+            return res
+        return data
+
+    class Config:
+        from_attributes = True
+
+
+class RoomCategoryCreate(BaseModel):
+    category_name: str
+    description: Optional[str] = None
+    base_rate: Decimal
+    room_size: Optional[float] = Field(None, gt=0)
+    room_size_unit: Optional[str] = "m²"
+    max_occupancy: int = Field(2, gt=0)
+    is_active: bool = True
+    photos: Optional[List[str]] = []
+    beds: List[BedItem] = []
+    views: List[str] = []
+    bathroom_features: List[str] = []
+    room_facilities: List[str] = []
+    images: List[Union[ImageItem, str]] = []
+    amenity_ids: Optional[List[int]] = []
+    amenities: Optional[List[Union[int, dict]]] = []
+    available_rates: Optional[List[RoomRatePlanCreate]] = []
+    rates: Optional[List[RoomRatePlanCreate]] = []
+    price_rates: Optional[List[RoomRatePlanCreate]] = []
+    policy_ids: Optional[List[int]] = []
+    policies: Optional[List[Union[int, RoomPolicyCreate, dict]]] = []
+
+
+class RoomCategoryUpdate(BaseModel):
+    category_name: Optional[str] = None
+    description: Optional[str] = None
+    base_rate: Optional[Decimal] = None
+    room_size: Optional[float] = Field(None, gt=0)
+    room_size_unit: Optional[str] = None
+    max_occupancy: Optional[int] = Field(None, gt=0)
+    is_active: Optional[bool] = None
+    photos: Optional[List[str]] = None
+    beds: Optional[List[BedItem]] = None
+    views: Optional[List[str]] = None
+    bathroom_features: Optional[List[str]] = None
+    room_facilities: Optional[List[str]] = None
+    images: Optional[List[Union[ImageItem, str]]] = None
+    amenity_ids: Optional[List[int]] = None
+    amenities: Optional[List[Union[int, dict]]] = None
+    available_rates: Optional[List[RoomRatePlanCreate]] = None
+    rates: Optional[List[RoomRatePlanCreate]] = None
+    price_rates: Optional[List[RoomRatePlanCreate]] = None
+    policy_ids: Optional[List[int]] = None
+    policies: Optional[List[Union[int, RoomPolicyCreate, dict]]] = None
+
+
+ALLOWED_ROOM_STATUSES = {"Available", "Occupied", "Reserved", "Maintenance", "Out of Service"}
+
+
+class RoomCreate(BaseModel):
+    room_category_id: int
+    room_number: str
+    room_name: Optional[str] = None
+    building: Optional[str] = None
+    wing: Optional[str] = None
+    floor: Optional[str] = None
+    room_status: str = "Available"
+    is_active: bool = True
+
+    @field_validator("room_status")
+    @classmethod
+    def validate_room_status(cls, v):
+        if v not in ALLOWED_ROOM_STATUSES:
+            raise ValueError(f"room_status must be one of: {', '.join(sorted(ALLOWED_ROOM_STATUSES))}")
+        return v
+
+
+class RoomUpdate(BaseModel):
+    room_category_id: Optional[int] = None
+    room_number: Optional[str] = None
+    room_name: Optional[str] = None
+    building: Optional[str] = None
+    wing: Optional[str] = None
+    floor: Optional[str] = None
+    room_status: Optional[str] = None
+    is_active: Optional[bool] = None
+
+    @field_validator("room_status")
+    @classmethod
+    def validate_room_status(cls, v):
+        if v is not None and v not in ALLOWED_ROOM_STATUSES:
+            raise ValueError(f"room_status must be one of: {', '.join(sorted(ALLOWED_ROOM_STATUSES))}")
+        return v
+
+
+
+class GuestReservationDetail(BaseModel):
+    customer_id: int
+    is_child: bool = False
+
+
+class AccommodationReservationCreate(BaseModel):
+    customer_id: int
+    room_id: int
+    check_in_date: date
+    check_out_date: date
+    num_adults: int = 1
+    num_children: int = 0
+    special_requests: Optional[str] = None
+    guests: List[GuestReservationDetail] = []
+
+
+class GuestCheckInDetailCreate(BaseModel):
+    guest_name: str
+    nationality: Optional[str] = None
+    phone_number: Optional[str] = None
+    passport_number: Optional[str] = None
+    is_primary: bool = False
+
+
+class GuestCheckInDetailResponse(BaseModel):
+    checkin_detail_id: int
+    guest_name: str
+    nationality: Optional[str] = None
+    phone_number: Optional[str] = None
+    passport_number: Optional[str] = None
+    nin: Optional[str] = None
+    is_primary: bool
+    is_child: bool
+    customer_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AccommodationReservationUpdate(BaseModel):
+    reservation_status: Optional[str] = None
+    payment_status: Optional[str] = None
+    amount_paid: Optional[Decimal] = None
+
+
+class AccommodationReservationResponse(BaseModel):
+    reservation_id: int
+    customer_id: int
+    room_id: int
+    reservation_code: str
+    check_in_date: date
+    check_out_date: date
+    num_nights: int
+    total_amount: Decimal
+    amount_paid: Decimal
+    balance_due: Decimal
+    reservation_status: str
+    payment_status: str
+    created_at: datetime
+    updated_at: datetime
+    guest_name: Optional[str] = None
+    guest_email: Optional[str] = None
+    guest_details: List[GuestCheckInDetailResponse] = []
+    
+    class Config:
+        from_attributes = True
+
+
+# =====================================================================
+# CONFERENCE SCHEMAS
+# =====================================================================
+
+class ConferenceHallCreate(BaseModel):
+    hall_name: str
+    capacity: int
+    hourly_rate: Optional[Decimal] = None
+    half_day_rate: Optional[Decimal] = None
+    full_day_rate: Optional[Decimal] = None
+    description: Optional[str] = None
+    amenities: Optional[str] = None
+
+
+class ConferenceHallResponse(BaseModel):
+    hall_id: int
+    hall_name: str
+    capacity: int
+    hourly_rate: Optional[Decimal] = None
+    full_day_rate: Optional[Decimal] = None
+    half_day_rate: Optional[Decimal] = None
+    description: Optional[str] = None
+    amenities: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class ConferenceResourceResponse(BaseModel):
+    resource_id: int
+    resource_name: str
+    daily_rate: Decimal
+    quantity: int
+    is_available: bool
+    
+    class Config:
+        from_attributes = True
+
+
+class ConferenceMealPackageResponse(BaseModel):
+    package_id: int
+    package_name: str
+    description: Optional[str] = None
+    price_per_person: Decimal
+    min_participants: int
+    
+    class Config:
+        from_attributes = True
+
+
+class ConferenceResourceBookingCreate(BaseModel):
+    resource_id: int
+    quantity: int = 1
+
+
+class ConferenceMealBookingCreate(BaseModel):
+    package_id: int
+    num_participants: int
+
+
+class ConferenceReservationCreate(BaseModel):
+    customer_id: int
+    hall_id: int
+    event_name: str
+    event_start_date: date
+    event_end_date: date
+    start_time: time
+    end_time: time
+    num_participants: int
+    booking_type: str
+    special_requests: Optional[str] = None
+    resources: Optional[List[ConferenceResourceBookingCreate]] = None
+    meals: Optional[List[ConferenceMealBookingCreate]] = None
+
+
+class ConferenceReservationUpdate(BaseModel):
+    reservation_status: Optional[str] = None
+    payment_status: Optional[str] = None
+    amount_paid: Optional[Decimal] = None
+
+
+class ConferenceReservationResponse(BaseModel):
+    conference_res_id: int
+    customer_id: int
+    hall_id: int
+    reservation_code: str
+    event_name: str
+    event_start_date: date
+    event_end_date: date
+    start_time: time
+    end_time: time
+    booking_type: str
+    num_participants: int
+    total_amount: Decimal
+    amount_paid: Decimal
+    balance_due: Decimal
+    reservation_status: str
+    payment_status: str
+    created_at: datetime
+    updated_at: datetime
+    customer: Optional[CustomerResponse] = None
+    hall: Optional[ConferenceHallResponse] = None
+    
+    class Config:
+        from_attributes = True
+
+
+# =====================================================================
+# PAYMENT SCHEMAS
+# =====================================================================
+
+class PaymentCreate(BaseModel):
+    customer_id: Optional[int] = None
+    payment_type: str  # RestaurantOrder | AccommodationReservation | ConferenceReservation
+    reference_type: str  # RestaurantOrder | AccommodationReservation | ConferenceReservation
+    reference_id: int
+    payment_method: str  # MobileMoney | VISA | FlexPay | BankTransfer
+    amount_paid: Decimal
+    is_deposit: bool = False
+    deposit_percent: Optional[Decimal] = None
+
+
+class PaymentResponse(BaseModel):
+    payment_id: int
+    customer_id: Optional[int] = None
+    payment_type: str
+    reference_type: str
+    reference_id: int
+    payment_method: str
+    amount_paid: Decimal
+    payment_status: str
+    payment_date: datetime
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class PaymentMethodCreate(BaseModel):
+    payment_type: str  # card | mobile_money | digital_wallet
+    provider: str      # Visa | Mastercard | MTN MoMo | Airtel Money | PayPal | Apple Pay | Google Pay
+    nickname: Optional[str] = None
+    
+    # Card fields
+    cardholder_name: Optional[str] = None
+    card_number: Optional[str] = None
+    expiry_month: Optional[int] = None
+    expiry_year: Optional[int] = None
+    billing_address: Optional[str] = None
+    cvv: Optional[str] = None
+    
+    # Mobile Money fields
+    account_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    country_code: Optional[str] = None
+    
+    # PayPal / Digital Wallet fields
+    email: Optional[str] = None
+    wallet_name: Optional[str] = None
+    wallet_token: Optional[str] = None
+    device_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_payment_method(self) -> 'PaymentMethodCreate':
+        # Smart fuzzy normalization of payment type and provider first
+        ptype_raw = self.payment_type or ""
+        prov_raw = self.provider or ""
+        
+        ptype_clean = ptype_raw.lower().strip().replace(" ", "").replace("_", "")
+        prov_clean = prov_raw.lower().strip().replace(" ", "").replace("_", "")
+        
+        detected_type = None
+        detected_provider = None
+        
+        # 1. Card check
+        if "visa" in ptype_clean or "visa" in prov_clean:
+            detected_type = "card"
+            detected_provider = "Visa"
+        elif "mastercard" in ptype_clean or "mastercard" in prov_clean:
+            detected_type = "card"
+            detected_provider = "Mastercard"
+        elif ptype_clean == "card":
+            detected_type = "card"
+            if prov_clean == "mastercard":
+                detected_provider = "Mastercard"
+            else:
+                detected_provider = "Visa"
+                
+        # 2. Mobile Money check
+        elif "mtn" in ptype_clean or "mtn" in prov_clean or "momo" in ptype_clean or "momo" in prov_clean:
+            detected_type = "mobile_money"
+            detected_provider = "MTN MoMo"
+        elif "airtel" in ptype_clean or "airtel" in prov_clean:
+            detected_type = "mobile_money"
+            detected_provider = "Airtel Money"
+        elif ptype_clean in ["mobilemoney", "mobile_money"]:
+            detected_type = "mobile_money"
+            if "airtel" in prov_clean:
+                detected_provider = "Airtel Money"
+            else:
+                detected_provider = "MTN MoMo"
+                
+        # 3. Digital Wallet check
+        elif "paypal" in ptype_clean or "paypal" in prov_clean or "pay" in ptype_clean or "pay" in prov_clean:
+            detected_type = "digital_wallet"
+            if "apple" in prov_clean or "apple" in ptype_clean:
+                detected_provider = "Apple Pay"
+            elif "google" in prov_clean or "google" in ptype_clean:
+                detected_provider = "Google Pay"
+            else:
+                detected_provider = "PayPal"
+        elif ptype_clean in ["digitalwallet", "digital_wallet", "wallet"]:
+            detected_type = "digital_wallet"
+            if "apple" in prov_clean:
+                detected_provider = "Apple Pay"
+            elif "google" in prov_clean:
+                detected_provider = "Google Pay"
+            else:
+                detected_provider = "PayPal"
+                
+        if detected_type:
+            self.payment_type = detected_type
+        if detected_provider:
+            self.provider = detected_provider
+            
+        ptype = self.payment_type
+        prov = self.provider
+
+        # Now clean Swagger placeholders for fields NOT relevant or NOT required for the active payment type:
+        always_clean = ["nickname", "billing_address", "country_code", "wallet_name"]
+        fields_to_clean = list(always_clean)
+        
+        if ptype == "card":
+            fields_to_clean.extend(["account_name", "phone_number", "email", "wallet_token", "device_id"])
+        elif ptype == "mobile_money":
+            fields_to_clean.extend(["cardholder_name", "card_number", "cvv", "email", "wallet_token", "device_id"])
+        elif ptype == "digital_wallet":
+            fields_to_clean.extend(["cardholder_name", "card_number", "cvv", "account_name", "phone_number"])
+            if prov == "PayPal":
+                fields_to_clean.extend(["wallet_token", "device_id"])
+            else: # Apple/Google Pay
+                fields_to_clean.extend(["email"])
+                
+        for field in fields_to_clean:
+            val = getattr(self, field, None)
+            if val is not None:
+                val_str = str(val).strip()
+                if val_str.lower() == "string" or val_str == "":
+                    setattr(self, field, None)
+        
+        # General validations
+        if ptype not in ["card", "mobile_money", "digital_wallet"]:
+            raise ValueError(f"Invalid payment_type: {ptype_raw} (Cleaned: {ptype})")
+            
+        if ptype == "card":
+            if prov not in ["Visa", "Mastercard"]:
+                raise ValueError("Card provider must be Visa or Mastercard")
+            if not self.cardholder_name:
+                raise ValueError("cardholder_name is required for card payments")
+            if not self.card_number:
+                raise ValueError("card_number is required for card payments")
+            if self.expiry_month is None:
+                raise ValueError("expiry_month is required for card payments")
+            if self.expiry_year is None:
+                raise ValueError("expiry_year is required for card payments")
+                
+            from app.utils.validation import validate_card_details
+            is_valid, err = validate_card_details(self.card_number, self.expiry_month, self.expiry_year)
+            if not is_valid:
+                raise ValueError(err)
+                
+        elif ptype == "mobile_money":
+            if prov not in ["MTN MoMo", "Airtel Money"]:
+                raise ValueError("Mobile money provider must be MTN MoMo or Airtel Money")
+            if not self.account_name:
+                raise ValueError("account_name is required for mobile money")
+            if not self.phone_number:
+                raise ValueError("phone_number is required for mobile money")
+                
+            from app.utils.validation import validate_mobile_money
+            is_valid, err, normalized = validate_mobile_money(self.phone_number, prov, self.country_code)
+            if not is_valid:
+                raise ValueError(err)
+            self.phone_number = normalized
+                
+        elif ptype == "digital_wallet":
+            if prov not in ["PayPal", "Apple Pay", "Google Pay"]:
+                raise ValueError("Digital wallet provider must be PayPal, Apple Pay, or Google Pay")
+                
+            if prov == "PayPal":
+                if not self.email:
+                    raise ValueError("email is required for PayPal")
+                from app.utils.validation import validate_paypal_email
+                is_valid, err = validate_paypal_email(self.email)
+                if not is_valid:
+                    raise ValueError(err)
+            else: # Apple Pay or Google Pay
+                if not self.wallet_token:
+                    raise ValueError("wallet_token is required for digital wallets")
+                if not self.device_id:
+                    raise ValueError("device_id is required for digital wallets")
+                    
+        return self
+
+
+class PaymentMethodUpdate(BaseModel):
+    nickname: Optional[str] = None
+    is_default: Optional[bool] = None
+    
+    # Expiry/billing updates for card
+    expiry_month: Optional[int] = None
+    expiry_year: Optional[int] = None
+    billing_address: Optional[str] = None
+    cvv: Optional[str] = None
+    
+    # Mobile money updates
+    account_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    country_code: Optional[str] = None
+    
+    # Digital wallet updates
+    email: Optional[str] = None
+    wallet_name: Optional[str] = None
+    wallet_token: Optional[str] = None
+    device_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_expiry_and_details(self) -> 'PaymentMethodUpdate':
+        # Auto-convert Swagger default "string" and empty values to None
+        for field in ["nickname", "billing_address", "account_name", "phone_number", "country_code", "email", "wallet_name", "wallet_token", "device_id", "cvv"]:
+            val = getattr(self, field, None)
+            if val is not None:
+                val_str = str(val).strip()
+                if val_str.lower() == "string" or val_str == "":
+                    setattr(self, field, None)
+
+        # Auto-convert Swagger default 0 values to None
+        if self.expiry_month == 0:
+            self.expiry_month = None
+        if self.expiry_year == 0:
+            self.expiry_year = None
+
+        if self.expiry_month is not None or self.expiry_year is not None:
+            if self.expiry_month is None or self.expiry_year is None:
+                raise ValueError("Both expiry_month and expiry_year must be provided to update expiry")
+            if not (1 <= self.expiry_month <= 12):
+                raise ValueError("Expiry month must be between 1 and 12")
+            now = datetime.now()
+            year = self.expiry_year + 2000 if self.expiry_year < 100 else self.expiry_year
+            if year < now.year or (year == now.year and self.expiry_month < now.month):
+                raise ValueError("New expiry date cannot be in the past")
+                
+        # Validate/normalize phone if provided
+        if self.phone_number:
+            from app.utils.validation import validate_mobile_money
+            is_valid, err, normalized = validate_mobile_money(self.phone_number, "MTN MoMo", self.country_code)
+            if not is_valid:
+                raise ValueError(err)
+            self.phone_number = normalized
+            
+        # Validate email if provided
+        if self.email:
+            from app.utils.validation import validate_paypal_email
+            is_valid, err = validate_paypal_email(self.email)
+            if not is_valid:
+                raise ValueError(err)
+                
+        return self
+
+
+class PaymentMethodResponse(BaseModel):
+    id: int
+    user_id: int
+    payment_type: str
+    provider: str
+    nickname: Optional[str] = None
+    is_default: bool
+    is_verified: bool
+    status: str
+    created_at: datetime
+    updated_at: datetime
+    
+    # Card details (optional)
+    display_name: Optional[str] = None
+    masked_card_number: Optional[str] = None
+    expiry_month: Optional[int] = None
+    expiry_year: Optional[int] = None
+    billing_address: Optional[str] = None
+    
+    # Mobile money details (optional)
+    account_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    country_code: Optional[str] = None
+    
+    # PayPal / digital wallet details (optional)
+    email: Optional[str] = None
+    wallet_name: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_details(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return data
+            
+        res = {
+            "id": data.id,
+            "user_id": data.user_id,
+            "payment_type": data.payment_type,
+            "provider": data.provider,
+            "nickname": data.nickname,
+            "is_default": data.is_default,
+            "is_verified": data.is_verified,
+            "status": data.status,
+            "created_at": data.created_at,
+            "updated_at": data.updated_at,
+        }
+        
+        # Parse details
+        import json
+        details_dict = {}
+        if data.details:
+            try:
+                details_dict = json.loads(data.details) if isinstance(data.details, str) else data.details
+            except Exception:
+                pass
+                
+        res.update(details_dict)
+        return res
+
+    class Config:
+        from_attributes = True
+
+
+# =====================================================================
+# REVIEW SCHEMAS
+# =====================================================================
+
+class CustomerReviewCreate(BaseModel):
+    review_type: str
+    reference_id: int
+    rating: int = Field(ge=1, le=5)
+    comment: Optional[str] = None
+
+
+class CustomerReviewResponse(BaseModel):
+    review_id: int
+    customer_id: int
+    review_type: str
+    reference_id: int
+    rating: int
+    comment: Optional[str] = None
+    management_reply: Optional[str] = None
+    is_published: bool
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# =====================================================================
+# ERROR RESPONSE SCHEMA
+# =====================================================================
+
+class ErrorResponse(BaseModel):
+    detail: str
+    status_code: int
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+# =====================================================================
+# PASSWORD RESET SCHEMAS
+# =====================================================================
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordConfirm(BaseModel):
+    token: str
+    new_password: str
+
+
+# =====================================================================
+# HOTEL DETAILS SCHEMAS & STANDARD RESPONSE
+# =====================================================================
+import re
+from typing import Generic, TypeVar
+
+T = TypeVar("T")
+
+class StandardResponse(BaseModel, Generic[T]):
+    success: bool = True
+    message: str = ""
+    data: Optional[T] = None
+
+
+class HotelDetailsResponse(BaseModel):
+    id: int
+    hotel_name: str
+    description: Optional[str] = None
+    phone_number: str
+    alternative_phone_number: Optional[str] = None
+    email: str
+    website: Optional[str] = None
+    physical_address: str
+    city: str
+    country: str
+    postal_code: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    google_maps_pin: Optional[str] = None
+    logo_url: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    facebook_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    x_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    youtube_url: Optional[str] = None
+    check_in_time: Optional[str] = None
+    check_out_time: Optional[str] = None
+    currency: str
+    timezone: str
+    vat_rate: Optional[Decimal] = Decimal("18.00")
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    created_by: Optional[int] = None
+    updated_by: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class HotelDetailsCreate(BaseModel):
+    hotel_name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    phone_number: str = Field(..., min_length=7, max_length=50)
+    alternative_phone_number: Optional[str] = None
+    email: EmailStr
+    website: Optional[str] = None
+    physical_address: str = Field(..., min_length=1)
+    city: str = Field(..., min_length=1, max_length=100)
+    country: str = Field(..., min_length=1, max_length=100)
+    postal_code: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    google_maps_pin: Optional[str] = None
+    facebook_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    x_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    youtube_url: Optional[str] = None
+    check_in_time: Optional[str] = None
+    check_out_time: Optional[str] = None
+    currency: str = "USD"
+    timezone: str = "UTC"
+    vat_rate: Optional[Decimal] = Decimal("18.00")
+    is_active: bool = True
+
+    @field_validator("latitude")
+    @classmethod
+    def validate_latitude(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and (v < -90 or v > 90):
+            raise ValueError("Latitude must be between -90 and 90")
+        return v
+
+    @field_validator("longitude")
+    @classmethod
+    def validate_longitude(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and (v < -180 or v > 180):
+            raise ValueError("Longitude must be between -180 and 180")
+        return v
+
+    @field_validator("website", "facebook_url", "instagram_url", "x_url", "linkedin_url", "youtube_url")
+    @classmethod
+    def validate_urls(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        url_regex = re.compile(
+            r'^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        )
+        if not url_regex.match(v):
+            raise ValueError("Invalid URL format (must start with http:// or https://)")
+        return v
+
+    @field_validator("phone_number", "alternative_phone_number")
+    @classmethod
+    def validate_phones(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        phone_regex = re.compile(r'^\+?[0-9\s\-\(\)\.]{7,25}$')
+        if not phone_regex.match(v):
+            raise ValueError("Invalid phone number format")
+        return v
+
+
+class HotelDetailsUpdate(BaseModel):
+    hotel_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    phone_number: Optional[str] = Field(None, min_length=7, max_length=50)
+    alternative_phone_number: Optional[str] = None
+    email: Optional[EmailStr] = None
+    website: Optional[str] = None
+    physical_address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    postal_code: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    google_maps_pin: Optional[str] = None
+    facebook_url: Optional[str] = None
+    instagram_url: Optional[str] = None
+    x_url: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    youtube_url: Optional[str] = None
+    check_in_time: Optional[str] = None
+    check_out_time: Optional[str] = None
+    currency: Optional[str] = None
+    timezone: Optional[str] = None
+    vat_rate: Optional[Decimal] = None
+    is_active: Optional[bool] = None
+
+    @field_validator("latitude")
+    @classmethod
+    def validate_latitude(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and (v < -90 or v > 90):
+            raise ValueError("Latitude must be between -90 and 90")
+        return v
+
+    @field_validator("longitude")
+    @classmethod
+    def validate_longitude(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and (v < -180 or v > 180):
+            raise ValueError("Longitude must be between -180 and 180")
+        return v
+
+    @field_validator("website", "facebook_url", "instagram_url", "x_url", "linkedin_url", "youtube_url")
+    @classmethod
+    def validate_urls(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        url_regex = re.compile(
+            r'^https?://[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        )
+        if not url_regex.match(v):
+            raise ValueError("Invalid URL format (must start with http:// or https://)")
+        return v
+
+    @field_validator("phone_number", "alternative_phone_number")
+    @classmethod
+    def validate_phones(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        phone_regex = re.compile(r'^\+?[0-9\s\-\(\)\.]{7,25}$')
+        if not phone_regex.match(v):
+            raise ValueError("Invalid phone number format")
+        return v
+
+
+# =====================================================================
+# NOTIFICATION SCHEMAS
+# =====================================================================
+
+from uuid import UUID
+
+class NotificationEventResponse(BaseModel):
+    id: UUID
+    event_type: str
+    reference_type: Optional[str] = None
+    reference_id: Optional[str] = None
+    triggered_by: Optional[int] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationResponse(BaseModel):
+    id: UUID
+    event_id: Optional[UUID] = None
+    recipient_id: int
+    title: str
+    message: str
+    notification_type: Optional[str] = None
+    category: str
+    priority: str
+    channel: str
+    status: str
+    is_read: Optional[bool] = False
+    read_at: Optional[datetime] = None
+    action_url: Optional[str] = None
+    reference_type: Optional[str] = None
+    reference_id: Optional[str] = None
+    email_sent: Optional[bool] = False
+    email_sent_at: Optional[datetime] = None
+    created_at: datetime
+    expires_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationPreferenceResponse(BaseModel):
+    id: UUID
+    user_id: int
+    email_enabled: Optional[bool] = True
+    in_app_enabled: Optional[bool] = True
+    reservation_notifications: Optional[bool] = True
+    order_notifications: Optional[bool] = True
+    payment_notifications: Optional[bool] = True
+    security_notifications: Optional[bool] = True
+    marketing_notifications: Optional[bool] = True
+    system_notifications: Optional[bool] = True
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class NotificationPreferenceUpdate(BaseModel):
+    email_enabled: Optional[bool] = None
+    in_app_enabled: Optional[bool] = None
+    reservation_notifications: Optional[bool] = None
+    order_notifications: Optional[bool] = None
+    payment_notifications: Optional[bool] = None
+    security_notifications: Optional[bool] = None
+    marketing_notifications: Optional[bool] = None
+    system_notifications: Optional[bool] = None
+
+
+class AdminSendNotificationRequest(BaseModel):
+    recipient_id: int
+    title: str
+    message: str
+    notification_type: Optional[str] = "AdminAlert"
+    category: Optional[str] = "General"
+    priority: Optional[str] = "NORMAL"
+    channel: Optional[str] = "IN_APP"  # IN_APP, EMAIL
+    action_url: Optional[str] = None
+
+
+class AdminBroadcastNotificationRequest(BaseModel):
+    recipient_group: str  # all_customers, all_managers, all_staff, all_admins, role_name
+    role_name: Optional[str] = None
+    title: str
+    message: str
+    category: Optional[str] = "General"
+    priority: Optional[str] = "NORMAL"
+    channel: Optional[str] = "IN_APP"  # IN_APP, EMAIL
+    action_url: Optional[str] = None
+
+
+class NotificationStatistics(BaseModel):
+    total_count: int
+    unread_count: int
+    read_count: int
+    archived_count: int
+    deleted_count: int
+    category_counts: dict
+

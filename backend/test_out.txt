@@ -1,0 +1,374 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-7.4.3, pluggy-1.6.0 -- /home/heinrich/Documents/seyeya/seyeya/backend/venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/heinrich/Documents/seyeya/seyeya/backend
+plugins: asyncio-0.21.1, anyio-3.7.1
+asyncio: mode=Mode.STRICT
+collecting ... collected 2 items
+
+tests/test_room_refactor.py::test_room_category_apis FAILED              [ 50%]
+tests/test_room_refactor.py::test_all_room_apis FAILED                   [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_room_category_apis ____________________________
+tests/test_room_refactor.py:24: in test_room_category_apis
+    cat_list_res = await async_client.get("/api/v1/accommodation/categories", headers=headers)
+venv/lib/python3.12/site-packages/httpx/_client.py:1757: in get
+    return await self.request(
+venv/lib/python3.12/site-packages/httpx/_client.py:1530: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+venv/lib/python3.12/site-packages/httpx/_client.py:1617: in send
+    response = await self._send_handling_auth(
+venv/lib/python3.12/site-packages/httpx/_client.py:1645: in _send_handling_auth
+    response = await self._send_handling_redirects(
+venv/lib/python3.12/site-packages/httpx/_client.py:1682: in _send_handling_redirects
+    response = await self._send_single_request(request)
+venv/lib/python3.12/site-packages/httpx/_client.py:1719: in _send_single_request
+    response = await transport.handle_async_request(request)
+venv/lib/python3.12/site-packages/httpx/_transports/asgi.py:162: in handle_async_request
+    await self.app(scope, receive, send)
+venv/lib/python3.12/site-packages/fastapi/applications.py:1106: in __call__
+    await super().__call__(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/applications.py:122: in __call__
+    await self.middleware_stack(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/middleware/errors.py:184: in __call__
+    raise exc
+venv/lib/python3.12/site-packages/starlette/middleware/errors.py:162: in __call__
+    await self.app(scope, receive, _send)
+venv/lib/python3.12/site-packages/starlette/middleware/cors.py:83: in __call__
+    await self.app(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:79: in __call__
+    raise exc
+venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:68: in __call__
+    await self.app(scope, receive, sender)
+venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:20: in __call__
+    raise e
+venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:17: in __call__
+    await self.app(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/routing.py:718: in __call__
+    await route.handle(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/routing.py:276: in handle
+    await self.app(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/routing.py:66: in app
+    response = await func(request)
+venv/lib/python3.12/site-packages/fastapi/routing.py:292: in app
+    content = await serialize_response(
+venv/lib/python3.12/site-packages/fastapi/routing.py:155: in serialize_response
+    raise ResponseValidationError(
+E   fastapi.exceptions.ResponseValidationError: 11 validation errors:
+E     {'type': 'int_type', 'loc': ('response', 0, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'int_type', 'loc': ('response', 1, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'int_type', 'loc': ('response', 2, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'int_type', 'loc': ('response', 3, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'int_type', 'loc': ('response', 4, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'int_type', 'loc': ('response', 5, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'int_type', 'loc': ('response', 6, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'int_type', 'loc': ('response', 7, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'int_type', 'loc': ('response', 8, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'int_type', 'loc': ('response', 9, 'max_occupancy'), 'msg': 'Input should be a valid integer', 'input': None, 'url': 'https://errors.pydantic.dev/2.5/v/int_type'}
+E     {'type': 'missing', 'loc': ('response', 12, 'available_rates', 0, 'room_id'), 'msg': 'Field required', 'input': <app.models.RoomRatePlan object at 0x7dd0edb3ba70>, 'url': 'https://errors.pydantic.dev/2.5/v/missing'}
+----------------------------- Captured stdout call -----------------------------
+2026-08-29 11:47:47,156 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+2026-08-29 11:47:47,157 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-08-29 11:47:48,052 INFO sqlalchemy.engine.Engine select current_schema()
+2026-08-29 11:47:48,052 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-08-29 11:47:49,007 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+2026-08-29 11:47:49,008 INFO sqlalchemy.engine.Engine [raw sql] ()
+2026-08-29 11:47:49,655 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-08-29 11:47:49,658 INFO sqlalchemy.engine.Engine SELECT room_categories.room_category_id, room_categories.category_name, room_categories.description, room_categories.base_rate_usd, room_categories.room_size, room_categories.room_size_unit, room_categories.max_occupancy, room_categories.is_active, room_categories.created_at 
+FROM room_categories ORDER BY room_categories.room_category_id
+2026-08-29 11:47:49,658 INFO sqlalchemy.engine.Engine [generated in 0.00015s] ()
+2026-08-29 11:47:50,307 INFO sqlalchemy.engine.Engine SELECT room_category_photos.room_category_id AS room_category_photos_room_category_id, room_category_photos.photo_id AS room_category_photos_photo_id, room_category_photos.photo_url AS room_category_photos_photo_url, room_category_photos.created_at AS room_category_photos_created_at 
+FROM room_category_photos 
+WHERE room_category_photos.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+2026-08-29 11:47:50,307 INFO sqlalchemy.engine.Engine [generated in 0.00031s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+2026-08-29 11:47:50,745 INFO sqlalchemy.engine.Engine SELECT room_beds.room_category_id AS room_beds_room_category_id, room_beds.id AS room_beds_id, room_beds.bed_type AS room_beds_bed_type, room_beds.quantity AS room_beds_quantity 
+FROM room_beds 
+WHERE room_beds.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+2026-08-29 11:47:50,745 INFO sqlalchemy.engine.Engine [generated in 0.00033s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+2026-08-29 11:47:51,179 INFO sqlalchemy.engine.Engine SELECT room_views.room_category_id AS room_views_room_category_id, room_views.id AS room_views_id, room_views.view_name AS room_views_view_name 
+FROM room_views 
+WHERE room_views.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+2026-08-29 11:47:51,179 INFO sqlalchemy.engine.Engine [generated in 0.00037s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+2026-08-29 11:47:51,625 INFO sqlalchemy.engine.Engine SELECT room_bathroom_features.room_category_id AS room_bathroom_features_room_category_id, room_bathroom_features.id AS room_bathroom_features_id, room_bathroom_features.feature_name AS room_bathroom_features_feature_name 
+FROM room_bathroom_features 
+WHERE room_bathroom_features.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+2026-08-29 11:47:51,625 INFO sqlalchemy.engine.Engine [generated in 0.00029s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+2026-08-29 11:47:52,150 INFO sqlalchemy.engine.Engine SELECT room_facilities.room_category_id AS room_facilities_room_category_id, room_facilities.id AS room_facilities_id, room_facilities.facility_name AS room_facilities_facility_name 
+FROM room_facilities 
+WHERE room_facilities.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+2026-08-29 11:47:52,150 INFO sqlalchemy.engine.Engine [generated in 0.00038s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+2026-08-29 11:47:52,585 INFO sqlalchemy.engine.Engine SELECT room_images.room_category_id AS room_images_room_category_id, room_images.id AS room_images_id, room_images.image_url AS room_images_image_url, room_images.display_order AS room_images_display_order, room_images.is_primary AS room_images_is_primary, room_images.caption AS room_images_caption, room_images.created_at AS room_images_created_at 
+FROM room_images 
+WHERE room_images.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+2026-08-29 11:47:52,585 INFO sqlalchemy.engine.Engine [generated in 0.00038s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+2026-08-29 11:47:53,094 INFO sqlalchemy.engine.Engine SELECT room_amenities.room_category_id AS room_amenities_room_category_id, room_amenities.id AS room_amenities_id, room_amenities.amenity_id AS room_amenities_amenity_id, room_amenities.value AS room_amenities_value, room_amenities.created_at AS room_amenities_created_at, room_amenities.updated_at AS room_amenities_updated_at 
+FROM room_amenities 
+WHERE room_amenities.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+2026-08-29 11:47:53,094 INFO sqlalchemy.engine.Engine [generated in 0.00024s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+2026-08-29 11:47:53,687 INFO sqlalchemy.engine.Engine SELECT room_rate_plans.room_category_id AS room_rate_plans_room_category_id, room_rate_plans.rate_id AS room_rate_plans_rate_id, room_rate_plans.rate_name AS room_rate_plans_rate_name, room_rate_plans.rate_code AS room_rate_plans_rate_code, room_rate_plans.description AS room_rate_plans_description, room_rate_plans.price AS room_rate_plans_price, room_rate_plans.currency AS room_rate_plans_currency, room_rate_plans.pricing_basis AS room_rate_plans_pricing_basis, room_rate_plans.meal_plan AS room_rate_plans_meal_plan, room_rate_plans.cancellation_policy AS room_rate_plans_cancellation_policy, room_rate_plans.includes_breakfast AS room_rate_plans_includes_breakfast, room_rate_plans.includes_wifi AS room_rate_plans_includes_wifi, room_rate_plans.includes_gym AS room_rate_plans_includes_gym, room_rate_plans.includes_spa AS room_rate_plans_includes_spa, room_rate_plans.includes_parking AS room_rate_plans_includes_parking, room_rate_plans.taxes_included AS room_rate_plans_taxes_included, room_rate_plans.fees_included AS room_rate_plans_fees_included, room_rate_plans.refundable AS room_rate_plans_refundable, room_rate_plans.minimum_nights AS room_rate_plans_minimum_nights, room_rate_plans.maximum_nights AS room_rate_plans_maximum_nights, room_rate_plans.valid_from AS room_rate_plans_valid_from, room_rate_plans.valid_to AS room_rate_plans_valid_to, room_rate_plans.is_active AS room_rate_plans_is_active, room_rate_plans.created_at AS room_rate_plans_created_at, room_rate_plans.updated_at AS room_rate_plans_updated_at 
+FROM room_rate_plans 
+WHERE room_rate_plans.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+2026-08-29 11:47:53,687 INFO sqlalchemy.engine.Engine [generated in 0.00029s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+2026-08-29 11:47:54,300 INFO sqlalchemy.engine.Engine SELECT room_policies.room_category_id AS room_policies_room_category_id, room_policies.policy_id AS room_policies_policy_id, room_policies.policy_type AS room_policies_policy_type, room_policies.title AS room_policies_title, room_policies.description AS room_policies_description, room_policies.value AS room_policies_value, room_policies.is_active AS room_policies_is_active, room_policies.created_at AS room_policies_created_at, room_policies.updated_at AS room_policies_updated_at 
+FROM room_policies 
+WHERE room_policies.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+2026-08-29 11:47:54,300 INFO sqlalchemy.engine.Engine [generated in 0.00030s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+2026-08-29 11:47:54,916 INFO sqlalchemy.engine.Engine SELECT amenities.amenity_id AS amenities_amenity_id, amenities.category_id AS amenities_category_id, amenities.name AS amenities_name, amenities.description AS amenities_description, amenities.icon AS amenities_icon, amenities.price AS amenities_price, amenities.is_active AS amenities_is_active, amenities.created_at AS amenities_created_at, amenities.updated_at AS amenities_updated_at 
+FROM amenities 
+WHERE amenities.amenity_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER)
+2026-08-29 11:47:54,916 INFO sqlalchemy.engine.Engine [generated in 0.00022s] (26, 27, 28)
+2026-08-29 11:47:55,354 INFO sqlalchemy.engine.Engine SELECT amenity_categories.category_id AS amenity_categories_category_id, amenity_categories.name AS amenity_categories_name, amenity_categories.description AS amenity_categories_description, amenity_categories.is_active AS amenity_categories_is_active, amenity_categories.created_at AS amenity_categories_created_at, amenity_categories.updated_at AS amenity_categories_updated_at 
+FROM amenity_categories 
+WHERE amenity_categories.category_id IN ($1::INTEGER)
+2026-08-29 11:47:55,354 INFO sqlalchemy.engine.Engine [generated in 0.00026s] (10,)
+2026-08-29 11:47:55,835 INFO sqlalchemy.engine.Engine ROLLBACK
+------------------------------ Captured log call -------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:1848 select pg_catalog.version()
+INFO     sqlalchemy.engine.Engine:base.py:1848 [raw sql] ()
+INFO     sqlalchemy.engine.Engine:base.py:1848 select current_schema()
+INFO     sqlalchemy.engine.Engine:base.py:1848 [raw sql] ()
+INFO     sqlalchemy.engine.Engine:base.py:1848 show standard_conforming_strings
+INFO     sqlalchemy.engine.Engine:base.py:1848 [raw sql] ()
+INFO     sqlalchemy.engine.Engine:base.py:2689 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_categories.room_category_id, room_categories.category_name, room_categories.description, room_categories.base_rate_usd, room_categories.room_size, room_categories.room_size_unit, room_categories.max_occupancy, room_categories.is_active, room_categories.created_at 
+FROM room_categories ORDER BY room_categories.room_category_id
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00015s] ()
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_category_photos.room_category_id AS room_category_photos_room_category_id, room_category_photos.photo_id AS room_category_photos_photo_id, room_category_photos.photo_url AS room_category_photos_photo_url, room_category_photos.created_at AS room_category_photos_created_at 
+FROM room_category_photos 
+WHERE room_category_photos.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00031s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_beds.room_category_id AS room_beds_room_category_id, room_beds.id AS room_beds_id, room_beds.bed_type AS room_beds_bed_type, room_beds.quantity AS room_beds_quantity 
+FROM room_beds 
+WHERE room_beds.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00033s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_views.room_category_id AS room_views_room_category_id, room_views.id AS room_views_id, room_views.view_name AS room_views_view_name 
+FROM room_views 
+WHERE room_views.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00037s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_bathroom_features.room_category_id AS room_bathroom_features_room_category_id, room_bathroom_features.id AS room_bathroom_features_id, room_bathroom_features.feature_name AS room_bathroom_features_feature_name 
+FROM room_bathroom_features 
+WHERE room_bathroom_features.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00029s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_facilities.room_category_id AS room_facilities_room_category_id, room_facilities.id AS room_facilities_id, room_facilities.facility_name AS room_facilities_facility_name 
+FROM room_facilities 
+WHERE room_facilities.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00038s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_images.room_category_id AS room_images_room_category_id, room_images.id AS room_images_id, room_images.image_url AS room_images_image_url, room_images.display_order AS room_images_display_order, room_images.is_primary AS room_images_is_primary, room_images.caption AS room_images_caption, room_images.created_at AS room_images_created_at 
+FROM room_images 
+WHERE room_images.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00038s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_amenities.room_category_id AS room_amenities_room_category_id, room_amenities.id AS room_amenities_id, room_amenities.amenity_id AS room_amenities_amenity_id, room_amenities.value AS room_amenities_value, room_amenities.created_at AS room_amenities_created_at, room_amenities.updated_at AS room_amenities_updated_at 
+FROM room_amenities 
+WHERE room_amenities.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00024s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_rate_plans.room_category_id AS room_rate_plans_room_category_id, room_rate_plans.rate_id AS room_rate_plans_rate_id, room_rate_plans.rate_name AS room_rate_plans_rate_name, room_rate_plans.rate_code AS room_rate_plans_rate_code, room_rate_plans.description AS room_rate_plans_description, room_rate_plans.price AS room_rate_plans_price, room_rate_plans.currency AS room_rate_plans_currency, room_rate_plans.pricing_basis AS room_rate_plans_pricing_basis, room_rate_plans.meal_plan AS room_rate_plans_meal_plan, room_rate_plans.cancellation_policy AS room_rate_plans_cancellation_policy, room_rate_plans.includes_breakfast AS room_rate_plans_includes_breakfast, room_rate_plans.includes_wifi AS room_rate_plans_includes_wifi, room_rate_plans.includes_gym AS room_rate_plans_includes_gym, room_rate_plans.includes_spa AS room_rate_plans_includes_spa, room_rate_plans.includes_parking AS room_rate_plans_includes_parking, room_rate_plans.taxes_included AS room_rate_plans_taxes_included, room_rate_plans.fees_included AS room_rate_plans_fees_included, room_rate_plans.refundable AS room_rate_plans_refundable, room_rate_plans.minimum_nights AS room_rate_plans_minimum_nights, room_rate_plans.maximum_nights AS room_rate_plans_maximum_nights, room_rate_plans.valid_from AS room_rate_plans_valid_from, room_rate_plans.valid_to AS room_rate_plans_valid_to, room_rate_plans.is_active AS room_rate_plans_is_active, room_rate_plans.created_at AS room_rate_plans_created_at, room_rate_plans.updated_at AS room_rate_plans_updated_at 
+FROM room_rate_plans 
+WHERE room_rate_plans.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00029s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_policies.room_category_id AS room_policies_room_category_id, room_policies.policy_id AS room_policies_policy_id, room_policies.policy_type AS room_policies_policy_type, room_policies.title AS room_policies_title, room_policies.description AS room_policies_description, room_policies.value AS room_policies_value, room_policies.is_active AS room_policies_is_active, room_policies.created_at AS room_policies_created_at, room_policies.updated_at AS room_policies_updated_at 
+FROM room_policies 
+WHERE room_policies.room_category_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER, $4::INTEGER, $5::INTEGER, $6::INTEGER, $7::INTEGER, $8::INTEGER, $9::INTEGER, $10::INTEGER, $11::INTEGER, $12::INTEGER, $13::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00030s] (1, 2, 3, 4, 29, 31, 32, 35, 37, 38, 39, 40, 41)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT amenities.amenity_id AS amenities_amenity_id, amenities.category_id AS amenities_category_id, amenities.name AS amenities_name, amenities.description AS amenities_description, amenities.icon AS amenities_icon, amenities.price AS amenities_price, amenities.is_active AS amenities_is_active, amenities.created_at AS amenities_created_at, amenities.updated_at AS amenities_updated_at 
+FROM amenities 
+WHERE amenities.amenity_id IN ($1::INTEGER, $2::INTEGER, $3::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00022s] (26, 27, 28)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT amenity_categories.category_id AS amenity_categories_category_id, amenity_categories.name AS amenity_categories_name, amenity_categories.description AS amenity_categories_description, amenity_categories.is_active AS amenity_categories_is_active, amenity_categories.created_at AS amenity_categories_created_at, amenity_categories.updated_at AS amenity_categories_updated_at 
+FROM amenity_categories 
+WHERE amenity_categories.category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00026s] (10,)
+INFO     sqlalchemy.engine.Engine:base.py:2692 ROLLBACK
+______________________________ test_all_room_apis ______________________________
+tests/test_room_refactor.py:103: in test_all_room_apis
+    avail_res = await async_client.get("/api/v1/accommodation/rooms?check_in=2026-09-01&check_out=2026-09-05")
+venv/lib/python3.12/site-packages/httpx/_client.py:1757: in get
+    return await self.request(
+venv/lib/python3.12/site-packages/httpx/_client.py:1530: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+venv/lib/python3.12/site-packages/httpx/_client.py:1617: in send
+    response = await self._send_handling_auth(
+venv/lib/python3.12/site-packages/httpx/_client.py:1645: in _send_handling_auth
+    response = await self._send_handling_redirects(
+venv/lib/python3.12/site-packages/httpx/_client.py:1682: in _send_handling_redirects
+    response = await self._send_single_request(request)
+venv/lib/python3.12/site-packages/httpx/_client.py:1719: in _send_single_request
+    response = await transport.handle_async_request(request)
+venv/lib/python3.12/site-packages/httpx/_transports/asgi.py:162: in handle_async_request
+    await self.app(scope, receive, send)
+venv/lib/python3.12/site-packages/fastapi/applications.py:1106: in __call__
+    await super().__call__(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/applications.py:122: in __call__
+    await self.middleware_stack(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/middleware/errors.py:184: in __call__
+    raise exc
+venv/lib/python3.12/site-packages/starlette/middleware/errors.py:162: in __call__
+    await self.app(scope, receive, _send)
+venv/lib/python3.12/site-packages/starlette/middleware/cors.py:83: in __call__
+    await self.app(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:79: in __call__
+    raise exc
+venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:68: in __call__
+    await self.app(scope, receive, sender)
+venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:20: in __call__
+    raise e
+venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:17: in __call__
+    await self.app(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/routing.py:718: in __call__
+    await route.handle(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/routing.py:276: in handle
+    await self.app(scope, receive, send)
+venv/lib/python3.12/site-packages/starlette/routing.py:66: in app
+    response = await func(request)
+venv/lib/python3.12/site-packages/fastapi/routing.py:274: in app
+    raw_response = await run_endpoint_function(
+venv/lib/python3.12/site-packages/fastapi/routing.py:191: in run_endpoint_function
+    return await dependant.call(**values)
+app/api/v1/accommodation.py:32: in get_available_rooms
+    rooms = await repo.get_available_rooms(str(check_in), str(check_out))
+app/repositories/__init__.py:812: in get_available_rooms
+    selectinload(Room.beds),
+E   AttributeError: type object 'Room' has no attribute 'beds'
+----------------------------- Captured stdout call -----------------------------
+2026-08-29 11:47:58,190 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-08-29 11:47:58,192 INFO sqlalchemy.engine.Engine INSERT INTO room_categories (category_name, description, base_rate_usd, room_size, room_size_unit, max_occupancy, is_active, created_at) VALUES ($1::VARCHAR, $2::VARCHAR, $3::NUMERIC(10, 2), $4::FLOAT, $5::VARCHAR, $6::INTEGER, $7::BOOLEAN, $8::TIMESTAMP WITHOUT TIME ZONE) RETURNING room_categories.room_category_id
+2026-08-29 11:47:58,192 INFO sqlalchemy.engine.Engine [generated in 0.00037s] ('Room Suite 1e6ce7', 'Category for room unit testing', Decimal('200.0'), 120.0, 'm²', 4, True, datetime.datetime(2026, 8, 29, 8, 47, 58, 192237))
+2026-08-29 11:47:58,861 INFO sqlalchemy.engine.Engine INSERT INTO room_bathroom_features (room_category_id, feature_name) SELECT p0::INTEGER, p1::VARCHAR FROM (VALUES ($1::INTEGER, $2::VARCHAR, 0), ($3::INTEGER, $4::VARCHAR, 1), ($5::INTEGER, $6::VARCHAR, 2)) AS imp_sen(p0, p1, sen_counter) ORDER BY sen_counter RETURNING room_bathroom_features.id, room_bathroom_features.id AS id__1
+2026-08-29 11:47:58,861 INFO sqlalchemy.engine.Engine [generated in 0.00010s (insertmanyvalues) 1/1 (ordered)] (42, 'Rain Shower', 42, 'Free-standing Tub', 42, 'Double Vanity')
+2026-08-29 11:47:59,421 INFO sqlalchemy.engine.Engine INSERT INTO room_beds (room_category_id, bed_type, quantity) SELECT p0::INTEGER, p1::VARCHAR, p2::INTEGER FROM (VALUES ($1::INTEGER, $2::VARCHAR, $3::INTEGER, 0), ($4::INTEGER, $5::VARCHAR, $6::INTEGER, 1)) AS imp_sen(p0, p1, p2, sen_counter) ORDER BY sen_counter RETURNING room_beds.id, room_beds.id AS id__1
+2026-08-29 11:47:59,421 INFO sqlalchemy.engine.Engine [generated in 0.00011s (insertmanyvalues) 1/1 (ordered)] (42, 'King Bed', 1, 42, 'Twin Bed', 2)
+2026-08-29 11:48:00,034 INFO sqlalchemy.engine.Engine INSERT INTO room_facilities (room_category_id, facility_name) SELECT p0::INTEGER, p1::VARCHAR FROM (VALUES ($1::INTEGER, $2::VARCHAR, 0), ($3::INTEGER, $4::VARCHAR, 1), ($5::INTEGER, $6::VARCHAR, 2), ($7::INTEGER, $8::VARCHAR, 3)) AS imp_sen(p0, p1, sen_counter) ORDER BY sen_counter RETURNING room_facilities.id, room_facilities.id AS id__1
+2026-08-29 11:48:00,034 INFO sqlalchemy.engine.Engine [generated in 0.00014s (insertmanyvalues) 1/1 (ordered)] (42, 'High-Speed Wi-Fi', 42, 'Smart TV', 42, 'Mini Fridge', 42, 'Air Conditioning')
+2026-08-29 11:48:00,562 INFO sqlalchemy.engine.Engine INSERT INTO room_images (room_category_id, image_url, display_order, is_primary, caption, created_at) SELECT p0::INTEGER, p1::VARCHAR, p2::INTEGER, p3::BOOLEAN, p4::VARCHAR, p5::TIMESTAMP WITHOUT TIME ZONE FROM (VALUES ($1::INTEGER, $2::VARCHAR, $3:: ... 196 characters truncated ...  p2, p3, p4, p5, sen_counter) ORDER BY sen_counter RETURNING room_images.id, room_images.id AS id__1
+2026-08-29 11:48:00,562 INFO sqlalchemy.engine.Engine [generated in 0.00018s (insertmanyvalues) 1/1 (ordered)] (42, 'https://example.com/photos/room_main.jpg', 0, True, None, datetime.datetime(2026, 8, 29, 8, 48, 0, 562181), 42, 'https://example.com/photos/room_deck.jpg', 1, False, None, datetime.datetime(2026, 8, 29, 8, 48, 0, 562188))
+2026-08-29 11:48:01,007 INFO sqlalchemy.engine.Engine INSERT INTO room_views (room_category_id, view_name) SELECT p0::INTEGER, p1::VARCHAR FROM (VALUES ($1::INTEGER, $2::VARCHAR, 0), ($3::INTEGER, $4::VARCHAR, 1)) AS imp_sen(p0, p1, sen_counter) ORDER BY sen_counter RETURNING room_views.id, room_views.id AS id__1
+2026-08-29 11:48:01,007 INFO sqlalchemy.engine.Engine [generated in 0.00014s (insertmanyvalues) 1/1 (ordered)] (42, 'Ocean View', 42, 'Garden View')
+2026-08-29 11:48:01,474 INFO sqlalchemy.engine.Engine COMMIT
+2026-08-29 11:48:03,257 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+2026-08-29 11:48:03,258 INFO sqlalchemy.engine.Engine SELECT room_categories.room_category_id, room_categories.category_name, room_categories.description, room_categories.base_rate_usd, room_categories.room_size, room_categories.room_size_unit, room_categories.max_occupancy, room_categories.is_active, room_categories.created_at 
+FROM room_categories 
+WHERE room_categories.room_category_id = $1::INTEGER
+2026-08-29 11:48:03,259 INFO sqlalchemy.engine.Engine [generated in 0.00024s] (42,)
+2026-08-29 11:48:03,941 INFO sqlalchemy.engine.Engine SELECT room_category_photos.room_category_id AS room_category_photos_room_category_id, room_category_photos.photo_id AS room_category_photos_photo_id, room_category_photos.photo_url AS room_category_photos_photo_url, room_category_photos.created_at AS room_category_photos_created_at 
+FROM room_category_photos 
+WHERE room_category_photos.room_category_id IN ($1::INTEGER)
+2026-08-29 11:48:03,941 INFO sqlalchemy.engine.Engine [cached since 13.63s ago] (42,)
+2026-08-29 11:48:04,453 INFO sqlalchemy.engine.Engine SELECT room_beds.room_category_id AS room_beds_room_category_id, room_beds.id AS room_beds_id, room_beds.bed_type AS room_beds_bed_type, room_beds.quantity AS room_beds_quantity 
+FROM room_beds 
+WHERE room_beds.room_category_id IN ($1::INTEGER)
+2026-08-29 11:48:04,454 INFO sqlalchemy.engine.Engine [cached since 13.71s ago] (42,)
+2026-08-29 11:48:04,894 INFO sqlalchemy.engine.Engine SELECT room_views.room_category_id AS room_views_room_category_id, room_views.id AS room_views_id, room_views.view_name AS room_views_view_name 
+FROM room_views 
+WHERE room_views.room_category_id IN ($1::INTEGER)
+2026-08-29 11:48:04,894 INFO sqlalchemy.engine.Engine [cached since 13.72s ago] (42,)
+2026-08-29 11:48:05,463 INFO sqlalchemy.engine.Engine SELECT room_bathroom_features.room_category_id AS room_bathroom_features_room_category_id, room_bathroom_features.id AS room_bathroom_features_id, room_bathroom_features.feature_name AS room_bathroom_features_feature_name 
+FROM room_bathroom_features 
+WHERE room_bathroom_features.room_category_id IN ($1::INTEGER)
+2026-08-29 11:48:05,463 INFO sqlalchemy.engine.Engine [cached since 13.84s ago] (42,)
+2026-08-29 11:48:05,905 INFO sqlalchemy.engine.Engine SELECT room_facilities.room_category_id AS room_facilities_room_category_id, room_facilities.id AS room_facilities_id, room_facilities.facility_name AS room_facilities_facility_name 
+FROM room_facilities 
+WHERE room_facilities.room_category_id IN ($1::INTEGER)
+2026-08-29 11:48:05,905 INFO sqlalchemy.engine.Engine [cached since 13.76s ago] (42,)
+2026-08-29 11:48:06,382 INFO sqlalchemy.engine.Engine SELECT room_images.room_category_id AS room_images_room_category_id, room_images.id AS room_images_id, room_images.image_url AS room_images_image_url, room_images.display_order AS room_images_display_order, room_images.is_primary AS room_images_is_primary, room_images.caption AS room_images_caption, room_images.created_at AS room_images_created_at 
+FROM room_images 
+WHERE room_images.room_category_id IN ($1::INTEGER)
+2026-08-29 11:48:06,382 INFO sqlalchemy.engine.Engine [cached since 13.8s ago] (42,)
+2026-08-29 11:48:06,997 INFO sqlalchemy.engine.Engine SELECT room_amenities.room_category_id AS room_amenities_room_category_id, room_amenities.id AS room_amenities_id, room_amenities.amenity_id AS room_amenities_amenity_id, room_amenities.value AS room_amenities_value, room_amenities.created_at AS room_amenities_created_at, room_amenities.updated_at AS room_amenities_updated_at 
+FROM room_amenities 
+WHERE room_amenities.room_category_id IN ($1::INTEGER)
+2026-08-29 11:48:06,998 INFO sqlalchemy.engine.Engine [cached since 13.9s ago] (42,)
+2026-08-29 11:48:07,509 INFO sqlalchemy.engine.Engine SELECT room_rate_plans.room_category_id AS room_rate_plans_room_category_id, room_rate_plans.rate_id AS room_rate_plans_rate_id, room_rate_plans.rate_name AS room_rate_plans_rate_name, room_rate_plans.rate_code AS room_rate_plans_rate_code, room_rate_plans.description AS room_rate_plans_description, room_rate_plans.price AS room_rate_plans_price, room_rate_plans.currency AS room_rate_plans_currency, room_rate_plans.pricing_basis AS room_rate_plans_pricing_basis, room_rate_plans.meal_plan AS room_rate_plans_meal_plan, room_rate_plans.cancellation_policy AS room_rate_plans_cancellation_policy, room_rate_plans.includes_breakfast AS room_rate_plans_includes_breakfast, room_rate_plans.includes_wifi AS room_rate_plans_includes_wifi, room_rate_plans.includes_gym AS room_rate_plans_includes_gym, room_rate_plans.includes_spa AS room_rate_plans_includes_spa, room_rate_plans.includes_parking AS room_rate_plans_includes_parking, room_rate_plans.taxes_included AS room_rate_plans_taxes_included, room_rate_plans.fees_included AS room_rate_plans_fees_included, room_rate_plans.refundable AS room_rate_plans_refundable, room_rate_plans.minimum_nights AS room_rate_plans_minimum_nights, room_rate_plans.maximum_nights AS room_rate_plans_maximum_nights, room_rate_plans.valid_from AS room_rate_plans_valid_from, room_rate_plans.valid_to AS room_rate_plans_valid_to, room_rate_plans.is_active AS room_rate_plans_is_active, room_rate_plans.created_at AS room_rate_plans_created_at, room_rate_plans.updated_at AS room_rate_plans_updated_at 
+FROM room_rate_plans 
+WHERE room_rate_plans.room_category_id IN ($1::INTEGER)
+2026-08-29 11:48:07,510 INFO sqlalchemy.engine.Engine [cached since 13.82s ago] (42,)
+2026-08-29 11:48:08,125 INFO sqlalchemy.engine.Engine SELECT room_policies.room_category_id AS room_policies_room_category_id, room_policies.policy_id AS room_policies_policy_id, room_policies.policy_type AS room_policies_policy_type, room_policies.title AS room_policies_title, room_policies.description AS room_policies_description, room_policies.value AS room_policies_value, room_policies.is_active AS room_policies_is_active, room_policies.created_at AS room_policies_created_at, room_policies.updated_at AS room_policies_updated_at 
+FROM room_policies 
+WHERE room_policies.room_category_id IN ($1::INTEGER)
+2026-08-29 11:48:08,125 INFO sqlalchemy.engine.Engine [cached since 13.83s ago] (42,)
+2026-08-29 11:48:08,653 INFO sqlalchemy.engine.Engine ROLLBACK
+------------------------------ Captured log call -------------------------------
+INFO     sqlalchemy.engine.Engine:base.py:2689 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1848 INSERT INTO room_categories (category_name, description, base_rate_usd, room_size, room_size_unit, max_occupancy, is_active, created_at) VALUES ($1::VARCHAR, $2::VARCHAR, $3::NUMERIC(10, 2), $4::FLOAT, $5::VARCHAR, $6::INTEGER, $7::BOOLEAN, $8::TIMESTAMP WITHOUT TIME ZONE) RETURNING room_categories.room_category_id
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00037s] ('Room Suite 1e6ce7', 'Category for room unit testing', Decimal('200.0'), 120.0, 'm²', 4, True, datetime.datetime(2026, 8, 29, 8, 47, 58, 192237))
+INFO     sqlalchemy.engine.Engine:base.py:1843 INSERT INTO room_bathroom_features (room_category_id, feature_name) SELECT p0::INTEGER, p1::VARCHAR FROM (VALUES ($1::INTEGER, $2::VARCHAR, 0), ($3::INTEGER, $4::VARCHAR, 1), ($5::INTEGER, $6::VARCHAR, 2)) AS imp_sen(p0, p1, sen_counter) ORDER BY sen_counter RETURNING room_bathroom_features.id, room_bathroom_features.id AS id__1
+INFO     sqlalchemy.engine.Engine:base.py:1843 [generated in 0.00010s (insertmanyvalues) 1/1 (ordered)] (42, 'Rain Shower', 42, 'Free-standing Tub', 42, 'Double Vanity')
+INFO     sqlalchemy.engine.Engine:base.py:1843 INSERT INTO room_beds (room_category_id, bed_type, quantity) SELECT p0::INTEGER, p1::VARCHAR, p2::INTEGER FROM (VALUES ($1::INTEGER, $2::VARCHAR, $3::INTEGER, 0), ($4::INTEGER, $5::VARCHAR, $6::INTEGER, 1)) AS imp_sen(p0, p1, p2, sen_counter) ORDER BY sen_counter RETURNING room_beds.id, room_beds.id AS id__1
+INFO     sqlalchemy.engine.Engine:base.py:1843 [generated in 0.00011s (insertmanyvalues) 1/1 (ordered)] (42, 'King Bed', 1, 42, 'Twin Bed', 2)
+INFO     sqlalchemy.engine.Engine:base.py:1843 INSERT INTO room_facilities (room_category_id, facility_name) SELECT p0::INTEGER, p1::VARCHAR FROM (VALUES ($1::INTEGER, $2::VARCHAR, 0), ($3::INTEGER, $4::VARCHAR, 1), ($5::INTEGER, $6::VARCHAR, 2), ($7::INTEGER, $8::VARCHAR, 3)) AS imp_sen(p0, p1, sen_counter) ORDER BY sen_counter RETURNING room_facilities.id, room_facilities.id AS id__1
+INFO     sqlalchemy.engine.Engine:base.py:1843 [generated in 0.00014s (insertmanyvalues) 1/1 (ordered)] (42, 'High-Speed Wi-Fi', 42, 'Smart TV', 42, 'Mini Fridge', 42, 'Air Conditioning')
+INFO     sqlalchemy.engine.Engine:base.py:1843 INSERT INTO room_images (room_category_id, image_url, display_order, is_primary, caption, created_at) SELECT p0::INTEGER, p1::VARCHAR, p2::INTEGER, p3::BOOLEAN, p4::VARCHAR, p5::TIMESTAMP WITHOUT TIME ZONE FROM (VALUES ($1::INTEGER, $2::VARCHAR, $3:: ... 196 characters truncated ...  p2, p3, p4, p5, sen_counter) ORDER BY sen_counter RETURNING room_images.id, room_images.id AS id__1
+INFO     sqlalchemy.engine.Engine:base.py:1843 [generated in 0.00018s (insertmanyvalues) 1/1 (ordered)] (42, 'https://example.com/photos/room_main.jpg', 0, True, None, datetime.datetime(2026, 8, 29, 8, 48, 0, 562181), 42, 'https://example.com/photos/room_deck.jpg', 1, False, None, datetime.datetime(2026, 8, 29, 8, 48, 0, 562188))
+INFO     sqlalchemy.engine.Engine:base.py:1843 INSERT INTO room_views (room_category_id, view_name) SELECT p0::INTEGER, p1::VARCHAR FROM (VALUES ($1::INTEGER, $2::VARCHAR, 0), ($3::INTEGER, $4::VARCHAR, 1)) AS imp_sen(p0, p1, sen_counter) ORDER BY sen_counter RETURNING room_views.id, room_views.id AS id__1
+INFO     sqlalchemy.engine.Engine:base.py:1843 [generated in 0.00014s (insertmanyvalues) 1/1 (ordered)] (42, 'Ocean View', 42, 'Garden View')
+INFO     sqlalchemy.engine.Engine:base.py:2695 COMMIT
+INFO     sqlalchemy.engine.Engine:base.py:2689 BEGIN (implicit)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_categories.room_category_id, room_categories.category_name, room_categories.description, room_categories.base_rate_usd, room_categories.room_size, room_categories.room_size_unit, room_categories.max_occupancy, room_categories.is_active, room_categories.created_at 
+FROM room_categories 
+WHERE room_categories.room_category_id = $1::INTEGER
+INFO     sqlalchemy.engine.Engine:base.py:1848 [generated in 0.00024s] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_category_photos.room_category_id AS room_category_photos_room_category_id, room_category_photos.photo_id AS room_category_photos_photo_id, room_category_photos.photo_url AS room_category_photos_photo_url, room_category_photos.created_at AS room_category_photos_created_at 
+FROM room_category_photos 
+WHERE room_category_photos.room_category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [cached since 13.63s ago] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_beds.room_category_id AS room_beds_room_category_id, room_beds.id AS room_beds_id, room_beds.bed_type AS room_beds_bed_type, room_beds.quantity AS room_beds_quantity 
+FROM room_beds 
+WHERE room_beds.room_category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [cached since 13.71s ago] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_views.room_category_id AS room_views_room_category_id, room_views.id AS room_views_id, room_views.view_name AS room_views_view_name 
+FROM room_views 
+WHERE room_views.room_category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [cached since 13.72s ago] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_bathroom_features.room_category_id AS room_bathroom_features_room_category_id, room_bathroom_features.id AS room_bathroom_features_id, room_bathroom_features.feature_name AS room_bathroom_features_feature_name 
+FROM room_bathroom_features 
+WHERE room_bathroom_features.room_category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [cached since 13.84s ago] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_facilities.room_category_id AS room_facilities_room_category_id, room_facilities.id AS room_facilities_id, room_facilities.facility_name AS room_facilities_facility_name 
+FROM room_facilities 
+WHERE room_facilities.room_category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [cached since 13.76s ago] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_images.room_category_id AS room_images_room_category_id, room_images.id AS room_images_id, room_images.image_url AS room_images_image_url, room_images.display_order AS room_images_display_order, room_images.is_primary AS room_images_is_primary, room_images.caption AS room_images_caption, room_images.created_at AS room_images_created_at 
+FROM room_images 
+WHERE room_images.room_category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [cached since 13.8s ago] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_amenities.room_category_id AS room_amenities_room_category_id, room_amenities.id AS room_amenities_id, room_amenities.amenity_id AS room_amenities_amenity_id, room_amenities.value AS room_amenities_value, room_amenities.created_at AS room_amenities_created_at, room_amenities.updated_at AS room_amenities_updated_at 
+FROM room_amenities 
+WHERE room_amenities.room_category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [cached since 13.9s ago] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_rate_plans.room_category_id AS room_rate_plans_room_category_id, room_rate_plans.rate_id AS room_rate_plans_rate_id, room_rate_plans.rate_name AS room_rate_plans_rate_name, room_rate_plans.rate_code AS room_rate_plans_rate_code, room_rate_plans.description AS room_rate_plans_description, room_rate_plans.price AS room_rate_plans_price, room_rate_plans.currency AS room_rate_plans_currency, room_rate_plans.pricing_basis AS room_rate_plans_pricing_basis, room_rate_plans.meal_plan AS room_rate_plans_meal_plan, room_rate_plans.cancellation_policy AS room_rate_plans_cancellation_policy, room_rate_plans.includes_breakfast AS room_rate_plans_includes_breakfast, room_rate_plans.includes_wifi AS room_rate_plans_includes_wifi, room_rate_plans.includes_gym AS room_rate_plans_includes_gym, room_rate_plans.includes_spa AS room_rate_plans_includes_spa, room_rate_plans.includes_parking AS room_rate_plans_includes_parking, room_rate_plans.taxes_included AS room_rate_plans_taxes_included, room_rate_plans.fees_included AS room_rate_plans_fees_included, room_rate_plans.refundable AS room_rate_plans_refundable, room_rate_plans.minimum_nights AS room_rate_plans_minimum_nights, room_rate_plans.maximum_nights AS room_rate_plans_maximum_nights, room_rate_plans.valid_from AS room_rate_plans_valid_from, room_rate_plans.valid_to AS room_rate_plans_valid_to, room_rate_plans.is_active AS room_rate_plans_is_active, room_rate_plans.created_at AS room_rate_plans_created_at, room_rate_plans.updated_at AS room_rate_plans_updated_at 
+FROM room_rate_plans 
+WHERE room_rate_plans.room_category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [cached since 13.82s ago] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:1848 SELECT room_policies.room_category_id AS room_policies_room_category_id, room_policies.policy_id AS room_policies_policy_id, room_policies.policy_type AS room_policies_policy_type, room_policies.title AS room_policies_title, room_policies.description AS room_policies_description, room_policies.value AS room_policies_value, room_policies.is_active AS room_policies_is_active, room_policies.created_at AS room_policies_created_at, room_policies.updated_at AS room_policies_updated_at 
+FROM room_policies 
+WHERE room_policies.room_category_id IN ($1::INTEGER)
+INFO     sqlalchemy.engine.Engine:base.py:1848 [cached since 13.83s ago] (42,)
+INFO     sqlalchemy.engine.Engine:base.py:2692 ROLLBACK
+=============================== warnings summary ===============================
+venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:268: 46 warnings
+  /home/heinrich/Documents/seyeya/seyeya/backend/venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:268: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.5/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+app/models/__init__.py:16
+  /home/heinrich/Documents/seyeya/seyeya/backend/app/models/__init__.py:16: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    Base = declarative_base()
+
+venv/lib/python3.12/site-packages/passlib/utils/__init__.py:854
+  /home/heinrich/Documents/seyeya/seyeya/backend/venv/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+tests/test_room_refactor.py::test_room_category_apis
+tests/test_room_refactor.py::test_all_room_apis
+  /home/heinrich/Documents/seyeya/seyeya/backend/venv/lib/python3.12/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+tests/test_room_refactor.py::test_all_room_apis
+tests/test_room_refactor.py::test_all_room_apis
+tests/test_room_refactor.py::test_all_room_apis
+  /home/heinrich/Documents/seyeya/seyeya/backend/venv/lib/python3.12/site-packages/sqlalchemy/sql/schema.py:3592: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_room_refactor.py::test_room_category_apis - fastapi.excepti...
+FAILED tests/test_room_refactor.py::test_all_room_apis - AttributeError: type...
+======================= 2 failed, 53 warnings in 24.58s ========================
