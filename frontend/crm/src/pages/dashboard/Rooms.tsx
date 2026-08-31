@@ -2,6 +2,9 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { api } from '../../services/api';
 import { useAccommodation, RoomType, RoomUnit, BookingRecord } from '../../hooks/useAccommodation';
 import { useCurrency } from '../../context/CurrencyContext';
+import { useRoomAssets, autoDetectAmenityIcon, autoDetectPolicyIcon, renderAssetIcon } from '@/hooks/useRoomAssets.tsx';
+import { AmenitiesView } from './AmenitiesView';
+import { PoliciesView } from './PoliciesView';
 import {
   Card,
   CardContent,
@@ -77,8 +80,21 @@ import {
   Upload,
   RotateCw,
   Crop,
-  Check
+  Check,
+  Sparkles,
+  FileText,
+  Tag
 } from 'lucide-react';
+
+export interface CategoryRateOption {
+  id: string;
+  name: string;
+  priceUGX: number;
+  priceUSD: number;
+  description?: string;
+  inclusions?: string[];
+  isActive: boolean;
+}
 
 const getImageUrl = (url: string) => {
   if (!url) return '';
@@ -92,8 +108,8 @@ const getImageUrl = (url: string) => {
 };
 
 interface RoomsProps {
-  activeTab?: 'reservations' | 'rooms' | 'categories';
-  setActiveTab?: (tab: 'reservations' | 'rooms' | 'categories') => void;
+  activeTab?: 'reservations' | 'rooms' | 'categories' | 'amenities' | 'policies';
+  setActiveTab?: (tab: 'reservations' | 'rooms' | 'categories' | 'amenities' | 'policies') => void;
 }
 
 export const Rooms: React.FC<RoomsProps> = ({ 
@@ -101,6 +117,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   setActiveTab: propSetActiveTab 
 }) => {
   const { formatPrice, currency } = useCurrency();
+  const { amenities: managedAmenities, policies: managedPolicies } = useRoomAssets();
   const {
     categories,
     roomUnits,
@@ -119,7 +136,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   } = useAccommodation();
 
   // Active Tab state
-  const [localActiveTab, localSetActiveTab] = useState<'reservations' | 'rooms' | 'categories'>('reservations');
+  const [localActiveTab, localSetActiveTab] = useState<'reservations' | 'rooms' | 'categories' | 'amenities' | 'policies'>('reservations');
   const activeTab = propActiveTab || localActiveTab;
   const setActiveTab = propSetActiveTab || localSetActiveTab;
 
@@ -178,6 +195,63 @@ export const Rooms: React.FC<RoomsProps> = ({
   // Category Photos Upload State
   const [catPhotos, setCatPhotos] = useState<string[]>([]);
   
+  // Rate Options / Pricing Options State
+  const [catRateOptions, setCatRateOptions] = useState<CategoryRateOption[]>([
+    {
+      id: 'ro-1',
+      name: 'Room Only (Standard Rate)',
+      priceUGX: 300000,
+      priceUSD: 85,
+      description: 'Standard room rate without meal plans included.',
+      inclusions: ['Free Wi-Fi', 'Free Cancellation'],
+      isActive: true
+    },
+    {
+      id: 'ro-2',
+      name: 'Bed & Breakfast (BB)',
+      priceUGX: 350000,
+      priceUSD: 100,
+      description: 'Includes full daily breakfast buffet at the main restaurant.',
+      inclusions: ['Breakfast Included', 'Free Wi-Fi'],
+      isActive: true
+    }
+  ]);
+
+  const handleAddPresetRate = (name: string, priceUGXOffset: number, priceUSDOffset: number, inclusions: string[]) => {
+    const baseUGX = Number(catPriceUGX) || 300000;
+    const baseUSD = Number(catPriceUSD) || 85;
+    const newRate: CategoryRateOption = {
+      id: `ro-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+      name,
+      priceUGX: Math.max(0, baseUGX + priceUGXOffset),
+      priceUSD: Math.max(0, baseUSD + priceUSDOffset),
+      inclusions,
+      isActive: true
+    };
+    setCatRateOptions(prev => [...prev, newRate]);
+  };
+
+  const addNewRateOption = () => {
+    const baseUGX = Number(catPriceUGX) || 300000;
+    const baseUSD = Number(catPriceUSD) || 85;
+    const newRate: CategoryRateOption = {
+      id: `ro-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+      name: `Option ${catRateOptions.length + 1}`,
+      priceUGX: baseUGX,
+      priceUSD: baseUSD,
+      isActive: true
+    };
+    setCatRateOptions(prev => [...prev, newRate]);
+  };
+
+  const updateRateOption = (id: string, data: Partial<CategoryRateOption>) => {
+    setCatRateOptions(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
+  };
+
+  const removeRateOption = (id: string) => {
+    setCatRateOptions(prev => prev.filter(r => r.id !== id));
+  };
+  
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,6 +295,26 @@ export const Rooms: React.FC<RoomsProps> = ({
     setCatDescription('');
     setCatImage('https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
     setCatPhotos([]);
+    setCatRateOptions([
+      {
+        id: 'ro-1',
+        name: 'Room Only (Standard Rate)',
+        priceUGX: 300000,
+        priceUSD: 85,
+        description: 'Standard room rate without meal plans.',
+        inclusions: ['Free Wi-Fi', 'Free Cancellation'],
+        isActive: true
+      },
+      {
+        id: 'ro-2',
+        name: 'Bed & Breakfast (BB)',
+        priceUGX: 350000,
+        priceUSD: 100,
+        description: 'Includes full daily breakfast buffet.',
+        inclusions: ['Breakfast Included', 'Free Wi-Fi'],
+        isActive: true
+      }
+    ]);
     setIsCategoryDrawerOpen(true);
   };
 
@@ -255,6 +349,32 @@ export const Rooms: React.FC<RoomsProps> = ({
     setCatDescription(item.description);
     setCatImage(item.image);
     setCatPhotos(item.photos || []);
+
+    if ((item as any).rateOptions && Array.isArray((item as any).rateOptions) && (item as any).rateOptions.length > 0) {
+      setCatRateOptions((item as any).rateOptions);
+    } else {
+      setCatRateOptions([
+        {
+          id: 'ro-1',
+          name: 'Room Only (Standard Rate)',
+          priceUGX: item.priceUGX,
+          priceUSD: item.priceUSD,
+          description: 'Standard room rate.',
+          inclusions: ['Free Wi-Fi', 'Free Cancellation'],
+          isActive: true
+        },
+        {
+          id: 'ro-2',
+          name: 'Bed & Breakfast (BB)',
+          priceUGX: item.priceUGX + 50000,
+          priceUSD: item.priceUSD + 15,
+          description: 'Includes full daily breakfast buffet.',
+          inclusions: ['Breakfast Included', 'Free Wi-Fi'],
+          isActive: true
+        }
+      ]);
+    }
+
     setIsCategoryDrawerOpen(true);
   };
 
@@ -276,7 +396,8 @@ export const Rooms: React.FC<RoomsProps> = ({
       amenities: catAmenities.split(',').map(s => s.trim()).filter(Boolean),
       description: catDescription.trim(),
       image: catImage.trim() || (catPhotos.length > 0 ? catPhotos[0] : 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300'),
-      photos: catPhotos
+      photos: catPhotos,
+      rateOptions: catRateOptions
     };
 
     if (editCategoryItem) {
@@ -841,8 +962,9 @@ export const Rooms: React.FC<RoomsProps> = ({
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-1 max-w-[200px]">
           {row.original.amenities.slice(0, 3).map(a => (
-            <Badge key={a} variant="outline" className="text-[9px] bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-300 px-1 py-0 shadow-none">
-              {a}
+            <Badge key={a} variant="outline" className="text-[9px] bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 px-1.5 py-0.5 shadow-none inline-flex items-center gap-1 font-semibold">
+              {renderAssetIcon(autoDetectAmenityIcon(a), "h-2.5 w-2.5 text-amber-500")}
+              <span>{a}</span>
             </Badge>
           ))}
           {row.original.amenities.length > 3 && (
@@ -945,6 +1067,90 @@ export const Rooms: React.FC<RoomsProps> = ({
     setDeleteConfirmType(null);
   };
 
+  if (activeTab === 'amenities') {
+    return (
+      <div className="space-y-6 animate-fade-in relative h-full">
+        {/* Sub-Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('reservations')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            Reservations
+          </button>
+          <button
+            onClick={() => setActiveTab('rooms')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            Rooms List
+          </button>
+          <button
+            onClick={() => setActiveTab('categories')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            Categories
+          </button>
+          <button
+            onClick={() => setActiveTab('amenities')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs flex items-center gap-1.5"
+          >
+            Amenities
+          </button>
+          <button
+            onClick={() => setActiveTab('policies')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
+          >
+            Policies
+          </button>
+        </div>
+
+        <AmenitiesView />
+      </div>
+    );
+  }
+
+  if (activeTab === 'policies') {
+    return (
+      <div className="space-y-6 animate-fade-in relative h-full">
+        {/* Sub-Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('reservations')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            Reservations
+          </button>
+          <button
+            onClick={() => setActiveTab('rooms')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            Rooms List
+          </button>
+          <button
+            onClick={() => setActiveTab('categories')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+          >
+            Categories
+          </button>
+          <button
+            onClick={() => setActiveTab('amenities')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
+          >
+            Amenities
+          </button>
+          <button
+            onClick={() => setActiveTab('policies')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs flex items-center gap-1.5"
+          >
+            Policies
+          </button>
+        </div>
+
+        <PoliciesView />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in relative h-full">
 
@@ -987,7 +1193,61 @@ export const Rooms: React.FC<RoomsProps> = ({
         </div>
       </div>
 
-      {/* Analytics widgets */}
+      {/* Sub-Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('reservations')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'reservations'
+              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
+              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+          }`}
+        >
+          Reservations
+        </button>
+        <button
+          onClick={() => setActiveTab('rooms')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'rooms'
+              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
+              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+          }`}
+        >
+          Rooms List
+        </button>
+        <button
+          onClick={() => setActiveTab('categories')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'categories'
+              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
+              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+          }`}
+        >
+          Categories
+        </button>
+        <button
+          onClick={() => setActiveTab('amenities')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'amenities'
+              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
+              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+          }`}
+        >
+          Amenities
+        </button>
+        <button
+          onClick={() => setActiveTab('policies')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'policies'
+              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
+              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+          }`}
+        >
+          Policies
+        </button>
+      </div>
+        <>
+          {/* Analytics widgets */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
         <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
           <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider">Total Rooms</CardDescription>
@@ -1230,6 +1490,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           </div>
         )}
       </div>
+    </>
 
       {/* -------------------------------------------------------------
           DRAWER: Add / Edit Room Category
@@ -1309,14 +1570,207 @@ export const Rooms: React.FC<RoomsProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Amenities (comma-separated)</label>
+            {/* -------------------------------------------------------------
+                Rate Options / Pricing Options Section
+                ------------------------------------------------------------- */}
+            <div className="space-y-3 pt-3 pb-3 border-t border-b border-zinc-150 dark:border-zinc-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200 font-sans flex items-center gap-1.5">
+                    <Tag className="h-3.5 w-3.5 text-emerald-500" />
+                    <span>Rate Options / Pricing Options</span>
+                  </label>
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                    Define multiple meal plans, board options, or flexible pricing tiers for this category.
+                  </p>
+                </div>
+
+                <Badge variant="outline" className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/50">
+                  {catRateOptions.filter(r => r.isActive).length} Active Options
+                </Badge>
+              </div>
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-bold uppercase text-zinc-400">Presets:</span>
+                <button
+                  type="button"
+                  onClick={() => handleAddPresetRate('Bed & Breakfast (BB)', 50000, 15, ['Breakfast Included'])}
+                  className="px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                >
+                  + Bed & Breakfast
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddPresetRate('Half Board (HB)', 110000, 30, ['Breakfast & Dinner'])}
+                  className="px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                >
+                  + Half Board
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddPresetRate('Full Board (FB)', 180000, 50, ['All Meals Included'])}
+                  className="px-2 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                >
+                  + Full Board
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddPresetRate('Non-Refundable Saver', -30000, -10, ['Non-Refundable'])}
+                  className="px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-[10px] font-semibold transition-all cursor-pointer"
+                >
+                  + Non-Refundable
+                </button>
+              </div>
+
+              {/* Rate Options Dynamic Items List */}
+              <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                {catRateOptions.length === 0 ? (
+                  <div className="p-4 text-center border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl">
+                    <p className="text-xs text-zinc-400">No rate options added yet. Click "+ Add Rate Option" below.</p>
+                  </div>
+                ) : (
+                  catRateOptions.map((rate) => (
+                    <div 
+                      key={rate.id}
+                      className={`p-3 rounded-xl border transition-all ${
+                        rate.isActive 
+                          ? 'bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-zinc-800' 
+                          : 'bg-zinc-100/40 dark:bg-zinc-900/30 border-zinc-200/50 dark:border-zinc-800/40 opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <input
+                          type="text"
+                          placeholder="Rate Option Name (e.g. Bed & Breakfast)"
+                          value={rate.name}
+                          onChange={(e) => updateRateOption(rate.id, { name: e.target.value })}
+                          className="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-bold text-zinc-900 dark:text-zinc-50 outline-hidden"
+                        />
+
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1 text-[10px] font-semibold text-zinc-500 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={rate.isActive}
+                              onChange={(e) => updateRateOption(rate.id, { isActive: e.target.checked })}
+                              className="rounded border-zinc-300 accent-emerald-500 cursor-pointer"
+                            />
+                            <span>Active</span>
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => removeRateOption(rate.id)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 hover:text-red-700 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                            title="Remove Rate Option"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[9px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 font-sans">
+                            Rate (UGX)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={rate.priceUGX}
+                            onChange={(e) => updateRateOption(rate.id, { priceUGX: Number(e.target.value) })}
+                            className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50 outline-hidden font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 font-sans">
+                            Rate (USD)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={rate.priceUSD}
+                            onChange={(e) => updateRateOption(rate.id, { priceUSD: Number(e.target.value) })}
+                            className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50 outline-hidden font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Display live formatted calculation badge */}
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-500 pt-1.5 border-t border-zinc-150 dark:border-zinc-800/60">
+                        <span>Display Preview:</span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                          {formatPrice(rate.priceUGX)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <ShadcnButton
+                type="button"
+                variant="outline"
+                onClick={addNewRateOption}
+                className="w-full h-9 text-xs font-bold rounded-xl border-dashed border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer flex items-center justify-center gap-1.5 text-zinc-700 dark:text-zinc-300"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Custom Rate Option
+              </ShadcnButton>
+            </div>
+
+            {/* Managed Amenities Multi-Select Tag Picker */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 font-sans">
+                  Category Amenities
+                </label>
+                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Auto-Icon Match
+                </span>
+              </div>
+              
+              {/* Quick Select Badges */}
+              <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 max-h-36 overflow-y-auto">
+                {managedAmenities.map(am => {
+                  const selectedList = catAmenities.split(',').map(s => s.trim()).filter(Boolean);
+                  const isSelected = selectedList.some(s => s.toLowerCase() === am.name.toLowerCase());
+                  
+                  const toggleAmenity = () => {
+                    if (isSelected) {
+                      const newList = selectedList.filter(s => s.toLowerCase() !== am.name.toLowerCase());
+                      setCatAmenities(newList.join(', '));
+                    } else {
+                      const newList = [...selectedList, am.name];
+                      setCatAmenities(newList.join(', '));
+                    }
+                  };
+
+                  return (
+                    <button
+                      key={am.id}
+                      type="button"
+                      onClick={toggleAmenity}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
+                        isSelected
+                          ? 'bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/40 shadow-xs font-bold'
+                          : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+                      }`}
+                    >
+                      {renderAssetIcon(am.iconName, "h-3.5 w-3.5 text-amber-500")}
+                      <span>{am.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               <input
                 type="text"
-                placeholder="AC, King Bed, Wi-Fi"
+                placeholder="Selected amenities (comma separated)..."
                 value={catAmenities}
                 onChange={(e) => setCatAmenities(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-foreground dark:text-zinc-50 outline-hidden font-semibold"
               />
             </div>
 
