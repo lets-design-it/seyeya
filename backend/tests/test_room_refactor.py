@@ -42,6 +42,16 @@ async def test_room_category_apis(async_client: AsyncClient):
     cat_id = cat_data["room_category_id"]
     assert cat_data["category_name"] == unique_cat_name
 
+    # 2b. GET /api/v1/accommodation/categories/{cat_id}
+    get_single_res = await async_client.get(f"/api/v1/accommodation/categories/{cat_id}", headers=headers)
+    assert get_single_res.status_code == 200
+    assert get_single_res.json()["room_category_id"] == cat_id
+    assert get_single_res.json()["category_name"] == unique_cat_name
+
+    # 2c. GET 404 for non-existent category
+    get_404_res = await async_client.get("/api/v1/accommodation/categories/999999", headers=headers)
+    assert get_404_res.status_code == 404
+
     # 3. PUT /api/v1/accommodation/categories/{cat_id}
     updated_cat_name = f"Updated Category {uuid.uuid4().hex[:6]}"
     put_cat_res = await async_client.put(

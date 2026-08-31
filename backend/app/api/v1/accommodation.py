@@ -428,6 +428,53 @@ async def create_room_category(
                 photo_url=photo_url
             )
             db.add(photo)
+
+    # Save amenities
+    amenity_ids_to_add = []
+    seen_amenity_ids = set()
+    if request.amenity_ids:
+        for aid in request.amenity_ids:
+            if aid not in seen_amenity_ids:
+                seen_amenity_ids.add(aid)
+                amenity_ids_to_add.append(aid)
+    if request.amenities:
+        for item in request.amenities:
+            aid = item if isinstance(item, int) else (item.get("id") or item.get("amenity_id") if isinstance(item, dict) else None)
+            if aid and int(aid) not in seen_amenity_ids:
+                seen_amenity_ids.add(int(aid))
+                amenity_ids_to_add.append(int(aid))
+
+    for aid in amenity_ids_to_add:
+        db.add(RoomAmenity(room_category_id=category.room_category_id, amenity_id=aid))
+
+    # Save rates (price rates)
+    rate_list = request.available_rates or request.rates or request.price_rates or []
+    for rate_item in rate_list:
+        rate_dict = rate_item.model_dump() if hasattr(rate_item, 'model_dump') else (rate_item.dict() if hasattr(rate_item, 'dict') else dict(rate_item))
+        db.add(RoomRatePlan(room_category_id=category.room_category_id, **rate_dict))
+
+    # Save policies
+    policy_assignments = []
+    if request.policy_ids:
+        for pid in request.policy_ids:
+            policy_assignments.append({"policy_id": pid})
+    if request.policies:
+        for item in request.policies:
+            if isinstance(item, int):
+                policy_assignments.append({"policy_id": item})
+            elif hasattr(item, 'model_dump'):
+                policy_assignments.append(item.model_dump())
+            elif hasattr(item, 'dict'):
+                policy_assignments.append(item.dict())
+            elif isinstance(item, dict):
+                policy_assignments.append(item)
+
+    for pas in policy_assignments:
+        pid = pas.get("policy_id")
+        if pid:
+            val = pas.get("value")
+            is_act = pas.get("is_active", True)
+            db.add(RoomPolicy(room_category_id=category.room_category_id, policy_id=pid, value=val, is_active=is_act))
             
     await db.commit()
     
@@ -448,6 +495,36 @@ async def create_room_category(
         .where(RoomCategory.room_category_id == category.room_category_id)
     )
     return result.scalar_one()
+
+
+@router.get("/categories/{category_id}", response_model=RoomCategoryResponse)
+async def get_room_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Retrieve a single room category by ID"""
+    from app.models import RoomCategory, RoomAmenity, Amenity, RoomPolicy
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(RoomCategory)
+        .options(
+            selectinload(RoomCategory.photos),
+            selectinload(RoomCategory.beds),
+            selectinload(RoomCategory.views),
+            selectinload(RoomCategory.bathroom_features),
+            selectinload(RoomCategory.room_facilities),
+            selectinload(RoomCategory.images),
+            selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+            selectinload(RoomCategory.available_rates),
+            selectinload(RoomCategory.policies).selectinload(RoomPolicy.policy)
+        )
+        .where(RoomCategory.room_category_id == category_id)
+    )
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
+    return category
 
 
 @router.put("/categories/{category_id}", response_model=RoomCategoryResponse)
@@ -532,7 +609,62 @@ async def update_room_category(
                 photo_url=photo_url
             )
             category.photos.append(photo)
-            
+
+    # Sync amenities if provided
+    if request.amenities is not None or request.amenity_ids is not None:
+        await db.execute(delete(RoomAmenity).where(RoomAmenity.room_category_id == category_id))
+        amenity_ids_to_add = []
+        seen_amenity_ids = set()
+        if request.amenity_ids:
+            for aid in request.amenity_ids:
+                if aid not in seen_amenity_ids:
+                    seen_amenity_ids.add(aid)
+                    amenity_ids_to_add.append(aid)
+        if request.amenities:
+            for item in request.amenities:
+                aid = item if isinstance(item, int) else (item.get("id") or item.get("amenity_id") if isinstance(item, dict) else None)
+                if aid and int(aid) not in seen_amenity_ids:
+                    seen_amenity_ids.add(int(aid))
+                    amenity_ids_to_add.append(int(aid))
+        for aid in amenity_ids_to_add:
+            db.add(RoomAmenity(room_category_id=category_id, amenity_id=aid))
+
+    # Sync rate plans (price rates) if provided
+    rate_list = request.available_rates if request.available_rates is not None else (
+        request.rates if request.rates is not None else (
+            request.price_rates if request.price_rates is not None else None
+        )
+    )
+    if rate_list is not None:
+        await db.execute(delete(RoomRatePlan).where(RoomRatePlan.room_category_id == category_id))
+        for rate_item in rate_list:
+            rate_dict = rate_item.model_dump() if hasattr(rate_item, 'model_dump') else (rate_item.dict() if hasattr(rate_item, 'dict') else dict(rate_item))
+            db.add(RoomRatePlan(room_category_id=category_id, **rate_dict))
+
+    # Sync policies if provided
+    if request.policies is not None or request.policy_ids is not None:
+        await db.execute(delete(RoomPolicy).where(RoomPolicy.room_category_id == category_id))
+        policy_assignments = []
+        if request.policy_ids:
+            for pid in request.policy_ids:
+                policy_assignments.append({"policy_id": pid})
+        if request.policies:
+            for item in request.policies:
+                if isinstance(item, int):
+                    policy_assignments.append({"policy_id": item})
+                elif hasattr(item, 'model_dump'):
+                    policy_assignments.append(item.model_dump())
+                elif hasattr(item, 'dict'):
+                    policy_assignments.append(item.dict())
+                elif isinstance(item, dict):
+                    policy_assignments.append(item)
+        for pas in policy_assignments:
+            pid = pas.get("policy_id")
+            if pid:
+                val = pas.get("value")
+                is_act = pas.get("is_active", True)
+                db.add(RoomPolicy(room_category_id=category_id, policy_id=pid, value=val, is_active=is_act))
+
     db.add(category)
     await db.commit()
     
@@ -890,11 +1022,13 @@ async def create_amenity(
     current_user: dict = Depends(get_current_user)
 ):
     from app.models import Amenity
+    from sqlalchemy.orm import selectinload
     amenity = Amenity(**request.model_dump())
     db.add(amenity)
     await db.commit()
-    await db.refresh(amenity)
-    return amenity
+    
+    res = await db.execute(select(Amenity).options(selectinload(Amenity.category)).where(Amenity.amenity_id == amenity.amenity_id))
+    return res.scalar_one()
 
 @router.put("/amenities/{amenity_id}", response_model=AmenityResponse)
 async def update_amenity(
@@ -904,7 +1038,8 @@ async def update_amenity(
     current_user: dict = Depends(get_current_user)
 ):
     from app.models import Amenity
-    result = await db.execute(select(Amenity).where(Amenity.amenity_id == amenity_id))
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(select(Amenity).options(selectinload(Amenity.category)).where(Amenity.amenity_id == amenity_id))
     amenity = result.scalar_one_or_none()
     if not amenity:
         raise HTTPException(status_code=404, detail="Amenity not found")
@@ -913,8 +1048,9 @@ async def update_amenity(
         setattr(amenity, key, value)
         
     await db.commit()
-    await db.refresh(amenity)
-    return amenity
+    
+    res = await db.execute(select(Amenity).options(selectinload(Amenity.category)).where(Amenity.amenity_id == amenity_id))
+    return res.scalar_one()
 
 @router.delete("/amenities/{amenity_id}")
 async def delete_amenity(
