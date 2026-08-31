@@ -110,7 +110,7 @@ async def create_reservation(
         if adults_count > room.max_occupancy:
             raise ValueError(f"Room maximum capacity is {room.max_occupancy} adults. You cannot add {adults_count} adults.")
         
-        rate_per_night = getattr(room.category, 'base_rate', getattr(room.category, 'base_rate_usd', 0))
+        rate_per_night = getattr(room.category, 'base_rate', 0)
         total_amount = rate_per_night * num_nights
         
         reservation = await service.create_reservation(

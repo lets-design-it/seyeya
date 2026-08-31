@@ -763,7 +763,7 @@ export const Rooms: React.FC<RoomsProps> = ({
       header: 'Paid Value',
       cell: ({ row }) => (
         <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
-          {formatPrice(row.original.totalPaid)}
+          {Number(row.original.totalPaid || 0).toLocaleString()}
         </span>
       )
     },
@@ -942,10 +942,10 @@ export const Rooms: React.FC<RoomsProps> = ({
     },
     {
       accessorKey: 'priceUGX',
-      header: `Base Rate (${currency})`,
+      header: 'Base Rate',
       cell: ({ row }) => (
         <span className="font-bold text-zinc-900 dark:text-zinc-100 text-xs">
-          {formatPrice(row.original.priceUGX)}
+          {Number(row.original.priceUGX || 0).toLocaleString()}
         </span>
       )
     },
@@ -1228,7 +1228,7 @@ export const Rooms: React.FC<RoomsProps> = ({
         <button
           onClick={() => setActiveTab('amenities')}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'amenities'
+            (activeTab as string) === 'amenities'
               ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
           }`}
@@ -1238,7 +1238,7 @@ export const Rooms: React.FC<RoomsProps> = ({
         <button
           onClick={() => setActiveTab('policies')}
           className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-            activeTab === 'policies'
+            (activeTab as string) === 'policies'
               ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
           }`}
@@ -1518,31 +1518,21 @@ export const Rooms: React.FC<RoomsProps> = ({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Base Rate (UGX) *</label>
-                <input
-                  type="number"
-                  required
-                  min={0}
-                  placeholder="300000"
-                  value={catPriceUGX}
-                  onChange={(e) => setCatPriceUGX(Number(e.target.value))}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Base Rate (USD) *</label>
-                <input
-                  type="number"
-                  required
-                  min={0}
-                  placeholder="85"
-                  value={catPriceUSD}
-                  onChange={(e) => setCatPriceUSD(Number(e.target.value))}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Base Rate *</label>
+              <input
+                type="number"
+                required
+                min={0}
+                placeholder="300000"
+                value={catPriceUGX}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setCatPriceUGX(val);
+                  setCatPriceUSD(val);
+                }}
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -1670,38 +1660,27 @@ export const Rooms: React.FC<RoomsProps> = ({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[9px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 font-sans">
-                            Rate (UGX)
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={rate.priceUGX}
-                            onChange={(e) => updateRateOption(rate.id, { priceUGX: Number(e.target.value) })}
-                            className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50 outline-hidden font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[9px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 font-sans">
-                            Rate (USD)
-                          </label>
-                          <input
-                            type="number"
-                            min={0}
-                            value={rate.priceUSD}
-                            onChange={(e) => updateRateOption(rate.id, { priceUSD: Number(e.target.value) })}
-                            className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50 outline-hidden font-mono"
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-[9px] font-bold uppercase text-zinc-500 dark:text-zinc-400 mb-0.5 font-sans">
+                          Rate Amount
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={rate.priceUGX}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            updateRateOption(rate.id, { priceUGX: val, priceUSD: val });
+                          }}
+                          className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-50 outline-hidden font-mono"
+                        />
                       </div>
 
                       {/* Display live formatted calculation badge */}
                       <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-500 pt-1.5 border-t border-zinc-150 dark:border-zinc-800/60">
                         <span>Display Preview:</span>
                         <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                          {formatPrice(rate.priceUGX)}
+                          {Number(rate.priceUGX || 0).toLocaleString()}
                         </span>
                       </div>
                     </div>

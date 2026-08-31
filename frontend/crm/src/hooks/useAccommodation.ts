@@ -73,8 +73,8 @@ export const useAccommodation = () => {
         return {
           id: String(c.room_category_id),
           name: c.category_name,
-          priceUGX: Math.round(Number(c.base_rate_usd) * 3500),
-          priceUSD: Number(c.base_rate_usd),
+          priceUGX: Number(c.base_rate || 0),
+          priceUSD: Number(c.base_rate || 0),
           capacity: parts[1] || "2 Adults, 1 Child",
           amenities: parts[2] ? parts[2].split(",") : ['AC', 'Free Wi-Fi', 'King Bed'],
           description: parts[0] || c.description || "",
@@ -170,7 +170,7 @@ export const useAccommodation = () => {
       await api.post('/accommodation/categories', {
         category_name: category.name,
         description: descPayload,
-        base_rate_usd: category.priceUSD,
+        base_rate: category.priceUGX || category.priceUSD || 0,
         is_active: true,
         photos: category.photos || []
       });
@@ -188,7 +188,7 @@ export const useAccommodation = () => {
       await api.put(`/accommodation/categories/${updatedCat.id}`, {
         category_name: updatedCat.name,
         description: descPayload,
-        base_rate_usd: updatedCat.priceUSD,
+        base_rate: updatedCat.priceUGX || updatedCat.priceUSD || 0,
         is_active: true,
         photos: updatedCat.photos || []
       });
