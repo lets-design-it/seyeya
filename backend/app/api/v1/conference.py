@@ -11,7 +11,8 @@ from app.core.security import get_current_user
 from app.schemas import (
     ConferenceReservationCreate, ConferenceReservationResponse, ConferenceReservationUpdate,
     ConferenceHallResponse, ConferenceResourceResponse, ConferenceMealPackageResponse,
-    ConferenceHallCreate
+    ConferenceHallCreate, ConferenceEventCreate, ConferenceEventUpdate, ConferenceEventResponse,
+    ConferenceFacilityCreate, ConferenceFacilityUpdate, ConferenceFacilityResponse
 )
 from app.repositories import ConferenceRepository
 from app.models import ConferenceHall, ConferenceResource, ConferenceMealPackage, ConferenceResourceBooking, ConferenceMealBooking
@@ -293,3 +294,199 @@ async def update_reservation(
             pass
             
     return reservation
+
+
+# =====================================================================
+# EVENTS ENDPOINTS
+# =====================================================================
+
+@router.get("/events", response_model=List[ConferenceEventResponse])
+async def get_conference_events(db: AsyncSession = Depends(get_db)):
+    """Get all conference events"""
+    from app.models import ConferenceEvent
+    result = await db.execute(select(ConferenceEvent).order_by(ConferenceEvent.event_id.desc()))
+    return result.scalars().all()
+
+
+@router.post("/events", response_model=ConferenceEventResponse, status_code=status.HTTP_201_CREATED)
+async def create_conference_event(
+    request: ConferenceEventCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new conference/lodge event"""
+    from app.models import ConferenceEvent
+    event = ConferenceEvent(
+        event_name=request.event_name,
+        description=request.description,
+        photo_url=request.photo_url,
+        price=request.price,
+        discount=request.discount if request.discount is not None else Decimal('0.00'),
+        event_date=request.event_date,
+        location=request.location,
+        capacity=request.capacity,
+        is_active=request.is_active if request.is_active is not None else True
+    )
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+    return event
+
+
+@router.put("/events/{event_id}", response_model=ConferenceEventResponse)
+async def update_conference_event(
+    event_id: int,
+    request: ConferenceEventUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a conference/lodge event"""
+    from app.models import ConferenceEvent
+    result = await db.execute(select(ConferenceEvent).where(ConferenceEvent.event_id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+        
+    if request.event_name is not None:
+        event.event_name = request.event_name
+    if request.description is not None:
+        event.description = request.description
+    if request.photo_url is not None:
+        event.photo_url = request.photo_url
+    if request.price is not None:
+        event.price = request.price
+    if request.discount is not None:
+        event.discount = request.discount
+    if request.event_date is not None:
+        event.event_date = request.event_date
+    if request.location is not None:
+        event.location = request.location
+    if request.capacity is not None:
+        event.capacity = request.capacity
+    if request.is_active is not None:
+        event.is_active = request.is_active
+
+    db.add(event)
+    await db.commit()
+    await db.refresh(event)
+    return event
+
+
+@router.delete("/events/{event_id}")
+async def delete_conference_event(
+    event_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a conference/lodge event"""
+    from app.models import ConferenceEvent
+    result = await db.execute(select(ConferenceEvent).where(ConferenceEvent.event_id == event_id))
+    event = result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    await db.delete(event)
+    await db.commit()
+    return {"message": "Event deleted successfully"}
+
+
+# =====================================================================
+# CONFERENCE FACILITIES ENDPOINTS
+# =====================================================================
+
+@router.get("/facilities", response_model=List[ConferenceFacilityResponse])
+async def get_conference_facilities(
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all conference facilities. Seeds defaults if table is empty."""
+    from app.models import ConferenceFacility
+    result = await db.execute(select(ConferenceFacility).order_by(ConferenceFacility.facility_id.asc()))
+    facilities = result.scalars().all()
+    
+    if not facilities:
+        defaults = [
+            {"name": "Catering Services", "category": "Catering & Dining", "description": "Full buffet, seated banquets, and coffee breaks.", "icon_name": "Utensils", "is_active": True},
+            {"name": "Public Address System", "category": "Audio/Visual", "description": "High-powered PA system, wireless mics, and mixers.", "icon_name": "Volume2", "is_active": True},
+            {"name": "HD Projector & Screen", "category": "Audio/Visual", "description": "4K Laser projection with motorized 150-inch screens.", "icon_name": "Projector", "is_active": True},
+            {"name": "High-Speed Wi-Fi", "category": "Connectivity", "description": "Dedicated 1Gbps fiber internet with guest portal.", "icon_name": "Wifi", "is_active": True},
+            {"name": "Stage & Podium", "category": "Staging & Hall", "description": "Modular executive stage with wooden lectern.", "icon_name": "Mic", "is_active": True},
+            {"name": "Executive Sound & Lighting", "category": "Audio/Visual", "description": "Ambient stage spotlights, RGB mood lights, and DJ rig.", "icon_name": "Zap", "is_active": True},
+            {"name": "Coffee & Refreshments Station", "category": "Catering & Dining", "description": "Espresso machine, herbal tea bar, and pastries.", "icon_name": "Coffee", "is_active": True}
+        ]
+        for item in defaults:
+            db.add(ConferenceFacility(**item))
+        await db.commit()
+        result = await db.execute(select(ConferenceFacility).order_by(ConferenceFacility.facility_id.asc()))
+        facilities = result.scalars().all()
+        
+    return facilities
+
+
+@router.post("/facilities", response_model=ConferenceFacilityResponse, status_code=status.HTTP_201_CREATED)
+async def create_conference_facility(
+    request: ConferenceFacilityCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new conference facility"""
+    from app.models import ConferenceFacility
+    facility = ConferenceFacility(
+        name=request.name,
+        category=request.category or "General Services",
+        description=request.description,
+        icon_name=request.icon_name or "Sparkles",
+        is_active=request.is_active if request.is_active is not None else True
+    )
+    db.add(facility)
+    await db.commit()
+    await db.refresh(facility)
+    return facility
+
+
+@router.put("/facilities/{facility_id}", response_model=ConferenceFacilityResponse)
+async def update_conference_facility(
+    facility_id: int,
+    request: ConferenceFacilityUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a conference facility"""
+    from app.models import ConferenceFacility
+    result = await db.execute(select(ConferenceFacility).where(ConferenceFacility.facility_id == facility_id))
+    facility = result.scalar_one_or_none()
+    if not facility:
+        raise HTTPException(status_code=404, detail="Facility not found")
+
+    if request.name is not None:
+        facility.name = request.name
+    if request.category is not None:
+        facility.category = request.category
+    if request.description is not None:
+        facility.description = request.description
+    if request.icon_name is not None:
+        facility.icon_name = request.icon_name
+    if request.is_active is not None:
+        facility.is_active = request.is_active
+
+    db.add(facility)
+    await db.commit()
+    await db.refresh(facility)
+    return facility
+
+
+@router.delete("/facilities/{facility_id}")
+async def delete_conference_facility(
+    facility_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a conference facility"""
+    from app.models import ConferenceFacility
+    result = await db.execute(select(ConferenceFacility).where(ConferenceFacility.facility_id == facility_id))
+    facility = result.scalar_one_or_none()
+    if not facility:
+        raise HTTPException(status_code=404, detail="Facility not found")
+
+    await db.delete(facility)
+    await db.commit()
+    return {"message": "Facility deleted successfully"}

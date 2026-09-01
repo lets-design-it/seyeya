@@ -413,7 +413,7 @@ export const ClientsCRM: React.FC = () => {
         </div>
         <ShadcnButton
           onClick={() => setIsCreateDrawerOpen(true)}
-          className="rounded-xl px-4.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs flex items-center gap-1.5 select-none shrink-0 self-end sm:self-auto dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+          className="rounded-xl px-4.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs flex items-center gap-1.5 select-none shrink-0 self-end sm:self-auto dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
         >
           <Plus className="h-4 w-4" />
           Add Guest
@@ -444,7 +444,7 @@ export const ClientsCRM: React.FC = () => {
                 setSearchTerm('');
                 fetchGuests();
               }}
-              className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer flex items-center gap-2 text-xs font-bold dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+              className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer flex items-center gap-2 text-xs font-bold dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Reset
@@ -455,7 +455,7 @@ export const ClientsCRM: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <ShadcnButton
                   variant="outline"
-                  className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer flex items-center gap-2 text-xs font-bold dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+                  className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer flex items-center gap-2 text-xs font-bold dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
                 >
                   <Settings2 className="h-3.5 w-3.5" />
                   Columns
@@ -981,7 +981,7 @@ export const ClientsCRM: React.FC = () => {
               <ShadcnButton
                 type="submit"
                 disabled={isCreating}
-                className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs disabled:opacity-50 flex items-center gap-1.5 dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs disabled:opacity-50 flex items-center gap-1.5 dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
               >
                 {isCreating ? (
                   <>

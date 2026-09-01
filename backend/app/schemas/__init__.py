@@ -1247,6 +1247,77 @@ class ConferenceReservationResponse(BaseModel):
         from_attributes = True
 
 
+class ConferenceEventCreate(BaseModel):
+    event_name: str
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    price: Decimal = Decimal('0.00')
+    discount: Optional[Decimal] = Decimal('0.00')
+    event_date: Optional[datetime] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    is_active: Optional[bool] = True
+
+
+class ConferenceEventUpdate(BaseModel):
+    event_name: Optional[str] = None
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    price: Optional[Decimal] = None
+    discount: Optional[Decimal] = None
+    event_date: Optional[datetime] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class ConferenceEventResponse(BaseModel):
+    event_id: int
+    event_name: str
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    price: Decimal
+    discount: Decimal
+    event_date: Optional[datetime] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConferenceFacilityBase(BaseModel):
+    name: str
+    category: Optional[str] = "General Services"
+    description: Optional[str] = None
+    icon_name: Optional[str] = "Sparkles"
+    is_active: Optional[bool] = True
+
+
+class ConferenceFacilityCreate(ConferenceFacilityBase):
+    pass
+
+
+class ConferenceFacilityUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    icon_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ConferenceFacilityResponse(ConferenceFacilityBase):
+    facility_id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 # =====================================================================
 # PAYMENT SCHEMAS
 # =====================================================================

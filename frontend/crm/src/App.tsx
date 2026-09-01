@@ -39,8 +39,7 @@ const CRMApp: React.FC = () => {
   // Adjust staff tabs when role shifts
   useEffect(() => {
     if (user) {
-      if (user.role === 'agent' && (activeStaffTab === 'overview' || activeStaffTab.startsWith('conferences'))) {
-        // Sales agents don't see overview/conferences, default to orders
+      if (user.role === 'agent' && activeStaffTab === 'overview') {
         setActiveStaffTab('orders');
       }
     }
@@ -132,12 +131,14 @@ const CRMApp: React.FC = () => {
       }
       case 'conferences':
       case 'conferences-quotes':
-      case 'conferences-halls': {
+      case 'conferences-halls':
+      case 'conferences-events':
+      case 'conferences-facilities': {
         const subTab = activeStaffTab === 'conferences'
           ? 'quotes'
-          : (activeStaffTab.split('-')[1] as 'quotes' | 'halls');
+          : (activeStaffTab.split('-')[1] as 'quotes' | 'halls' | 'events' | 'facilities');
         return (
-          <ProtectedRoute allowedRoles={['admin', 'manager']}>
+          <ProtectedRoute allowedRoles={['admin', 'manager', 'agent']}>
             <Conferences 
               activeTab={subTab}
               setActiveTab={(tab) => setActiveStaffTab(`conferences-${tab}`)}

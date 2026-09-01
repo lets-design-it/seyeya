@@ -80,7 +80,9 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
       roles: ['admin', 'manager'],
       items: [
         { id: 'conferences-quotes', title: 'Reservations' },
-        { id: 'conferences-halls', title: 'Event Halls' }
+        { id: 'conferences-halls', title: 'Event Halls' },
+        { id: 'conferences-events', title: 'Events' },
+        { id: 'conferences-facilities', title: 'Facilities' }
       ]
     },
     {

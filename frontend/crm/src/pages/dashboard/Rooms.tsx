@@ -1217,7 +1217,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           {activeTab === 'reservations' && (
             <ShadcnButton
               onClick={openAddBooking}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
             >
               <Plus className="h-4 w-4" />
               New Reservation
@@ -1226,7 +1226,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           {activeTab === 'rooms' && (
             <ShadcnButton
               onClick={openAddRoom}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
             >
               <Plus className="h-4 w-4" />
               Add Room Unit
@@ -1235,7 +1235,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           {activeTab === 'categories' && (
             <ShadcnButton
               onClick={openAddCategory}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
             >
               <Plus className="h-4 w-4" />
               Add Category
@@ -1975,7 +1975,7 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
               >
                 Save Category
               </ShadcnButton>
@@ -2094,7 +2094,7 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
               >
                 Save Room
               </ShadcnButton>
@@ -2383,7 +2383,7 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
               >
                 Save Reservation
               </ShadcnButton>
@@ -2537,7 +2537,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                         }
                         setIsDetailsOpen(false);
                       }}
-                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-[#212121] hover:bg-zinc-800 text-white py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-[#212121] hover:bg-zinc-800 text-white py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
                     >
                       <UserCheck className="h-4 w-4" />
                       Check In Guest

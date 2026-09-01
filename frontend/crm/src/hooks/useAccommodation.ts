@@ -74,11 +74,14 @@ export const useAccommodation = () => {
         const dbPhotos = c.photos ? c.photos.map((p: any) => p.photo_url) : [];
         const defaultImg = dbPhotos.length > 0 ? dbPhotos[0] : (parts[3] || 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
 
+        const savedUGX = (parts[4] && !isNaN(Number(parts[4]))) ? Number(parts[4]) : undefined;
+        const priceUGX = savedUGX !== undefined ? savedUGX : Math.round(Number(c.base_rate_usd) * 3700);
+
         const mappedRates = (c.available_rates && c.available_rates.length > 0)
           ? c.available_rates.map((r: any) => ({
               id: String(r.rate_id),
               name: r.rate_name,
-              priceUGX: Math.round(Number(r.price) * 3500),
+              priceUGX: Math.round(Number(r.price) * 3700),
               priceUSD: Number(r.price),
               description: r.description || '',
               isActive: r.is_active !== false
@@ -96,7 +99,7 @@ export const useAccommodation = () => {
         return {
           id: String(c.room_category_id),
           name: c.category_name,
-          priceUGX: Math.round(Number(c.base_rate_usd) * 3500),
+          priceUGX: priceUGX,
           priceUSD: Number(c.base_rate_usd),
           capacity: parts[1] || "2 Adults, 1 Child",
           amenities: parts[2] ? parts[2].split(",") : ['AC', 'Free Wi-Fi', 'King Bed'],
@@ -192,7 +195,7 @@ export const useAccommodation = () => {
   // Room Categories CRUD
   const addCategory = async (category: Omit<RoomType, 'id'>) => {
     try {
-      const descPayload = `${category.description} | ${category.capacity} | ${category.amenities.join(',')} | ${category.image}`;
+      const descPayload = `${category.description} | ${category.capacity} | ${category.amenities.join(',')} | ${category.image} | ${category.priceUGX}`;
       const res = await api.post('/accommodation/categories', {
         category_name: category.name,
         description: descPayload,
@@ -265,7 +268,7 @@ export const useAccommodation = () => {
   const updateCategory = async (updatedCat: RoomType) => {
     try {
       const categoryId = updatedCat.id;
-      const descPayload = `${updatedCat.description} | ${updatedCat.capacity} | ${updatedCat.amenities.join(',')} | ${updatedCat.image}`;
+      const descPayload = `${updatedCat.description} | ${updatedCat.capacity} | ${updatedCat.amenities.join(',')} | ${updatedCat.image} | ${updatedCat.priceUGX}`;
       await api.put(`/accommodation/categories/${categoryId}`, {
         category_name: updatedCat.name,
         description: descPayload,
