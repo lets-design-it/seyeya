@@ -106,12 +106,12 @@ async def seed_data():
             print(f"✅ Successfully fetched {len(categories)} categories!")
             for c in categories[:2]:  # show top 2
                 print(f"\n--- {c['category_name']} ---")
-                print(f"Price: {c.get('base_rate', c.get('base_rate_usd', 0))}")
+                print(f"Price: {c.get('base_rate', 0)}")
                 print(f"Max Occupancy: {c['max_occupancy']}")
                 print(f"Beds: {[b['quantity'] for b in c['beds']]}x {[b['type'] for b in c['beds']]}")
                 print(f"Facilities: {c['room_facilities']}")
                 if c.get('available_rates'):
-                    print(f"Rates: {[r['rate_name'] + ' ($' + str(r['price']) + ')' for r in c['available_rates']]}")
+                    print(f"Rates: {[r['rate_name'] + ' (' + str(r['price']) + ')' for r in c['available_rates']]}")
         else:
             print(f"❌ Failed to fetch categories: {fetch_res.text}")
 

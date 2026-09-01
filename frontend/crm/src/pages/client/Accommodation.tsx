@@ -38,9 +38,10 @@ export const Accommodation: React.FC = () => {
   // Total reservation cost
   const totalCost = useMemo(() => {
     if (nightsCount <= 0) return { ugx: 0, usd: 0 };
+    const price = selectedRoom.priceUGX || selectedRoom.priceUSD || 0;
     return {
-      ugx: selectedRoom.priceUGX * nightsCount,
-      usd: selectedRoom.priceUSD * nightsCount
+      ugx: price * nightsCount,
+      usd: price * nightsCount
     };
   }, [selectedRoom, nightsCount]);
 
@@ -152,7 +153,7 @@ export const Accommodation: React.FC = () => {
                 <div className="text-right">
                   <span className="text-xs uppercase font-bold text-zinc-500 block leading-none">Price per Night</span>
                   <span className="text-xs font-bold text-violet-400 mt-1 block leading-none">
-                    {formatPrice(room.priceUGX)}
+                    {Number(room.priceUGX || 0).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -170,7 +171,7 @@ export const Accommodation: React.FC = () => {
               <span>{nightsCount} Nights Selection</span>
             </div>
             <span className="text-sm font-bold text-white mt-1.5 block leading-none">
-              {formatPrice(totalCost.ugx)}
+              {Number(totalCost.ugx || 0).toLocaleString()}
             </span>
           </div>
 
