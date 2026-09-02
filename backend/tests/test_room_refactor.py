@@ -32,7 +32,7 @@ async def test_room_category_apis(async_client: AsyncClient):
         json={
             "category_name": unique_cat_name,
             "description": "Category for comprehensive room endpoint testing",
-            "base_rate_usd": 150.00,
+            "base_rate": 150.00,
             "is_active": True
         },
         headers=headers
@@ -42,19 +42,29 @@ async def test_room_category_apis(async_client: AsyncClient):
     cat_id = cat_data["room_category_id"]
     assert cat_data["category_name"] == unique_cat_name
 
+    # 2b. GET /api/v1/accommodation/categories/{cat_id}
+    get_single_res = await async_client.get(f"/api/v1/accommodation/categories/{cat_id}", headers=headers)
+    assert get_single_res.status_code == 200
+    assert get_single_res.json()["room_category_id"] == cat_id
+    assert get_single_res.json()["category_name"] == unique_cat_name
+
+    # 2c. GET 404 for non-existent category
+    get_404_res = await async_client.get("/api/v1/accommodation/categories/999999", headers=headers)
+    assert get_404_res.status_code == 404
+
     # 3. PUT /api/v1/accommodation/categories/{cat_id}
     updated_cat_name = f"Updated Category {uuid.uuid4().hex[:6]}"
     put_cat_res = await async_client.put(
         f"/api/v1/accommodation/categories/{cat_id}",
         json={
             "category_name": updated_cat_name,
-            "base_rate_usd": 175.50
+            "base_rate": 175.50
         },
         headers=headers
     )
     assert put_cat_res.status_code == 200
     assert put_cat_res.json()["category_name"] == updated_cat_name
-    assert float(put_cat_res.json()["base_rate_usd"]) == 175.50
+    assert float(put_cat_res.json()["base_rate"]) == 175.50
 
     # 4. DELETE empty category
     del_cat_res = await async_client.delete(f"/api/v1/accommodation/categories/{cat_id}", headers=headers)
@@ -70,7 +80,7 @@ async def test_all_room_apis(async_client: AsyncClient):
     cat_payload = {
         "category_name": f"Room Suite {uuid.uuid4().hex[:6]}",
         "description": "Category for room unit testing",
-        "base_rate_usd": 200.00,
+        "base_rate": 200.00,
         "is_active": True,
         "room_size": 120.0,
         "room_size_unit": "m²",
