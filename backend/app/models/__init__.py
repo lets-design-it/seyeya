@@ -806,6 +806,46 @@ class ConferenceMealBooking(Base):
     package = relationship("ConferenceMealPackage", back_populates="bookings")
 
 
+class ConferenceEvent(Base):
+    """Conference / Lodge Event model"""
+    __tablename__ = "conference_events"
+    
+    event_id = Column(Integer, primary_key=True)
+    event_name = Column(String(200), nullable=False)
+    description = Column(String(1000), nullable=True)
+    photo_url = Column(String(500), nullable=True)
+    price = Column(DECIMAL(10, 2), nullable=False, default=0.00)
+    discount = Column(DECIMAL(10, 2), nullable=False, default=0.00)
+    event_date = Column(DateTime, nullable=True)
+    location = Column(String(200), nullable=True)
+    capacity = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('ix_conference_events_is_active', 'is_active'),
+    )
+
+
+class ConferenceFacility(Base):
+    """Conference / Event Facility model (e.g. Catering, PA System, Projector)"""
+    __tablename__ = "conference_facilities"
+    
+    facility_id = Column(Integer, primary_key=True)
+    name = Column(String(150), nullable=False, unique=True)
+    category = Column(String(100), default="General Services")
+    description = Column(String(500), nullable=True)
+    icon_name = Column(String(50), default="Sparkles")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('ix_conference_facilities_is_active', 'is_active'),
+    )
+
+
 # =====================================================================
 # SECTION 6: PAYMENT MANAGEMENT
 # =====================================================================

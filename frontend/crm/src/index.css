@@ -309,4 +309,14 @@ body {
   html {
     @apply font-sans;
   }
+  input, textarea, select {
+    @apply text-zinc-900 dark:text-zinc-50;
+  }
+  .dark input, .dark textarea, .dark select {
+    color: #fafafa !important;
+    color-scheme: dark;
+  }
+  .dark input::placeholder, .dark textarea::placeholder {
+    color: #71717a !important;
+  }
 }

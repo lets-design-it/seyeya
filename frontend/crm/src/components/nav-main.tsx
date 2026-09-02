@@ -85,7 +85,7 @@ export function NavMain({ items, activeTab, setActiveTab, userRole }: NavMainPro
                                 isActive={isSubActive}
                                 className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
                                   isSubActive
-                                    ? "bg-black! text-white! hover:bg-black! hover:text-white! dark:bg-white! dark:text-black!"
+                                    ? "bg-black! text-white! hover:bg-black! hover:text-white! dark:bg-zinc-800! dark:text-white!"
                                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
                                 }`}
                               >
@@ -111,7 +111,7 @@ export function NavMain({ items, activeTab, setActiveTab, userRole }: NavMainPro
                   isActive={isActive}
                   className={`w-full flex items-center gap-3 px-3.5 py-5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
                     isActive
-                      ? "bg-black! text-white! hover:bg-black! hover:text-white! shadow-sm dark:bg-white! dark:text-black!"
+                      ? "bg-black! text-white! hover:bg-black! hover:text-white! shadow-sm dark:bg-zinc-800! dark:text-white!"
                       : "text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                   }`}
                 >

@@ -129,7 +129,7 @@ export const AmenitiesView: React.FC = () => {
 
         <ShadcnButton
           onClick={openAddDrawer}
-          className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none"
+          className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none"
         >
           <Plus className="h-4 w-4" />
           Add Amenity
@@ -380,7 +380,7 @@ export const AmenitiesView: React.FC = () => {
                 </ShadcnButton>
                 <ShadcnButton
                   type="submit"
-                  className="flex-1 rounded-xl h-10 text-xs font-bold bg-black text-white dark:bg-white dark:text-black cursor-pointer"
+                  className="flex-1 rounded-xl h-10 text-xs font-bold bg-black text-white dark:bg-zinc-800 dark:text-white cursor-pointer"
                 >
                   {editingAmenity ? 'Save Changes' : 'Create Amenity'}
                 </ShadcnButton>

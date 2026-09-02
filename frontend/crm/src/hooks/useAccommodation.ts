@@ -12,6 +12,9 @@ export interface RoomType {
   description: string;
   image: string;
   photos?: string[];
+  rateOptions?: any[];
+  selectedAmenityIds?: (string | number)[];
+  selectedPolicyIds?: (string | number)[];
 }
 
 export interface RoomUnit {
@@ -64,12 +67,35 @@ export const useAccommodation = () => {
   const fetchAccommodationData = async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch categories
+      // 1. Fetch categories with rates, amenities, and policies
       const catRes = await api.get('/accommodation/categories');
       const parsedCats = catRes.data.map((c: any) => {
         const parts = c.description ? c.description.split(" | ") : [];
         const dbPhotos = c.photos ? c.photos.map((p: any) => p.photo_url) : [];
         const defaultImg = dbPhotos.length > 0 ? dbPhotos[0] : (parts[3] || 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
+
+        const savedUGX = (parts[4] && !isNaN(Number(parts[4]))) ? Number(parts[4]) : undefined;
+        const priceUGX = savedUGX !== undefined ? savedUGX : Math.round(Number(c.base_rate_usd) * 3700);
+
+        const mappedRates = (c.available_rates && c.available_rates.length > 0)
+          ? c.available_rates.map((r: any) => ({
+              id: String(r.rate_id),
+              name: r.rate_name,
+              priceUGX: Math.round(Number(r.price) * 3700),
+              priceUSD: Number(r.price),
+              description: r.description || '',
+              isActive: r.is_active !== false
+            }))
+          : undefined;
+
+        const mappedAmenityIds = (c.amenity_assignments && c.amenity_assignments.length > 0)
+          ? c.amenity_assignments.map((a: any) => String(a.amenity_id))
+          : undefined;
+
+        const mappedPolicyIds = (c.policies && c.policies.length > 0)
+          ? c.policies.map((p: any) => String(p.policy_id))
+          : undefined;
+
         return {
           id: String(c.room_category_id),
           name: c.category_name,
@@ -80,6 +106,9 @@ export const useAccommodation = () => {
           description: parts[0] || c.description || "",
           image: defaultImg,
           photos: dbPhotos,
+          rateOptions: mappedRates,
+          selectedAmenityIds: mappedAmenityIds,
+          selectedPolicyIds: mappedPolicyIds
         };
       });
       setCategories(parsedCats);
@@ -166,14 +195,68 @@ export const useAccommodation = () => {
   // Room Categories CRUD
   const addCategory = async (category: Omit<RoomType, 'id'>) => {
     try {
-      const descPayload = `${category.description} | ${category.capacity} | ${category.amenities.join(',')} | ${category.image}`;
-      await api.post('/accommodation/categories', {
+      const descPayload = `${category.description} | ${category.capacity} | ${category.amenities.join(',')} | ${category.image} | ${category.priceUGX}`;
+      const res = await api.post('/accommodation/categories', {
         category_name: category.name,
         description: descPayload,
         base_rate: category.priceUGX || category.priceUSD || 0,
         is_active: true,
         photos: category.photos || []
       });
+
+      const categoryId = res.data?.room_category_id || res.data?.id;
+
+      if (categoryId) {
+        // 1. Sync Assigned Amenities
+        if (category.selectedAmenityIds && Array.isArray(category.selectedAmenityIds)) {
+          const numericIds = category.selectedAmenityIds
+            .map((id: any) => parseInt(String(id), 10))
+            .filter((id: number) => !isNaN(id) && id > 0);
+          if (numericIds.length > 0) {
+            try {
+              await api.post(`/accommodation/categories/${categoryId}/amenities`, numericIds);
+            } catch (aErr) {
+              console.warn("Category amenity assignment error:", aErr);
+            }
+          }
+        }
+
+        // 2. Sync Rate Options / Rate Plans
+        if (category.rateOptions && Array.isArray(category.rateOptions)) {
+          for (const rateOpt of category.rateOptions) {
+            try {
+              await api.post(`/accommodation/categories/${categoryId}/rates`, {
+                rate_name: rateOpt.name,
+                price: Number(rateOpt.priceUSD) || category.priceUSD,
+                currency: 'USD',
+                description: rateOpt.description || '',
+                is_active: rateOpt.isActive !== false
+              });
+            } catch (rErr) {
+              console.warn("Category rate plan error:", rErr);
+            }
+          }
+        }
+
+        // 3. Sync Category Policies
+        if (category.selectedPolicyIds && Array.isArray(category.selectedPolicyIds)) {
+          for (const polId of category.selectedPolicyIds) {
+            const numericPolId = parseInt(String(polId), 10);
+            if (!isNaN(numericPolId) && numericPolId > 0) {
+              try {
+                await api.post(`/accommodation/categories/${categoryId}/policies`, {
+                  policy_id: numericPolId,
+                  value: 'Standard Policy',
+                  is_active: true
+                });
+              } catch (pErr) {
+                console.warn("Category policy assignment error:", pErr);
+              }
+            }
+          }
+        }
+      }
+
       await fetchAccommodationData();
       addNotification('Category Added', `Created new room category: ${category.name}`, 'booking');
     } catch (err: any) {
@@ -184,14 +267,65 @@ export const useAccommodation = () => {
 
   const updateCategory = async (updatedCat: RoomType) => {
     try {
-      const descPayload = `${updatedCat.description} | ${updatedCat.capacity} | ${updatedCat.amenities.join(',')} | ${updatedCat.image}`;
-      await api.put(`/accommodation/categories/${updatedCat.id}`, {
+      const categoryId = updatedCat.id;
+      const descPayload = `${updatedCat.description} | ${updatedCat.capacity} | ${updatedCat.amenities.join(',')} | ${updatedCat.image} | ${updatedCat.priceUGX}`;
+      await api.put(`/accommodation/categories/${categoryId}`, {
         category_name: updatedCat.name,
         description: descPayload,
         base_rate: updatedCat.priceUGX || updatedCat.priceUSD || 0,
         is_active: true,
         photos: updatedCat.photos || []
       });
+
+      // 1. Sync Assigned Amenities
+      if (updatedCat.selectedAmenityIds && Array.isArray(updatedCat.selectedAmenityIds)) {
+        const numericIds = updatedCat.selectedAmenityIds
+          .map((id: any) => parseInt(String(id), 10))
+          .filter((id: number) => !isNaN(id) && id > 0);
+        if (numericIds.length > 0) {
+          try {
+            await api.post(`/accommodation/categories/${categoryId}/amenities`, numericIds);
+          } catch (aErr) {
+            console.warn("Category amenity assignment update error:", aErr);
+          }
+        }
+      }
+
+      // 2. Sync Rate Options / Rate Plans
+      if (updatedCat.rateOptions && Array.isArray(updatedCat.rateOptions)) {
+        for (const rateOpt of updatedCat.rateOptions) {
+          try {
+            await api.post(`/accommodation/categories/${categoryId}/rates`, {
+              rate_name: rateOpt.name,
+              price: Number(rateOpt.priceUSD) || updatedCat.priceUSD,
+              currency: 'USD',
+              description: rateOpt.description || '',
+              is_active: rateOpt.isActive !== false
+            });
+          } catch (rErr) {
+            console.warn("Category rate plan update error:", rErr);
+          }
+        }
+      }
+
+      // 3. Sync Category Policies
+      if (updatedCat.selectedPolicyIds && Array.isArray(updatedCat.selectedPolicyIds)) {
+        for (const polId of updatedCat.selectedPolicyIds) {
+          const numericPolId = parseInt(String(polId), 10);
+          if (!isNaN(numericPolId) && numericPolId > 0) {
+            try {
+              await api.post(`/accommodation/categories/${categoryId}/policies`, {
+                policy_id: numericPolId,
+                value: 'Standard Policy',
+                is_active: true
+              });
+            } catch (pErr) {
+              console.warn("Category policy assignment update error:", pErr);
+            }
+          }
+        }
+      }
+
       await fetchAccommodationData();
       addNotification('Category Updated', `Updated room category: ${updatedCat.name}`, 'booking');
     } catch (err: any) {

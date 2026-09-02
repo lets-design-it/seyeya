@@ -221,7 +221,7 @@ export const Orders: React.FC<OrdersProps> = ({
         <div className="flex items-center gap-2">
           <Button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-zinc-800 text-white dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-full px-5 py-2.5 text-xs font-bold shadow-sm cursor-pointer animate-in fade-in"
+            className="flex items-center gap-2 bg-primary hover:bg-zinc-800 text-white dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! rounded-full px-5 py-2.5 text-xs font-bold shadow-sm cursor-pointer animate-in fade-in"
           >
             <Plus className="h-4 w-4" />
             Create New Order
@@ -549,7 +549,7 @@ export const Orders: React.FC<OrdersProps> = ({
                   </div>
                   <Button
                     type="submit"
-                    className="bg-primary hover:bg-zinc-800 text-white dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-full px-6 py-2.5 text-xs font-bold shadow-sm cursor-pointer border-none"
+                    className="bg-primary hover:bg-zinc-800 text-white dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! rounded-full px-6 py-2.5 text-xs font-bold shadow-sm cursor-pointer border-none"
                   >
                     Place Order
                   </Button>
@@ -867,7 +867,7 @@ export const Orders: React.FC<OrdersProps> = ({
                 </Button>
                 <Button
                   onClick={handleUpdateOrder}
-                  className="flex-1 bg-primary hover:bg-zinc-800 text-white dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-xl text-xs font-bold py-2.5 shadow-sm cursor-pointer border-none h-10"
+                  className="flex-1 bg-primary hover:bg-zinc-800 text-white dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! rounded-xl text-xs font-bold py-2.5 shadow-sm cursor-pointer border-none h-10"
                 >
                   Save Ticket Changes
                 </Button>

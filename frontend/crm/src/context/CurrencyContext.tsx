@@ -19,6 +19,7 @@ interface CurrencyContextType {
   formatPrice: (amountInUGX: number, options?: { showCode?: boolean; compact?: boolean; precision?: number }) => string;
   convertFromUGX: (amountInUGX: number, targetCurrency?: string) => number;
   convertToUGX: (amountInTarget: number, sourceCurrency?: string) => number;
+  convert: (amount: number, fromCurrency: string, toCurrency: string) => number;
 }
 
 const DEFAULT_RATES: Record<string, number> = {
@@ -153,6 +154,13 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     })}`;
   }, [currency, convertFromUGX]);
 
+  const convert = useCallback((amount: number, fromCurrency: string, toCurrency: string): number => {
+    if (!amount) return 0;
+    if (fromCurrency === toCurrency) return amount;
+    const ugxAmount = fromCurrency === 'UGX' ? amount : convertToUGX(amount, fromCurrency);
+    return toCurrency === 'UGX' ? ugxAmount : convertFromUGX(ugxAmount, toCurrency);
+  }, [convertToUGX, convertFromUGX]);
+
   return (
     <CurrencyContext.Provider value={{
       currency,
@@ -163,7 +171,8 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setUsdRate,
       formatPrice,
       convertFromUGX,
-      convertToUGX
+      convertToUGX,
+      convert
     }}>
       {children}
     </CurrencyContext.Provider>

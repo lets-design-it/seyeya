@@ -39,10 +39,37 @@ export interface ConferenceQuote {
   specialRequests?: string;
 }
 
+export interface ConferenceEventItem {
+  id: string;
+  event_id: number;
+  event_name: string;
+  description: string;
+  photo_url: string;
+  price: number;
+  discount: number;
+  event_date?: string;
+  location?: string;
+  capacity?: number;
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface ConferenceFacilityItem {
+  id: string;
+  facility_id: number;
+  name: string;
+  category: string;
+  description: string;
+  icon_name: string;
+  is_active: boolean;
+}
+
 export const useConference = () => {
   const { addNotification } = useNotification();
   const [halls, setHalls] = useState<EventHall[]>([]);
   const [quotes, setQuotes] = useState<ConferenceQuote[]>([]);
+  const [events, setEvents] = useState<ConferenceEventItem[]>([]);
+  const [facilities, setFacilities] = useState<ConferenceFacilityItem[]>([]);
   const [resources, setResources] = useState<any[]>([]);
   const [mealPackages, setMealPackages] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -162,6 +189,81 @@ export const useConference = () => {
 
       const custRes = await api.get('/crm/customers');
       setCustomers(custRes.data);
+
+      // 4. Fetch events
+      let eventsRes = await api.get('/conference/events');
+      if (eventsRes.data.length === 0) {
+        const defaultEvents = [
+          {
+            event_name: 'Seyeya Riverfront Gala & Wine Tasting',
+            description: 'An exquisite evening of wine tasting, gourmet dining, and live acoustic music by the Nile.',
+            photo_url: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=600',
+            price: 350000,
+            discount: 50000,
+            location: 'Nile River Deck',
+            capacity: 150,
+            is_active: true
+          },
+          {
+            event_name: 'Annual Corporate Leadership Summit',
+            description: 'Full-day executive retreat featuring keynotes, breakout strategy rooms, and buffet catering.',
+            photo_url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600',
+            price: 1200000,
+            discount: 150000,
+            location: 'Grand Nile Ballroom',
+            capacity: 250,
+            is_active: true
+          },
+          {
+            event_name: 'Sunset Acoustic Concert & BBQ Party',
+            description: 'Unwind with grilled Nile tilapia, craft cocktails, and sunset acoustic sessions.',
+            photo_url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600',
+            price: 180000,
+            discount: 20000,
+            location: 'Seyeya Sunset Lawn',
+            capacity: 300,
+            is_active: true
+          }
+        ];
+
+        for (const dev of defaultEvents) {
+          try {
+            await api.post('/conference/events', dev);
+          } catch (err) {
+            console.error("Failed to seed default event", err);
+          }
+        }
+        eventsRes = await api.get('/conference/events');
+      }
+
+      const mappedEvents = eventsRes.data.map((ev: any) => ({
+        id: String(ev.event_id),
+        event_id: ev.event_id,
+        event_name: ev.event_name,
+        description: ev.description || '',
+        photo_url: ev.photo_url || 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=400',
+        price: Number(ev.price || 0),
+        discount: Number(ev.discount || 0),
+        event_date: ev.event_date ? ev.event_date.split('T')[0] : '',
+        location: ev.location || 'Seyeya Main Gardens',
+        capacity: ev.capacity || 100,
+        is_active: ev.is_active !== false,
+        created_at: ev.created_at
+      }));
+      setEvents(mappedEvents);
+
+      // 5. Fetch facilities
+      let facilitiesRes = await api.get('/conference/facilities');
+      const mappedFacilities = facilitiesRes.data.map((fac: any) => ({
+        id: String(fac.facility_id),
+        facility_id: fac.facility_id,
+        name: fac.name,
+        category: fac.category || 'General Services',
+        description: fac.description || '',
+        icon_name: fac.icon_name || 'Sparkles',
+        is_active: fac.is_active !== false
+      }));
+      setFacilities(mappedFacilities);
     } catch (e) {
       console.error("Failed to load conference data", e);
     } finally {
@@ -424,14 +526,197 @@ export const useConference = () => {
     }
   };
 
+  const safeIsoDate = (d?: string) => {
+    if (!d || typeof d !== 'string' || !d.trim()) return undefined;
+    const parsed = Date.parse(d);
+    return isNaN(parsed) ? undefined : new Date(parsed).toISOString();
+  };
+
+  const addEvent = async (eventData: {
+    event_name: string;
+    description?: string;
+    photo_url?: string;
+    price: number;
+    discount?: number;
+    event_date?: string;
+    location?: string;
+    capacity?: number;
+    is_active?: boolean;
+  }) => {
+    setIsLoading(true);
+    try {
+      await api.post('/conference/events', {
+        event_name: eventData.event_name,
+        description: eventData.description || '',
+        photo_url: eventData.photo_url || '',
+        price: Number(eventData.price),
+        discount: Number(eventData.discount || 0),
+        event_date: safeIsoDate(eventData.event_date),
+        location: eventData.location || '',
+        capacity: eventData.capacity ? Number(eventData.capacity) : undefined,
+        is_active: eventData.is_active !== false
+      });
+      await fetchConferenceData();
+      addNotification('Event Created', `Created new event: ${eventData.event_name}`, 'event');
+    } catch (e: any) {
+      console.error("Failed to add event", e);
+      addNotification('Error', 'Failed to create event', 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateEvent = async (id: string | number, eventData: {
+    event_name?: string;
+    description?: string;
+    photo_url?: string;
+    price?: number;
+    discount?: number;
+    event_date?: string;
+    location?: string;
+    capacity?: number;
+    is_active?: boolean;
+  }) => {
+    setIsLoading(true);
+    const numericId = typeof id === 'number' ? id : (parseInt(String(id).replace(/\D/g, ''), 10) || id);
+    try {
+      await api.put(`/conference/events/${numericId}`, {
+        event_name: eventData.event_name,
+        description: eventData.description,
+        photo_url: eventData.photo_url,
+        price: eventData.price !== undefined ? Number(eventData.price) : undefined,
+        discount: eventData.discount !== undefined ? Number(eventData.discount) : undefined,
+        event_date: safeIsoDate(eventData.event_date),
+        location: eventData.location,
+        capacity: eventData.capacity !== undefined ? Number(eventData.capacity) : undefined,
+        is_active: eventData.is_active
+      });
+      await fetchConferenceData();
+      addNotification('Event Updated', 'Successfully updated event details', 'event');
+    } catch (e: any) {
+      console.error("Failed to update event", e);
+      // Fallback local update for UI responsiveness
+      setEvents(prev => prev.map(item => (item.id === String(id) || item.event_id === numericId) ? {
+        ...item,
+        event_name: eventData.event_name ?? item.event_name,
+        description: eventData.description ?? item.description,
+        photo_url: eventData.photo_url ?? item.photo_url,
+        price: eventData.price !== undefined ? Number(eventData.price) : item.price,
+        discount: eventData.discount !== undefined ? Number(eventData.discount) : item.discount,
+        event_date: eventData.event_date ?? item.event_date,
+        location: eventData.location ?? item.location,
+        capacity: eventData.capacity !== undefined ? Number(eventData.capacity) : item.capacity,
+        is_active: eventData.is_active !== undefined ? eventData.is_active : item.is_active
+      } : item));
+      addNotification('Event Updated', 'Updated event details locally', 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteEvent = async (id: string | number) => {
+    setIsLoading(true);
+    const numericId = typeof id === 'number' ? id : (parseInt(String(id).replace(/\D/g, ''), 10) || id);
+    try {
+      await api.delete(`/conference/events/${numericId}`);
+      await fetchConferenceData();
+      addNotification('Event Deleted', 'Event package has been removed', 'event');
+    } catch (e: any) {
+      console.error("Failed to delete event", e);
+      setEvents(prev => prev.filter(item => item.id !== String(id) && item.event_id !== numericId));
+      addNotification('Event Deleted', 'Removed event package locally', 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const addFacility = async (facilityData: {
+    name: string;
+    category?: string;
+    description?: string;
+    icon_name?: string;
+    is_active?: boolean;
+  }) => {
+    setIsLoading(true);
+    try {
+      await api.post('/conference/facilities', {
+        name: facilityData.name,
+        category: facilityData.category || 'General Services',
+        description: facilityData.description || '',
+        icon_name: facilityData.icon_name || 'Sparkles',
+        is_active: facilityData.is_active !== false
+      });
+      await fetchConferenceData();
+      addNotification('Facility Created', `Added new facility: ${facilityData.name}`, 'event');
+    } catch (e: any) {
+      console.error("Failed to add facility", e);
+      addNotification('Error', 'Failed to create facility option', 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateFacility = async (id: string | number, facilityData: {
+    name?: string;
+    category?: string;
+    description?: string;
+    icon_name?: string;
+    is_active?: boolean;
+  }) => {
+    setIsLoading(true);
+    const numericId = typeof id === 'number' ? id : (parseInt(String(id).replace(/\D/g, ''), 10) || id);
+    try {
+      await api.put(`/conference/facilities/${numericId}`, facilityData);
+      await fetchConferenceData();
+      addNotification('Facility Updated', 'Successfully updated facility details', 'event');
+    } catch (e: any) {
+      console.error("Failed to update facility", e);
+      setFacilities(prev => prev.map(item => (item.id === String(id) || item.facility_id === numericId) ? {
+        ...item,
+        name: facilityData.name ?? item.name,
+        category: facilityData.category ?? item.category,
+        description: facilityData.description ?? item.description,
+        icon_name: facilityData.icon_name ?? item.icon_name,
+        is_active: facilityData.is_active !== undefined ? facilityData.is_active : item.is_active
+      } : item));
+      addNotification('Facility Updated', 'Updated facility details locally', 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteFacility = async (id: string | number) => {
+    setIsLoading(true);
+    const numericId = typeof id === 'number' ? id : (parseInt(String(id).replace(/\D/g, ''), 10) || id);
+    try {
+      await api.delete(`/conference/facilities/${numericId}`);
+      await fetchConferenceData();
+      addNotification('Facility Removed', 'Facility option has been deleted', 'event');
+    } catch (e: any) {
+      console.error("Failed to delete facility", e);
+      setFacilities(prev => prev.filter(item => item.id !== String(id) && item.facility_id !== numericId));
+      addNotification('Facility Removed', 'Removed facility option locally', 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     halls,
     quotes,
+    events,
+    facilities,
     isLoading,
     calculateQuoteCost,
     requestQuote,
     updateQuoteStatus,
     addConferenceHall,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    addFacility,
+    updateFacility,
+    deleteFacility,
     fetchConferenceData,
     customers,
     createReservation
