@@ -728,6 +728,7 @@ class AmenityUpdate(BaseModel):
 
 class AmenityResponse(AmenityBase):
     amenity_id: int
+    category: Optional[AmenityCategoryResponse] = None
     created_at: datetime
     updated_at: datetime
 
@@ -741,6 +742,9 @@ class RoomAmenityItem(BaseModel):
     description: Optional[str] = None
     icon: Optional[str] = None
     price: Optional[Decimal] = Field(default=0.00)
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    category: Optional[AmenityCategoryResponse] = None
 
     class Config:
         from_attributes = True
@@ -749,6 +753,7 @@ class RoomAmenityItem(BaseModel):
 class GroupedRoomAmenity(BaseModel):
     category_id: Optional[int] = None
     category_name: str
+    category_description: Optional[str] = None
     amenities: List[RoomAmenityItem]
 
 
@@ -757,7 +762,7 @@ class RoomRatePlanBase(BaseModel):
     rate_code: Optional[str] = None
     description: Optional[str] = None
     price: Decimal
-    currency: Optional[str] = "USD"
+    currency: Optional[str] = None
     pricing_basis: Optional[str] = "PER_NIGHT"
     meal_plan: Optional[str] = None
     cancellation_policy: Optional[str] = None
@@ -867,12 +872,12 @@ class RoomCategoryResponse(BaseModel):
     room_category_id: int
     category_name: str
     description: Optional[str] = None
-    base_rate_usd: Decimal
+    base_rate: Decimal
     room_size: Optional[float] = None
     room_size_unit: Optional[str] = "m²"
     max_occupancy: Optional[int] = None
     is_active: bool
-    amenities: Optional[Union[str, List[GroupedRoomAmenity]]] = None
+    amenities: List[GroupedRoomAmenity] = []
     beds: List[BedItem] = []
     views: List[str] = []
     bathroom_features: List[str] = []
@@ -912,19 +917,36 @@ class RoomCategoryResponse(BaseModel):
                     
                     cat_id = cat.category_id if cat else 0
                     cat_name = cat.name if cat else "Other Room Amenities"
+                    cat_desc = cat.description if cat else None
                     
                     if cat_id not in cat_dict:
                         cat_dict[cat_id] = {
                             "category_id": cat_id if cat_id != 0 else None,
                             "category_name": cat_name,
+                            "category_description": cat_desc,
                             "amenities": []
                         }
+                    
+                    cat_obj = None
+                    if cat:
+                        cat_obj = {
+                            "category_id": cat.category_id,
+                            "name": cat.name,
+                            "description": cat.description,
+                            "is_active": cat.is_active,
+                            "created_at": getattr(cat, 'created_at', None),
+                            "updated_at": getattr(cat, 'updated_at', None)
+                        }
+
                     cat_dict[cat_id]["amenities"].append({
                         "id": am.amenity_id,
                         "name": am.name,
                         "description": am.description,
                         "icon": am.icon,
-                        "price": getattr(am, 'price', 0.00)
+                        "price": getattr(am, 'price', 0.00),
+                        "category_id": cat_id if cat_id != 0 else None,
+                        "category_name": cat_name,
+                        "category": cat_obj
                     })
                 
                 grouped_amenities = sorted(cat_dict.values(), key=lambda x: (x["category_id"] is None, x["category_name"]))
@@ -938,7 +960,7 @@ class RoomCategoryResponse(BaseModel):
                 'room_category_id': data.room_category_id,
                 'category_name': data.category_name,
                 'description': data.description,
-                'base_rate_usd': data.base_rate_usd,
+                'base_rate': getattr(data, 'base_rate', 0),
                 'room_size': getattr(data, 'room_size', None),
                 'room_size_unit': getattr(data, 'room_size_unit', 'm²'),
                 'max_occupancy': getattr(data, 'max_occupancy', 2),
@@ -1003,7 +1025,7 @@ class RoomResponse(BaseModel):
 class RoomCategoryCreate(BaseModel):
     category_name: str
     description: Optional[str] = None
-    base_rate_usd: Decimal
+    base_rate: Decimal
     room_size: Optional[float] = Field(None, gt=0)
     room_size_unit: Optional[str] = "m²"
     max_occupancy: int = Field(2, gt=0)
@@ -1014,12 +1036,19 @@ class RoomCategoryCreate(BaseModel):
     bathroom_features: List[str] = []
     room_facilities: List[str] = []
     images: List[Union[ImageItem, str]] = []
+    amenity_ids: Optional[List[int]] = []
+    amenities: Optional[List[Union[int, dict]]] = []
+    available_rates: Optional[List[RoomRatePlanCreate]] = []
+    rates: Optional[List[RoomRatePlanCreate]] = []
+    price_rates: Optional[List[RoomRatePlanCreate]] = []
+    policy_ids: Optional[List[int]] = []
+    policies: Optional[List[Union[int, RoomPolicyCreate, dict]]] = []
 
 
 class RoomCategoryUpdate(BaseModel):
     category_name: Optional[str] = None
     description: Optional[str] = None
-    base_rate_usd: Optional[Decimal] = None
+    base_rate: Optional[Decimal] = None
     room_size: Optional[float] = Field(None, gt=0)
     room_size_unit: Optional[str] = None
     max_occupancy: Optional[int] = Field(None, gt=0)
@@ -1030,6 +1059,13 @@ class RoomCategoryUpdate(BaseModel):
     bathroom_features: Optional[List[str]] = None
     room_facilities: Optional[List[str]] = None
     images: Optional[List[Union[ImageItem, str]]] = None
+    amenity_ids: Optional[List[int]] = None
+    amenities: Optional[List[Union[int, dict]]] = None
+    available_rates: Optional[List[RoomRatePlanCreate]] = None
+    rates: Optional[List[RoomRatePlanCreate]] = None
+    price_rates: Optional[List[RoomRatePlanCreate]] = None
+    policy_ids: Optional[List[int]] = None
+    policies: Optional[List[Union[int, RoomPolicyCreate, dict]]] = None
 
 
 ALLOWED_ROOM_STATUSES = {"Available", "Occupied", "Reserved", "Maintenance", "Out of Service"}

@@ -375,7 +375,7 @@ CREATE TABLE room_categories (
   room_category_id SERIAL PRIMARY KEY,
   category_name VARCHAR(100) NOT NULL,
   description VARCHAR(500),
-  base_rate_usd DECIMAL(10,2) NOT NULL,
+  base_rate DECIMAL(10,2) NOT NULL,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
