@@ -60,14 +60,12 @@ async def test_room_category_create_and_update_with_relations(async_client: Asyn
             {
                 "rate_name": "Standard Rate",
                 "price": 350.00,
-                "currency": "USD",
                 "meal_plan": "Breakfast Included",
                 "includes_breakfast": True
             },
             {
                 "rate_name": "Non-Refundable Special",
                 "price": 300.00,
-                "currency": "USD",
                 "refundable": False
             }
         ],
@@ -115,7 +113,6 @@ async def test_room_category_create_and_update_with_relations(async_client: Asyn
             {
                 "rate_name": "All-Inclusive Rate",
                 "price": 450.00,
-                "currency": "USD",
                 "includes_breakfast": True,
                 "includes_spa": True
             }
