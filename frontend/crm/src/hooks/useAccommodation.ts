@@ -70,12 +70,8 @@ export const useAccommodation = () => {
       // 1. Fetch categories with rates, amenities, and policies
       const catRes = await api.get('/accommodation/categories');
       const parsedCats = catRes.data.map((c: any) => {
-        const parts = c.description ? c.description.split(" | ") : [];
         const dbPhotos = c.photos ? c.photos.map((p: any) => p.photo_url) : [];
-        const defaultImg = dbPhotos.length > 0 ? dbPhotos[0] : (parts[3] || 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
-
-        const savedUGX = (parts[4] && !isNaN(Number(parts[4]))) ? Number(parts[4]) : undefined;
-        const priceUGX = savedUGX !== undefined ? savedUGX : Math.round(Number(c.base_rate_usd) * 3700);
+        const defaultImg = dbPhotos.length > 0 ? dbPhotos[0] : 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300';
 
         const mappedRates = (c.available_rates && c.available_rates.length > 0)
           ? c.available_rates.map((r: any) => ({
@@ -101,9 +97,9 @@ export const useAccommodation = () => {
           name: c.category_name,
           priceUGX: Number(c.base_rate || 0),
           priceUSD: Number(c.base_rate || 0),
-          capacity: parts[1] || "2 Adults, 1 Child",
-          amenities: parts[2] ? parts[2].split(",") : ['AC', 'Free Wi-Fi', 'King Bed'],
-          description: parts[0] || c.description || "",
+          capacity: "2 Adults, 1 Child",
+          amenities: ['AC', 'Free Wi-Fi', 'King Bed'],
+          description: c.description || "",
           image: defaultImg,
           photos: dbPhotos,
           rateOptions: mappedRates,
@@ -195,10 +191,9 @@ export const useAccommodation = () => {
   // Room Categories CRUD
   const addCategory = async (category: Omit<RoomType, 'id'>) => {
     try {
-      const descPayload = `${category.description} | ${category.capacity} | ${category.amenities.join(',')} | ${category.image} | ${category.priceUGX}`;
       const res = await api.post('/accommodation/categories', {
         category_name: category.name,
-        description: descPayload,
+        description: category.description || '',
         base_rate: category.priceUGX || category.priceUSD || 0,
         is_active: true,
         photos: category.photos || []
@@ -228,7 +223,6 @@ export const useAccommodation = () => {
               await api.post(`/accommodation/categories/${categoryId}/rates`, {
                 rate_name: rateOpt.name,
                 price: Number(rateOpt.priceUSD) || category.priceUSD,
-                currency: 'USD',
                 description: rateOpt.description || '',
                 is_active: rateOpt.isActive !== false
               });
@@ -268,10 +262,9 @@ export const useAccommodation = () => {
   const updateCategory = async (updatedCat: RoomType) => {
     try {
       const categoryId = updatedCat.id;
-      const descPayload = `${updatedCat.description} | ${updatedCat.capacity} | ${updatedCat.amenities.join(',')} | ${updatedCat.image} | ${updatedCat.priceUGX}`;
       await api.put(`/accommodation/categories/${categoryId}`, {
         category_name: updatedCat.name,
-        description: descPayload,
+        description: updatedCat.description || '',
         base_rate: updatedCat.priceUGX || updatedCat.priceUSD || 0,
         is_active: true,
         photos: updatedCat.photos || []

@@ -710,7 +710,6 @@ class AmenityBase(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
-    price: Optional[Decimal] = Field(default=0.00)
     is_active: Optional[bool] = True
 
 
@@ -741,7 +740,6 @@ class RoomAmenityItem(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
-    price: Optional[Decimal] = Field(default=0.00)
     category_id: Optional[int] = None
     category_name: Optional[str] = None
     category: Optional[AmenityCategoryResponse] = None
@@ -762,7 +760,6 @@ class RoomRatePlanBase(BaseModel):
     rate_code: Optional[str] = None
     description: Optional[str] = None
     price: Decimal
-    currency: Optional[str] = None
     pricing_basis: Optional[str] = "PER_NIGHT"
     meal_plan: Optional[str] = None
     cancellation_policy: Optional[str] = None
@@ -790,7 +787,6 @@ class RoomRatePlanUpdate(BaseModel):
     rate_code: Optional[str] = None
     description: Optional[str] = None
     price: Optional[Decimal] = None
-    currency: Optional[str] = None
     pricing_basis: Optional[str] = None
     meal_plan: Optional[str] = None
     cancellation_policy: Optional[str] = None
@@ -943,7 +939,6 @@ class RoomCategoryResponse(BaseModel):
                         "name": am.name,
                         "description": am.description,
                         "icon": am.icon,
-                        "price": getattr(am, 'price', 0.00),
                         "category_id": cat_id if cat_id != 0 else None,
                         "category_name": cat_name,
                         "category": cat_obj
