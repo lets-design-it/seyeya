@@ -76,9 +76,9 @@ interface ConferencesProps {
   setActiveTab?: (tab: 'quotes' | 'halls' | 'events' | 'facilities') => void;
 }
 
-export const Conferences: React.FC<ConferencesProps> = ({ 
-  activeTab: propActiveTab, 
-  setActiveTab: propSetActiveTab 
+export const Conferences: React.FC<ConferencesProps> = ({
+  activeTab: propActiveTab,
+  setActiveTab: propSetActiveTab
 }) => {
   const { formatPrice, currency } = useCurrency();
   const {
@@ -734,18 +734,18 @@ export const Conferences: React.FC<ConferencesProps> = ({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
-            {activeTab === 'facilities' 
-              ? 'Conference Facilities & Inclusions' 
-              : activeTab === 'events' 
-                ? 'Events & Gala Packages' 
-                : activeTab === 'halls' 
-                  ? 'Event Halls Catalog' 
+            {activeTab === 'facilities'
+              ? 'Conference Facilities & Inclusions'
+              : activeTab === 'events'
+                ? 'Events & Gala Packages'
+                : activeTab === 'halls'
+                  ? 'Event Halls Catalog'
                   : 'Conferences & Reservations'}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             {activeTab === 'facilities'
               ? 'Manage equipment, PA sound systems, catering, A/V setups, and inclusions for event bookings.'
-              : activeTab === 'events' 
+              : activeTab === 'events'
                 ? 'Manage special events, gala packages, pricing options, discounts, and event schedules.'
                 : 'Review quotes, configure seating specifications, manage venue halls, and approve facility bookings.'
             }
@@ -753,57 +753,6 @@ export const Conferences: React.FC<ConferencesProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Tab Selector Pills */}
-          <div className="flex items-center gap-1 p-1 bg-zinc-100 dark:bg-zinc-900/80 rounded-2xl border border-zinc-200/60 dark:border-zinc-800">
-            <button
-              type="button"
-              onClick={() => setActiveTab('quotes')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'quotes'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-xs'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-              }`}
-            >
-              Reservations
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('halls')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'halls'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-xs'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-              }`}
-            >
-              Event Halls
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('events')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'events'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-xs'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-              }`}
-            >
-              Events
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('facilities')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'facilities'
-                  ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 shadow-xs'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-              }`}
-            >
-              Facilities
-            </button>
-          </div>
-
           {/* Action Button */}
           {activeTab === 'quotes' ? (
             <ShadcnButton
@@ -960,9 +909,8 @@ export const Conferences: React.FC<ConferencesProps> = ({
                           </div>
                         </div>
 
-                        <Badge className={`font-bold text-[10px] px-2 py-0.5 rounded-lg border-none ${
-                          fac.is_active ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-zinc-500/10 text-zinc-500'
-                        }`}>
+                        <Badge className={`font-bold text-[10px] px-2 py-0.5 rounded-lg border-none ${fac.is_active ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-zinc-500/10 text-zinc-500'
+                          }`}>
                           {fac.is_active ? 'Active' : 'Inactive'}
                         </Badge>
                       </div>
@@ -1134,11 +1082,10 @@ export const Conferences: React.FC<ConferencesProps> = ({
                               SAVE {formatPrice(ev.discount, { compact: true })}
                             </Badge>
                           )}
-                          <Badge className={`font-bold text-[10px] px-2.5 py-0.5 rounded-lg shadow-xs border-none ${
-                            ev.is_active 
-                              ? 'bg-emerald-500 text-white' 
+                          <Badge className={`font-bold text-[10px] px-2.5 py-0.5 rounded-lg shadow-xs border-none ${ev.is_active
+                              ? 'bg-emerald-500 text-white'
                               : 'bg-zinc-500 text-white'
-                          }`}>
+                            }`}>
                             {ev.is_active ? 'Active' : 'Inactive'}
                           </Badge>
                         </div>
@@ -1669,7 +1616,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5">Amenities (comma-separated)</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5">Facilities (comma-separated)</label>
                 <input
                   type="text"
                   placeholder="e.g. Projector, Sound System, AC, WiFi"
@@ -1915,11 +1862,10 @@ export const Conferences: React.FC<ConferencesProps> = ({
                             setSelectedFacilityNames(prev => [...prev, fac.name]);
                           }
                         }}
-                        className={`rounded-xl border p-2.5 text-left flex items-center justify-between transition-all cursor-pointer ${
-                          isSelected
+                        className={`rounded-xl border p-2.5 text-left flex items-center justify-between transition-all cursor-pointer ${isSelected
                             ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-bold shadow-xs'
                             : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                        }`}
+                          }`}
                       >
                         <span className="text-xs font-semibold truncate mr-1">{fac.name}</span>
                         <FacIcon className="h-4 w-4 shrink-0" />

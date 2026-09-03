@@ -1119,87 +1119,11 @@ export const Rooms: React.FC<RoomsProps> = ({
   };
 
   if (activeTab === 'amenities') {
-    return (
-      <div className="space-y-6 animate-fade-in relative h-full">
-        {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('reservations')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Reservations
-          </button>
-          <button
-            onClick={() => setActiveTab('rooms')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Rooms List
-          </button>
-          <button
-            onClick={() => setActiveTab('categories')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Categories
-          </button>
-          <button
-            onClick={() => setActiveTab('amenities')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs flex items-center gap-1.5"
-          >
-            Amenities
-          </button>
-          <button
-            onClick={() => setActiveTab('policies')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
-          >
-            Policies
-          </button>
-        </div>
-
-        <AmenitiesView />
-      </div>
-    );
+    return <AmenitiesView />;
   }
 
   if (activeTab === 'policies') {
-    return (
-      <div className="space-y-6 animate-fade-in relative h-full">
-        {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('reservations')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Reservations
-          </button>
-          <button
-            onClick={() => setActiveTab('rooms')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Rooms List
-          </button>
-          <button
-            onClick={() => setActiveTab('categories')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Categories
-          </button>
-          <button
-            onClick={() => setActiveTab('amenities')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
-          >
-            Amenities
-          </button>
-          <button
-            onClick={() => setActiveTab('policies')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs flex items-center gap-1.5"
-          >
-            Policies
-          </button>
-        </div>
-
-        <PoliciesView />
-      </div>
-    );
+    return <PoliciesView />;
   }
 
   return (
@@ -1208,8 +1132,22 @@ export const Rooms: React.FC<RoomsProps> = ({
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">Rooms</h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Coordinate room reservations, vacancies, check-ins and configure lodgings catalog.</p>
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
+            {activeTab === 'reservations'
+              ? 'Room Reservations'
+              : activeTab === 'rooms'
+                ? 'Rooms List'
+                : activeTab === 'categories'
+                  ? 'Room Categories'
+                  : 'Rooms'}
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            {activeTab === 'reservations'
+              ? 'Coordinate room reservations, vacancies, check-ins, and guest stay details.'
+              : activeTab === 'rooms'
+                ? 'Manage individual room units, room numbers, status, and floor assignments.'
+                : 'Configure room types, capacities, base pricing, and category details.'}
+          </p>
         </div>
 
         {/* Dynamic Add Buttons */}
@@ -1243,6 +1181,8 @@ export const Rooms: React.FC<RoomsProps> = ({
           )}
         </div>
       </div>
+<<<<<<< HEAD
+=======
 
       {/* Sub-Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
@@ -1297,6 +1237,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           Policies
         </button>
       </div>
+>>>>>>> 788f88c46a72f7bbed770c14d8102f4c63d692cf
         <>
           {/* Analytics widgets */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
