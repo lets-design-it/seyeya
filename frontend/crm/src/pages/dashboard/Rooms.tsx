@@ -185,10 +185,10 @@ export const Rooms: React.FC<RoomsProps> = ({
   // Category Form & Upload/Crop State
   // -------------------------------------------------------------
   const [catName, setCatName] = useState('');
-  const [catPriceUGX, setCatPriceUGX] = useState<number | string>(300000);
-  const [catPriceUSD, setCatPriceUSD] = useState<number | string>(85);
-  const [catAdults, setCatAdults] = useState<number>(2);
-  const [catChildren, setCatChildren] = useState<number>(1);
+  const [catPriceUGX, setCatPriceUGX] = useState<number | string>('');
+  const [catPriceUSD, setCatPriceUSD] = useState<number | string>('');
+  const [catAdults, setCatAdults] = useState<number | string>('');
+  const [catChildren, setCatChildren] = useState<number | string>('');
   const [catAmenities, setCatAmenities] = useState('');
   const [catDescription, setCatDescription] = useState('');
   const [catImage, setCatImage] = useState('');
@@ -198,26 +198,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   const [catPhotos, setCatPhotos] = useState<string[]>([]);
 
   // Rate Options / Pricing Options State
-  const [catRateOptions, setCatRateOptions] = useState<CategoryRateOption[]>([
-    {
-      id: 'ro-1',
-      name: 'Room Only (Standard Rate)',
-      priceUGX: 300000,
-      priceUSD: 85,
-      description: 'Standard room rate without meal plans included.',
-      inclusions: ['Free Wi-Fi', 'Free Cancellation'],
-      isActive: true
-    },
-    {
-      id: 'ro-2',
-      name: 'Bed & Breakfast (BB)',
-      priceUGX: 350000,
-      priceUSD: 100,
-      description: 'Includes full daily breakfast buffet at the main restaurant.',
-      inclusions: ['Breakfast Included', 'Free Wi-Fi'],
-      isActive: true
-    }
-  ]);
+  const [catRateOptions, setCatRateOptions] = useState<CategoryRateOption[]>([]);
 
   const handleCatPriceUGXChange = (valStr: string) => {
     const cleaned = valStr.length > 1 && valStr.startsWith('0') ? valStr.replace(/^0+/, '') : valStr;
@@ -328,35 +309,16 @@ export const Rooms: React.FC<RoomsProps> = ({
   const openAddCategory = () => {
     setEditCategoryItem(null);
     setCatName('');
-    setCatPriceUGX(300000);
-    setCatPriceUSD(85);
-    setCatAdults(2);
-    setCatChildren(1);
-    setCatAmenities('AC, Free Wi-Fi, King Bed');
+    setCatPriceUGX('');
+    setCatPriceUSD('');
+    setCatAdults('');
+    setCatChildren('');
+    setCatAmenities('');
     setCatDescription('');
-    setCatImage('https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
+    setCatImage('');
     setCatPhotos([]);
     setCatSelectedPolicies([]);
-    setCatRateOptions([
-      {
-        id: 'ro-1',
-        name: 'Room Only (Standard Rate)',
-        priceUGX: 300000,
-        priceUSD: 85,
-        description: 'Standard room rate without meal plans.',
-        inclusions: ['Free Wi-Fi', 'Free Cancellation'],
-        isActive: true
-      },
-      {
-        id: 'ro-2',
-        name: 'Bed & Breakfast (BB)',
-        priceUGX: 350000,
-        priceUSD: 100,
-        description: 'Includes full daily breakfast buffet.',
-        inclusions: ['Breakfast Included', 'Free Wi-Fi'],
-        isActive: true
-      }
-    ]);
+    setCatRateOptions([]);
     setIsCategoryDrawerOpen(true);
   };
 
@@ -1508,13 +1470,9 @@ export const Rooms: React.FC<RoomsProps> = ({
                 type="number"
                 required
                 min={0}
-                placeholder="300000"
+                placeholder="e.g. 300000"
                 value={catPriceUGX}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setCatPriceUGX(val);
-                  setCatPriceUSD(val);
-                }}
+                onChange={(e) => handleCatPriceUGXChange(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
               />
             </div>
@@ -1526,8 +1484,9 @@ export const Rooms: React.FC<RoomsProps> = ({
                   type="number"
                   required
                   min={1}
+                  placeholder="e.g. 2"
                   value={catAdults}
-                  onChange={(e) => setCatAdults(Number(e.target.value))}
+                  onChange={(e) => setCatAdults(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
@@ -1535,10 +1494,10 @@ export const Rooms: React.FC<RoomsProps> = ({
                 <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Max Children</label>
                 <input
                   type="number"
-                  required
                   min={0}
+                  placeholder="e.g. 1"
                   value={catChildren}
-                  onChange={(e) => setCatChildren(Number(e.target.value))}
+                  onChange={(e) => setCatChildren(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>

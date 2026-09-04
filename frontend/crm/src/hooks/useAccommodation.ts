@@ -77,8 +77,8 @@ export const useAccommodation = () => {
           ? c.available_rates.map((r: any) => ({
               id: String(r.rate_id),
               name: r.rate_name,
-              priceUGX: Math.round(Number(r.price) * 3700),
-              priceUSD: Number(r.price),
+              priceUGX: Number(r.price || 0),
+              priceUSD: Number(r.price || 0),
               description: r.description || '',
               isActive: r.is_active !== false
             }))
@@ -222,7 +222,7 @@ export const useAccommodation = () => {
             try {
               await api.post(`/accommodation/categories/${categoryId}/rates`, {
                 rate_name: rateOpt.name,
-                price: Number(rateOpt.priceUSD) || category.priceUSD,
+                price: Number(rateOpt.priceUGX) || Number(rateOpt.priceUSD) || category.priceUGX || category.priceUSD,
                 description: rateOpt.description || '',
                 is_active: rateOpt.isActive !== false
               });
@@ -290,7 +290,7 @@ export const useAccommodation = () => {
           try {
             await api.post(`/accommodation/categories/${categoryId}/rates`, {
               rate_name: rateOpt.name,
-              price: Number(rateOpt.priceUSD) || updatedCat.priceUSD,
+              price: Number(rateOpt.priceUGX) || Number(rateOpt.priceUSD) || updatedCat.priceUGX || updatedCat.priceUSD,
               currency: 'USD',
               description: rateOpt.description || '',
               is_active: rateOpt.isActive !== false
