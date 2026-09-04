@@ -102,7 +102,7 @@ const getImageUrl = (url: string) => {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
   }
-  const isLocal = typeof window !== 'undefined' && 
+  const isLocal = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   const backendBase = isLocal ? 'http://localhost:8000' : 'https://api.seyeyalodge.com';
   return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
@@ -113,9 +113,9 @@ interface RoomsProps {
   setActiveTab?: (tab: 'reservations' | 'rooms' | 'categories' | 'amenities' | 'policies') => void;
 }
 
-export const Rooms: React.FC<RoomsProps> = ({ 
-  activeTab: propActiveTab, 
-  setActiveTab: propSetActiveTab 
+export const Rooms: React.FC<RoomsProps> = ({
+  activeTab: propActiveTab,
+  setActiveTab: propSetActiveTab
 }) => {
   const { formatPrice, convert, currency } = useCurrency();
   const { amenities: managedAmenities, policies: managedPolicies } = useRoomAssets();
@@ -193,10 +193,10 @@ export const Rooms: React.FC<RoomsProps> = ({
   const [catDescription, setCatDescription] = useState('');
   const [catImage, setCatImage] = useState('');
   const [catSelectedPolicies, setCatSelectedPolicies] = useState<string[]>([]);
-  
+
   // Category Photos Upload State
   const [catPhotos, setCatPhotos] = useState<string[]>([]);
-  
+
   // Rate Options / Pricing Options State
   const [catRateOptions, setCatRateOptions] = useState<CategoryRateOption[]>([
     {
@@ -292,7 +292,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   const removeRateOption = (id: string) => {
     setCatRateOptions(prev => prev.filter(r => r.id !== id));
   };
-  
+
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,7 +307,7 @@ export const Rooms: React.FC<RoomsProps> = ({
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const uploadedUrl = res.data.photo_url;
-      
+
       setCatPhotos(prev => [...prev, uploadedUrl]);
       // Default primary catImage if it is empty or default
       setCatImage(prev => {
@@ -365,7 +365,7 @@ export const Rooms: React.FC<RoomsProps> = ({
     setCatName(item.name);
     setCatPriceUGX(item.priceUGX);
     setCatPriceUSD(item.priceUSD);
-    
+
     // Parse existing capacity string
     const capStr = (item.capacity || "").toLowerCase();
     let adults = 2;
@@ -648,7 +648,7 @@ export const Rooms: React.FC<RoomsProps> = ({
 
     const catObj = categories.find(c => c.id === bookCatId);
     const roomUnitObj = roomUnits.find(ru => ru.id === bookRoomUnitId);
-    
+
     const { maxAdults, maxChildren } = getCategoryCapacity(bookCatId);
     const maxOccupancy = roomUnitObj?.maxOccupancy || maxAdults;
 
@@ -1181,308 +1181,300 @@ export const Rooms: React.FC<RoomsProps> = ({
           )}
         </div>
       </div>
-<<<<<<< HEAD
-=======
 
       {/* Sub-Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab('reservations')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'reservations'
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'reservations'
               ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
+            }`}
         >
           Reservations
         </button>
         <button
           onClick={() => setActiveTab('rooms')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'rooms'
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'rooms'
               ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
+            }`}
         >
           Rooms List
         </button>
         <button
           onClick={() => setActiveTab('categories')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'categories'
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'categories'
               ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
+            }`}
         >
           Categories
         </button>
         <button
           onClick={() => setActiveTab('amenities')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-            (activeTab as string) === 'amenities'
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${(activeTab as string) === 'amenities'
               ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
+            }`}
         >
           Amenities
         </button>
         <button
           onClick={() => setActiveTab('policies')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-            (activeTab as string) === 'policies'
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${(activeTab as string) === 'policies'
               ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
               : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
+            }`}
         >
           Policies
         </button>
       </div>
->>>>>>> 788f88c46a72f7bbed770c14d8102f4c63d692cf
-        <>
-          {/* Analytics widgets */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider">Total Rooms</CardDescription>
-          <CardTitle className="text-xl font-bold text-zinc-800 dark:text-zinc-100 mt-1">{totalUnits} Units</CardTitle>
-        </Card>
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Checked In</CardDescription>
-          <CardTitle className="text-xl font-bold text-violet-600 dark:text-violet-400 mt-1">{occupiedCount} Rooms</CardTitle>
-        </Card>
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Reserved</CardDescription>
-          <CardTitle className="text-xl font-bold text-amber-500 dark:text-amber-400 mt-1">{reservedCount} Rooms</CardTitle>
-        </Card>
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Vacant & Prepared</CardDescription>
-          <CardTitle className="text-xl font-bold text-emerald-500 dark:text-emerald-400 mt-1">{vacantCount} Rooms</CardTitle>
-        </Card>
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs col-span-2 lg:col-span-1">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-455 dark:text-zinc-400 tracking-wider font-sans">Occupancy Rate</CardDescription>
-          <CardTitle className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{occupancyRate}%</CardTitle>
-        </Card>
-      </div>
-
-      {/* Advanced Filter Section */}
-      <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
-
-            {/* Search filter */}
-            <div className="relative flex-1 max-w-md">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
-                <Search className="h-4 w-4" />
-              </span>
-              <ShadcnInput
-                type="text"
-                placeholder={
-                  activeTab === 'reservations'
-                    ? "Search reservations by guest name or email..."
-                    : activeTab === 'rooms'
-                      ? "Search rooms by room number or floor..."
-                      : "Search categories by name..."
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-foreground placeholder-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700 focus-visible:border-zinc-955 outline-hidden transition-all"
-              />
-            </div>
-
-            {/* Category Select Filter (Not applicable to categories tab itself) */}
-            {activeTab !== 'categories' && (
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
-                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
-                    All Categories
-                  </SelectItem>
-                  {categories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id} className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
-                      {cat.name.replace('Seyeya ', '')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Status Select Filter (Not applicable to categories tab itself) */}
-            {activeTab !== 'categories' && (
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
-                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
-                    All Status
-                  </SelectItem>
-                  {activeTab === 'reservations' ? (
-                    <>
-                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
-                      <SelectItem value="Checked In" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked In</SelectItem>
-                      <SelectItem value="Checked Out" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked Out</SelectItem>
-                      <SelectItem value="Cancelled" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Cancelled</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="Available" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Available</SelectItem>
-                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
-                      <SelectItem value="Occupied" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Occupied</SelectItem>
-                      <SelectItem value="Maintenance" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Maintenance</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Reset Button */}
-            {(searchTerm || filterCategory !== 'ALL' || filterStatus !== 'ALL') && (
-              <ShadcnButton
-                onClick={resetFilters}
-                variant="ghost"
-                className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-xl h-10 px-3 cursor-pointer"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Reset Filters
-              </ShadcnButton>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 justify-end">
-            {/* Columns selector dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 cursor-pointer text-xs font-bold shadow-xs transition-all">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Columns
-                  <ChevronDown className="h-4 w-4 text-zinc-500" />
-                </ShadcnButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[170px] bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-xl shadow-md p-1.5 mt-1 z-50">
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden flex items-center gap-2"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                      >
-                        {column.id === 'roomUnitNumber'
-                          ? 'Assigned Room'
-                          : column.id === 'roomName'
-                            ? 'Category Type'
-                            : column.id === 'totalPaid'
-                              ? 'Total Value'
-                              : column.id === 'roomStatus'
-                                ? 'Room Status'
-                                : column.id}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+      <>
+        {/* Analytics widgets */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider">Total Rooms</CardDescription>
+            <CardTitle className="text-xl font-bold text-zinc-800 dark:text-zinc-100 mt-1">{totalUnits} Units</CardTitle>
+          </Card>
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Checked In</CardDescription>
+            <CardTitle className="text-xl font-bold text-violet-600 dark:text-violet-400 mt-1">{occupiedCount} Rooms</CardTitle>
+          </Card>
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Reserved</CardDescription>
+            <CardTitle className="text-xl font-bold text-amber-500 dark:text-amber-400 mt-1">{reservedCount} Rooms</CardTitle>
+          </Card>
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Vacant & Prepared</CardDescription>
+            <CardTitle className="text-xl font-bold text-emerald-500 dark:text-emerald-400 mt-1">{vacantCount} Rooms</CardTitle>
+          </Card>
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs col-span-2 lg:col-span-1">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-455 dark:text-zinc-400 tracking-wider font-sans">Occupancy Rate</CardDescription>
+            <CardTitle className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{occupancyRate}%</CardTitle>
+          </Card>
         </div>
-      </Card>
 
-      {/* DataTable Container */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-[20px] shadow-xs overflow-hidden">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-955 dark:border-zinc-300 border-t-transparent" />
-            <p className="text-xs text-zinc-500 dark:text-zinc-450 font-semibold tracking-wider uppercase">Loading Console...</p>
-          </div>
-        ) : activeTableData.length === 0 ? (
-          <div className="text-center py-20">
-            <ClipboardList className="h-9 w-9 mx-auto text-zinc-400 mb-3 animate-pulse" />
-            <h5 className="text-sm font-bold text-zinc-700 dark:text-zinc-350 uppercase tracking-wider">No matching items found</h5>
-            <p className="text-xs text-zinc-555 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
-              We couldn't find any entries matching the active search or filter parameters.
-            </p>
-          </div>
-        ) : (
-          <div>
-            <Table>
-              <TableHeader className="bg-zinc-50/70 dark:bg-zinc-950/40 border-b border-zinc-150 dark:border-zinc-800">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} className="text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    onClick={() => handleRowClick(row.original)}
-                    className={`border-zinc-100 dark:border-zinc-800 transition-colors ${activeTab === 'reservations'
-                      ? 'cursor-pointer hover:bg-zinc-50/40 dark:hover:bg-zinc-850/40'
-                      : 'hover:bg-transparent'
-                      }`}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-750 dark:text-zinc-300">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        {/* Advanced Filter Section */}
+        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
 
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-950/20 text-xs text-zinc-500 dark:text-zinc-400">
-              <div className="flex-1 text-zinc-450 dark:text-zinc-400 font-bold">
-                Showing {table.getRowModel().rows.length} of {activeTableData.length} entries
+              {/* Search filter */}
+              <div className="relative flex-1 max-w-md">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
+                  <Search className="h-4 w-4" />
+                </span>
+                <ShadcnInput
+                  type="text"
+                  placeholder={
+                    activeTab === 'reservations'
+                      ? "Search reservations by guest name or email..."
+                      : activeTab === 'rooms'
+                        ? "Search rooms by room number or floor..."
+                        : "Search categories by name..."
+                  }
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-foreground placeholder-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700 focus-visible:border-zinc-955 outline-hidden transition-all"
+                />
               </div>
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-1">
-                  <span className="font-semibold">Page</span>
-                  <strong className="text-zinc-900 dark:text-zinc-200 font-extrabold">
-                    {table.getState().pagination.pageIndex + 1} of{' '}
-                    {table.getPageCount()}
-                  </strong>
+
+              {/* Category Select Filter (Not applicable to categories tab itself) */}
+              {activeTab !== 'categories' && (
+                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                  <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
+                    <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
+                      All Categories
+                    </SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id} className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
+                        {cat.name.replace('Seyeya ', '')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* Status Select Filter (Not applicable to categories tab itself) */}
+              {activeTab !== 'categories' && (
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
+                    <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
+                      All Status
+                    </SelectItem>
+                    {activeTab === 'reservations' ? (
+                      <>
+                        <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
+                        <SelectItem value="Checked In" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked In</SelectItem>
+                        <SelectItem value="Checked Out" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked Out</SelectItem>
+                        <SelectItem value="Cancelled" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Cancelled</SelectItem>
+                      </>
+                    ) : (
+                      <>
+                        <SelectItem value="Available" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Available</SelectItem>
+                        <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
+                        <SelectItem value="Occupied" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Occupied</SelectItem>
+                        <SelectItem value="Maintenance" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Maintenance</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* Reset Button */}
+              {(searchTerm || filterCategory !== 'ALL' || filterStatus !== 'ALL') && (
+                <ShadcnButton
+                  onClick={resetFilters}
+                  variant="ghost"
+                  className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-xl h-10 px-3 cursor-pointer"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset Filters
+                </ShadcnButton>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 justify-end">
+              {/* Columns selector dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 cursor-pointer text-xs font-bold shadow-xs transition-all">
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    Columns
+                    <ChevronDown className="h-4 w-4 text-zinc-500" />
+                  </ShadcnButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[170px] bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-xl shadow-md p-1.5 mt-1 z-50">
+                  {table
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide())
+                    .map((column) => {
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={column.id}
+                          className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden flex items-center gap-2"
+                          checked={column.getIsVisible()}
+                          onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                        >
+                          {column.id === 'roomUnitNumber'
+                            ? 'Assigned Room'
+                            : column.id === 'roomName'
+                              ? 'Category Type'
+                              : column.id === 'totalPaid'
+                                ? 'Total Value'
+                                : column.id === 'roomStatus'
+                                  ? 'Room Status'
+                                  : column.id}
+                        </DropdownMenuCheckboxItem>
+                      )
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </Card>
+
+        {/* DataTable Container */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-[20px] shadow-xs overflow-hidden">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-955 dark:border-zinc-300 border-t-transparent" />
+              <p className="text-xs text-zinc-500 dark:text-zinc-450 font-semibold tracking-wider uppercase">Loading Console...</p>
+            </div>
+          ) : activeTableData.length === 0 ? (
+            <div className="text-center py-20">
+              <ClipboardList className="h-9 w-9 mx-auto text-zinc-400 mb-3 animate-pulse" />
+              <h5 className="text-sm font-bold text-zinc-700 dark:text-zinc-350 uppercase tracking-wider">No matching items found</h5>
+              <p className="text-xs text-zinc-555 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
+                We couldn't find any entries matching the active search or filter parameters.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <Table>
+                <TableHeader className="bg-zinc-50/70 dark:bg-zinc-950/40 border-b border-zinc-150 dark:border-zinc-800">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id} className="text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      onClick={() => handleRowClick(row.original)}
+                      className={`border-zinc-100 dark:border-zinc-800 transition-colors ${activeTab === 'reservations'
+                        ? 'cursor-pointer hover:bg-zinc-50/40 dark:hover:bg-zinc-850/40'
+                        : 'hover:bg-transparent'
+                        }`}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-750 dark:text-zinc-300">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-950/20 text-xs text-zinc-500 dark:text-zinc-400">
+                <div className="flex-1 text-zinc-450 dark:text-zinc-400 font-bold">
+                  Showing {table.getRowModel().rows.length} of {activeTableData.length} entries
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <ShadcnButton
-                    variant="outline"
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
-                    className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </ShadcnButton>
-                  <ShadcnButton
-                    variant="outline"
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
-                    className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </ShadcnButton>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold">Page</span>
+                    <strong className="text-zinc-900 dark:text-zinc-200 font-extrabold">
+                      {table.getState().pagination.pageIndex + 1} of{' '}
+                      {table.getPageCount()}
+                    </strong>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <ShadcnButton
+                      variant="outline"
+                      onClick={() => table.previousPage()}
+                      disabled={!table.getCanPreviousPage()}
+                      className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </ShadcnButton>
+                    <ShadcnButton
+                      variant="outline"
+                      onClick={() => table.nextPage()}
+                      disabled={!table.getCanNextPage()}
+                      className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </ShadcnButton>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    </>
+          )}
+        </div>
+      </>
 
       {/* -------------------------------------------------------------
           DRAWER: Add / Edit Room Category
@@ -1613,13 +1605,12 @@ export const Rooms: React.FC<RoomsProps> = ({
                   </div>
                 ) : (
                   catRateOptions.map((rate) => (
-                    <div 
+                    <div
                       key={rate.id}
-                      className={`p-3 rounded-xl border transition-all ${
-                        rate.isActive 
-                          ? 'bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-zinc-800' 
+                      className={`p-3 rounded-xl border transition-all ${rate.isActive
+                          ? 'bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-zinc-800'
                           : 'bg-zinc-100/40 dark:bg-zinc-900/30 border-zinc-200/50 dark:border-zinc-800/40 opacity-60'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <input
@@ -1701,13 +1692,13 @@ export const Rooms: React.FC<RoomsProps> = ({
                   <Sparkles className="h-3 w-3" /> Auto-Icon Match
                 </span>
               </div>
-              
+
               {/* Quick Select Badges */}
               <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 max-h-36 overflow-y-auto">
                 {managedAmenities.map(am => {
                   const selectedList = catAmenities.split(',').map(s => s.trim()).filter(Boolean);
                   const isSelected = selectedList.some(s => s.toLowerCase() === am.name.toLowerCase());
-                  
+
                   const toggleAmenity = () => {
                     if (isSelected) {
                       const newList = selectedList.filter(s => s.toLowerCase() !== am.name.toLowerCase());
@@ -1723,11 +1714,10 @@ export const Rooms: React.FC<RoomsProps> = ({
                       key={am.id}
                       type="button"
                       onClick={toggleAmenity}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                        isSelected
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${isSelected
                           ? 'bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/40 shadow-xs font-bold'
                           : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
-                      }`}
+                        }`}
                     >
                       {renderAssetIcon(am.iconName, "h-3.5 w-3.5 text-amber-500")}
                       <span>{am.name}</span>
@@ -1756,12 +1746,12 @@ export const Rooms: React.FC<RoomsProps> = ({
                   <Sparkles className="h-3 w-3" /> Auto-Icon Match
                 </span>
               </div>
-              
+
               {/* Quick Select Badges */}
               <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 max-h-36 overflow-y-auto">
                 {managedPolicies.map(pol => {
                   const isSelected = catSelectedPolicies.includes(pol.id) || catSelectedPolicies.includes(pol.title);
-                  
+
                   const togglePolicy = () => {
                     if (isSelected) {
                       setCatSelectedPolicies(prev => prev.filter(p => p !== pol.id && p !== pol.title));
@@ -1775,11 +1765,10 @@ export const Rooms: React.FC<RoomsProps> = ({
                       key={pol.id}
                       type="button"
                       onClick={togglePolicy}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
-                        isSelected 
-                          ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 shadow-2xs' 
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${isSelected
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 shadow-2xs'
                           : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
-                      }`}
+                        }`}
                     >
                       {renderAssetIcon(pol.iconName || autoDetectPolicyIcon(pol.title), 'h-3.5 w-3.5 text-indigo-500')}
                       <span>{pol.title}</span>
@@ -1792,7 +1781,7 @@ export const Rooms: React.FC<RoomsProps> = ({
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Category Photos (Unlimited)</label>
-              
+
               {/* Thumbnail grid */}
               {catPhotos.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mb-3">
@@ -1801,7 +1790,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                     return (
                       <div key={idx} className={`relative group aspect-square rounded-xl overflow-hidden border-2 transition-all ${isPrimary ? 'border-indigo-500 shadow-md' : 'border-zinc-200 dark:border-zinc-800'}`}>
                         <img src={getImageUrl(photoUrl)} alt={`Thumbnail ${idx}`} className="h-full w-full object-cover" />
-                        
+
                         {/* Overlay with options */}
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-1 text-center">
                           <button
@@ -1830,7 +1819,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                             Delete
                           </button>
                         </div>
-                        
+
                         {/* Primary Badge */}
                         {isPrimary && (
                           <div className="absolute top-1 left-1 bg-indigo-600 text-white text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
@@ -2108,8 +2097,8 @@ export const Rooms: React.FC<RoomsProps> = ({
 
                       const eligible = allClients.filter(c => {
                         const matchesSearch = c.full_name.toLowerCase().includes(guestSearchTerm.toLowerCase());
-                        const notSelectedYet = !selectedGuests.some(sg => 
-                          String(sg.id) === String(c.customer_id) || 
+                        const notSelectedYet = !selectedGuests.some(sg =>
+                          String(sg.id) === String(c.customer_id) ||
                           sg.name.toLowerCase() === c.full_name.toLowerCase()
                         );
                         if (!matchesSearch || !notSelectedYet) return false;
@@ -2135,8 +2124,8 @@ export const Rooms: React.FC<RoomsProps> = ({
                         <div
                           key={c.customer_id}
                           onClick={() => {
-                            if (selectedGuests.some(sg => 
-                              String(sg.id) === String(c.customer_id) || 
+                            if (selectedGuests.some(sg =>
+                              String(sg.id) === String(c.customer_id) ||
                               sg.name.toLowerCase() === c.full_name.toLowerCase()
                             )) {
                               alert("This guest is already selected.");
@@ -2355,8 +2344,8 @@ export const Rooms: React.FC<RoomsProps> = ({
                     <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                       {selectedBooking.guests && selectedBooking.guests.length > 0 ? (
                         selectedBooking.guests.map((g: any, index: number) => {
-                          const client = allClients.find(c => String(c.customer_id) === String(g.customer_id)) || 
-                                         allClients.find(c => c.full_name === g.name);
+                          const client = allClients.find(c => String(c.customer_id) === String(g.customer_id)) ||
+                            allClients.find(c => c.full_name === g.name);
                           const name = client?.full_name || g.name || `Guest #${g.customer_id}`;
                           const phone = client?.phone_number || g.phone_number || '';
                           const email = client?.email || g.email || '';
@@ -2371,7 +2360,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                                 <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-lg border uppercase tracking-wider shrink-0 ${isChild
                                   ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
                                   : 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
-                                }`}>
+                                  }`}>
                                   {isChild ? 'Child' : 'Adult'}
                                 </span>
                               </div>
