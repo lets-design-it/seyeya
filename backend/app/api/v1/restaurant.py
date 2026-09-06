@@ -500,8 +500,8 @@ async def get_active_delivery_pricing(db: AsyncSession = Depends(get_db)):
     """Get the active delivery pricing configuration (public/app endpoint)"""
     from sqlalchemy.future import select
     from app.models import DeliveryPricing
-    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True))
-    pricing = res.scalar_one_or_none()
+    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True).order_by(DeliveryPricing.pricing_id.desc()))
+    pricing = res.scalars().first()
     if not pricing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active delivery pricing found")
     return pricing
@@ -515,8 +515,8 @@ async def calculate_delivery_pricing(request: DeliveryCalculationRequest, db: As
     from app.utils.haversine import get_driving_distance_km
     from decimal import Decimal
     
-    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True))
-    pricing = res.scalar_one_or_none()
+    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True).order_by(DeliveryPricing.pricing_id.desc()))
+    pricing = res.scalars().first()
     
     if not pricing:
         return DeliveryCalculationResponse(
