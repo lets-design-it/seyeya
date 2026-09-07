@@ -286,11 +286,25 @@ export const renderAssetIcon = (iconName: string, className = "h-4 w-4"): React.
 
 import { api } from '../services/api';
 
+const extractCategoryString = (cat: any, defaultVal = 'General'): string => {
+  if (typeof cat === 'string' && cat.trim() !== '') return cat;
+  if (typeof cat === 'object' && cat !== null && cat.name) return String(cat.name);
+  return defaultVal;
+};
+
 export const useRoomAssets = () => {
   const [amenities, setAmenities] = useState<RoomAmenity[]>(() => {
     const saved = localStorage.getItem('seyeya_room_amenities');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item: any) => ({
+            ...item,
+            category: extractCategoryString(item.category, 'General')
+          }));
+        }
+      } catch (e) {}
     }
     return DEFAULT_AMENITIES;
   });
@@ -298,7 +312,15 @@ export const useRoomAssets = () => {
   const [policies, setPolicies] = useState<RoomPolicy[]>(() => {
     const saved = localStorage.getItem('seyeya_room_policies');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item: any) => ({
+            ...item,
+            category: extractCategoryString(item.category, 'General')
+          }));
+        }
+      } catch (e) {}
     }
     return DEFAULT_POLICIES;
   });
@@ -313,7 +335,7 @@ export const useRoomAssets = () => {
         const mapped: RoomAmenity[] = res.data.map((item: any) => ({
           id: String(item.amenity_id),
           name: item.name,
-          category: item.category || 'General',
+          category: extractCategoryString(item.category, 'General') as any,
           description: item.description || '',
           iconName: item.icon || autoDetectAmenityIcon(item.name),
           isActive: item.is_active !== false
@@ -333,7 +355,7 @@ export const useRoomAssets = () => {
         const mapped: RoomPolicy[] = res.data.map((item: any) => ({
           id: String(item.policy_id),
           title: item.title,
-          category: item.policy_type || item.category || 'General',
+          category: extractCategoryString(item.policy_type || item.category, 'General') as any,
           description: item.description || '',
           iconName: autoDetectPolicyIcon(item.title),
           isActive: item.is_active !== false
@@ -380,7 +402,7 @@ export const useRoomAssets = () => {
         const created: RoomAmenity = {
           id: String(res.data.amenity_id),
           name: res.data.name,
-          category: res.data.category || data.category,
+          category: extractCategoryString(res.data.category, data.category) as any,
           description: res.data.description || '',
           iconName: res.data.icon || detectedIcon,
           isActive: res.data.is_active !== false
