@@ -92,13 +92,33 @@ export const useAccommodation = () => {
           ? c.policies.map((p: any) => String(p.policy_id))
           : undefined;
 
+        const extractedAmenityNames: string[] = [];
+        if (c.amenities && Array.isArray(c.amenities) && c.amenities.length > 0) {
+          c.amenities.forEach((grp: any) => {
+            if (grp.amenities && Array.isArray(grp.amenities)) {
+              grp.amenities.forEach((am: any) => {
+                if (am && am.name) extractedAmenityNames.push(am.name);
+              });
+            } else if (typeof grp === 'string') {
+              extractedAmenityNames.push(grp);
+            }
+          });
+        }
+        if (extractedAmenityNames.length === 0 && c.amenity_assignments && Array.isArray(c.amenity_assignments)) {
+          c.amenity_assignments.forEach((assignment: any) => {
+            if (assignment.amenity && assignment.amenity.name) {
+              extractedAmenityNames.push(assignment.amenity.name);
+            }
+          });
+        }
+
         return {
           id: String(c.room_category_id),
           name: c.category_name,
           priceUGX: Number(c.base_rate || 0),
           priceUSD: Number(c.base_rate || 0),
           capacity: "2 Adults, 1 Child",
-          amenities: ['AC', 'Free Wi-Fi', 'King Bed'],
+          amenities: extractedAmenityNames,
           description: c.description || "",
           image: defaultImg,
           photos: dbPhotos,
