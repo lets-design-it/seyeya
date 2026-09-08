@@ -431,13 +431,13 @@ export const MenuEditor: React.FC = () => {
           <ShadcnButton
             variant="outline"
             onClick={() => setIsCategoryModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer h-10 shadow-sm dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+            className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer h-10 shadow-sm dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
           >
             Manage Categories
           </ShadcnButton>
           <ShadcnButton
             onClick={openAddModal}
-            className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+            className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
           >
             <Plus className="h-4 w-4" />
             Add Menu Item
@@ -515,7 +515,7 @@ export const MenuEditor: React.FC = () => {
             {/* Columns selector dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!">
+                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!">
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                   Columns
                   <ChevronDown className="h-4 w-4 text-zinc-500" />
@@ -569,7 +569,7 @@ export const MenuEditor: React.FC = () => {
             </p>
             <ShadcnButton
               onClick={openAddModal}
-              className="mt-4 flex items-center gap-1.5 mx-auto bg-black! text-white! hover:bg-black/90! rounded-xl px-4.5 py-2 text-xs font-bold cursor-pointer h-9 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+              className="mt-4 flex items-center gap-1.5 mx-auto bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4.5 py-2 text-xs font-bold cursor-pointer h-9 shadow-sm"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Menu Item
@@ -812,7 +812,7 @@ export const MenuEditor: React.FC = () => {
                     type="button"
                     variant="ghost"
                     onClick={handleAddChoice}
-                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
                   >
                     <Plus className="h-3 w-3" /> Add Choice
                   </ShadcnButton>
@@ -876,7 +876,7 @@ export const MenuEditor: React.FC = () => {
                     type="button"
                     variant="ghost"
                     onClick={handleAddAccompaniment}
-                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
                   >
                     <Plus className="h-3 w-3" /> Add Side
                   </ShadcnButton>
@@ -940,7 +940,7 @@ export const MenuEditor: React.FC = () => {
                     type="button"
                     variant="ghost"
                     onClick={handleAddExtra}
-                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
                   >
                     <Plus className="h-3 w-3" /> Add Extra
                   </ShadcnButton>
@@ -1019,7 +1019,7 @@ export const MenuEditor: React.FC = () => {
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! font-bold px-6 py-2.5 rounded-xl shadow-sm border-none cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-6 py-2.5 rounded-xl shadow-sm cursor-pointer"
               >
                 {editItem ? 'Save Updates' : 'Add Item'}
               </ShadcnButton>
@@ -1211,7 +1211,7 @@ export const MenuEditor: React.FC = () => {
                   openEditModal(selectedItem);
                   setSelectedItem(null);
                 }}
-                className="flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-5 py-2.5 text-xs font-bold shadow-sm dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-5 py-2.5 text-xs font-bold shadow-sm dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
               >
                 <Edit2 className="h-4 w-4" />
                 Edit Item
@@ -1308,7 +1308,7 @@ export const MenuEditor: React.FC = () => {
                       setCategoryError(err.message || 'Failed to create category');
                     }
                   }}
-                  className="bg-black! text-white! hover:bg-black/90! font-bold px-4 py-2 rounded-xl text-xs shadow-sm border-none cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                  className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-4 py-2 rounded-xl text-xs shadow-sm cursor-pointer"
                 >
                   Add Category
                 </ShadcnButton>
@@ -1376,7 +1376,7 @@ export const MenuEditor: React.FC = () => {
                                   setCategoryError(err.message || 'Failed to update category');
                                 }
                               }}
-                              className="bg-black! text-white! hover:bg-black/90! text-xs px-4 py-1.5 font-bold rounded-xl border-none cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                              className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! text-xs px-4 py-1.5 font-bold rounded-xl cursor-pointer"
                             >
                               Save
                             </ShadcnButton>

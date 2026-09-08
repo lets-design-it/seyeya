@@ -474,7 +474,7 @@ class RoomCategory(Base):
     
     room_category_id = Column(Integer, primary_key=True)
     category_name = Column(String(100), nullable=False)
-    description = Column(String(500))
+    description = Column(Text, nullable=True)
     base_rate = Column(DECIMAL(10, 2), nullable=False)
     room_size = Column(Float, nullable=True)
     room_size_unit = Column(String(20), default="m²")
@@ -600,7 +600,8 @@ class AccommodationReservation(Base):
     
     reservation_id = Column(Integer, primary_key=True)
     customer_id = Column(Integer, ForeignKey("customers.customer_id"), nullable=False)
-    room_id = Column(Integer, ForeignKey("rooms.room_id"), nullable=False)
+    room_id = Column(Integer, ForeignKey("rooms.room_id"), nullable=True)
+    room_category_id = Column(Integer, ForeignKey("room_categories.room_category_id"), nullable=True)
     reservation_code = Column(String(20), nullable=False, unique=True)
     check_in_date = Column(Date, nullable=False)
     check_out_date = Column(Date, nullable=False)
@@ -628,6 +629,7 @@ class AccommodationReservation(Base):
     # Relationships
     customer = relationship("Customer", back_populates="reservations")
     room = relationship("Room", back_populates="reservations")
+    category = relationship("RoomCategory")
     guest_details = relationship("GuestCheckInDetail", back_populates="reservation", cascade="all, delete-orphan")
     
     __table_args__ = (
@@ -804,6 +806,46 @@ class ConferenceMealBooking(Base):
     # Relationships
     conference_reservation = relationship("ConferenceReservation", back_populates="meal_bookings")
     package = relationship("ConferenceMealPackage", back_populates="bookings")
+
+
+class ConferenceEvent(Base):
+    """Conference / Lodge Event model"""
+    __tablename__ = "conference_events"
+    
+    event_id = Column(Integer, primary_key=True)
+    event_name = Column(String(200), nullable=False)
+    description = Column(String(1000), nullable=True)
+    photo_url = Column(String(500), nullable=True)
+    price = Column(DECIMAL(10, 2), nullable=False, default=0.00)
+    discount = Column(DECIMAL(10, 2), nullable=False, default=0.00)
+    event_date = Column(DateTime, nullable=True)
+    location = Column(String(200), nullable=True)
+    capacity = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('ix_conference_events_is_active', 'is_active'),
+    )
+
+
+class ConferenceFacility(Base):
+    """Conference / Event Facility model (e.g. Catering, PA System, Projector)"""
+    __tablename__ = "conference_facilities"
+    
+    facility_id = Column(Integer, primary_key=True)
+    name = Column(String(150), nullable=False, unique=True)
+    category = Column(String(100), default="General Services")
+    description = Column(String(500), nullable=True)
+    icon_name = Column(String(50), default="Sparkles")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('ix_conference_facilities_is_active', 'is_active'),
+    )
 
 
 # =====================================================================
@@ -1146,7 +1188,6 @@ class Amenity(Base):
     name = Column(String(150), nullable=False)
     description = Column(String(500), nullable=True)
     icon = Column(String(100), nullable=True)
-    price = Column(DECIMAL(10, 2), default=0.00)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -1181,7 +1222,6 @@ class RoomRatePlan(Base):
     rate_code = Column(String(50), nullable=True)
     description = Column(String(500), nullable=True)
     price = Column(DECIMAL(10, 2), nullable=False)
-    currency = Column(String(10), nullable=True)
     pricing_basis = Column(String(50), default="PER_NIGHT")
     meal_plan = Column(String(100), nullable=True)
     cancellation_policy = Column(String(500), nullable=True)

@@ -83,14 +83,15 @@ import {
   Check,
   Sparkles,
   FileText,
-  Tag
+  Tag,
+  ShieldCheck
 } from 'lucide-react';
 
 export interface CategoryRateOption {
   id: string;
   name: string;
-  priceUGX: number;
-  priceUSD: number;
+  priceUGX: number | string;
+  priceUSD: number | string;
   description?: string;
   inclusions?: string[];
   isActive: boolean;
@@ -101,7 +102,7 @@ const getImageUrl = (url: string) => {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
   }
-  const isLocal = typeof window !== 'undefined' && 
+  const isLocal = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   const backendBase = isLocal ? 'http://localhost:8000' : 'https://api.seyeyalodge.com';
   return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
@@ -112,11 +113,11 @@ interface RoomsProps {
   setActiveTab?: (tab: 'reservations' | 'rooms' | 'categories' | 'amenities' | 'policies') => void;
 }
 
-export const Rooms: React.FC<RoomsProps> = ({ 
-  activeTab: propActiveTab, 
-  setActiveTab: propSetActiveTab 
+export const Rooms: React.FC<RoomsProps> = ({
+  activeTab: propActiveTab,
+  setActiveTab: propSetActiveTab
 }) => {
-  const { formatPrice, currency } = useCurrency();
+  const { formatPrice, convert, currency } = useCurrency();
   const { amenities: managedAmenities, policies: managedPolicies } = useRoomAssets();
   const {
     categories,
@@ -184,47 +185,68 @@ export const Rooms: React.FC<RoomsProps> = ({
   // Category Form & Upload/Crop State
   // -------------------------------------------------------------
   const [catName, setCatName] = useState('');
-  const [catPriceUGX, setCatPriceUGX] = useState<number>(300000);
-  const [catPriceUSD, setCatPriceUSD] = useState<number>(85);
-  const [catAdults, setCatAdults] = useState<number>(2);
-  const [catChildren, setCatChildren] = useState<number>(1);
+  const [catPriceUGX, setCatPriceUGX] = useState<number | string>('');
+  const [catPriceUSD, setCatPriceUSD] = useState<number | string>('');
+  const [catAdults, setCatAdults] = useState<number | string>('');
+  const [catChildren, setCatChildren] = useState<number | string>('');
   const [catAmenities, setCatAmenities] = useState('');
   const [catDescription, setCatDescription] = useState('');
   const [catImage, setCatImage] = useState('');
-  
+  const [catSelectedPolicies, setCatSelectedPolicies] = useState<string[]>([]);
+
   // Category Photos Upload State
   const [catPhotos, setCatPhotos] = useState<string[]>([]);
-  
-  // Rate Options / Pricing Options State
-  const [catRateOptions, setCatRateOptions] = useState<CategoryRateOption[]>([
-    {
-      id: 'ro-1',
-      name: 'Room Only (Standard Rate)',
-      priceUGX: 300000,
-      priceUSD: 85,
-      description: 'Standard room rate without meal plans included.',
-      inclusions: ['Free Wi-Fi', 'Free Cancellation'],
-      isActive: true
-    },
-    {
-      id: 'ro-2',
-      name: 'Bed & Breakfast (BB)',
-      priceUGX: 350000,
-      priceUSD: 100,
-      description: 'Includes full daily breakfast buffet at the main restaurant.',
-      inclusions: ['Breakfast Included', 'Free Wi-Fi'],
-      isActive: true
-    }
-  ]);
 
-  const handleAddPresetRate = (name: string, priceUGXOffset: number, priceUSDOffset: number, inclusions: string[]) => {
+  // Rate Options / Pricing Options State
+  const [catRateOptions, setCatRateOptions] = useState<CategoryRateOption[]>([]);
+
+  const handleCatPriceUGXChange = (valStr: string) => {
+    const cleaned = valStr.length > 1 && valStr.startsWith('0') ? valStr.replace(/^0+/, '') : valStr;
+    setCatPriceUGX(cleaned);
+    const num = Number(cleaned);
+    if (cleaned !== '' && !isNaN(num) && num >= 0) {
+      const usdVal = Math.round(convert(num, 'UGX', 'USD'));
+      setCatPriceUSD(usdVal);
+    } else if (cleaned === '') {
+      setCatPriceUSD('');
+    }
+  };
+
+  const handleCatPriceUSDChange = (valStr: string) => {
+    const cleaned = valStr.length > 1 && valStr.startsWith('0') ? valStr.replace(/^0+/, '') : valStr;
+    setCatPriceUSD(cleaned);
+    const num = Number(cleaned);
+    if (cleaned !== '' && !isNaN(num) && num >= 0) {
+      const ugxVal = Math.round(convert(num, 'USD', 'UGX'));
+      setCatPriceUGX(ugxVal);
+    } else if (cleaned === '') {
+      setCatPriceUGX('');
+    }
+  };
+
+  const handleRateOptionUGXChange = (id: string, valStr: string) => {
+    const cleaned = valStr.length > 1 && valStr.startsWith('0') ? valStr.replace(/^0+/, '') : valStr;
+    const num = Number(cleaned);
+    const usdVal = (cleaned !== '' && !isNaN(num) && num >= 0) ? Math.round(convert(num, 'UGX', 'USD')) : '';
+    updateRateOption(id, { priceUGX: cleaned, priceUSD: usdVal });
+  };
+
+  const handleRateOptionUSDChange = (id: string, valStr: string) => {
+    const cleaned = valStr.length > 1 && valStr.startsWith('0') ? valStr.replace(/^0+/, '') : valStr;
+    const num = Number(cleaned);
+    const ugxVal = (cleaned !== '' && !isNaN(num) && num >= 0) ? Math.round(convert(num, 'USD', 'UGX')) : '';
+    updateRateOption(id, { priceUGX: ugxVal, priceUSD: cleaned });
+  };
+
+  const handleAddPresetRate = (name: string, priceUGXOffset: number, _priceUSDOffset: number, inclusions: string[]) => {
     const baseUGX = Number(catPriceUGX) || 300000;
-    const baseUSD = Number(catPriceUSD) || 85;
+    const newUGX = Math.max(0, baseUGX + priceUGXOffset);
+    const newUSD = Math.round(convert(newUGX, 'UGX', 'USD'));
     const newRate: CategoryRateOption = {
       id: `ro-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
       name,
-      priceUGX: Math.max(0, baseUGX + priceUGXOffset),
-      priceUSD: Math.max(0, baseUSD + priceUSDOffset),
+      priceUGX: newUGX,
+      priceUSD: newUSD,
       inclusions,
       isActive: true
     };
@@ -233,7 +255,7 @@ export const Rooms: React.FC<RoomsProps> = ({
 
   const addNewRateOption = () => {
     const baseUGX = Number(catPriceUGX) || 300000;
-    const baseUSD = Number(catPriceUSD) || 85;
+    const baseUSD = Math.round(convert(baseUGX, 'UGX', 'USD'));
     const newRate: CategoryRateOption = {
       id: `ro-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
       name: `Option ${catRateOptions.length + 1}`,
@@ -251,7 +273,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   const removeRateOption = (id: string) => {
     setCatRateOptions(prev => prev.filter(r => r.id !== id));
   };
-  
+
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -266,7 +288,7 @@ export const Rooms: React.FC<RoomsProps> = ({
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const uploadedUrl = res.data.photo_url;
-      
+
       setCatPhotos(prev => [...prev, uploadedUrl]);
       // Default primary catImage if it is empty or default
       setCatImage(prev => {
@@ -287,34 +309,16 @@ export const Rooms: React.FC<RoomsProps> = ({
   const openAddCategory = () => {
     setEditCategoryItem(null);
     setCatName('');
-    setCatPriceUGX(300000);
-    setCatPriceUSD(85);
-    setCatAdults(2);
-    setCatChildren(1);
-    setCatAmenities('AC, Free Wi-Fi, King Bed');
+    setCatPriceUGX('');
+    setCatPriceUSD('');
+    setCatAdults('');
+    setCatChildren('');
+    setCatAmenities('');
     setCatDescription('');
-    setCatImage('https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
+    setCatImage('');
     setCatPhotos([]);
-    setCatRateOptions([
-      {
-        id: 'ro-1',
-        name: 'Room Only (Standard Rate)',
-        priceUGX: 300000,
-        priceUSD: 85,
-        description: 'Standard room rate without meal plans.',
-        inclusions: ['Free Wi-Fi', 'Free Cancellation'],
-        isActive: true
-      },
-      {
-        id: 'ro-2',
-        name: 'Bed & Breakfast (BB)',
-        priceUGX: 350000,
-        priceUSD: 100,
-        description: 'Includes full daily breakfast buffet.',
-        inclusions: ['Breakfast Included', 'Free Wi-Fi'],
-        isActive: true
-      }
-    ]);
+    setCatSelectedPolicies([]);
+    setCatRateOptions([]);
     setIsCategoryDrawerOpen(true);
   };
 
@@ -323,7 +327,7 @@ export const Rooms: React.FC<RoomsProps> = ({
     setCatName(item.name);
     setCatPriceUGX(item.priceUGX);
     setCatPriceUSD(item.priceUSD);
-    
+
     // Parse existing capacity string
     const capStr = (item.capacity || "").toLowerCase();
     let adults = 2;
@@ -349,6 +353,7 @@ export const Rooms: React.FC<RoomsProps> = ({
     setCatDescription(item.description);
     setCatImage(item.image);
     setCatPhotos(item.photos || []);
+    setCatSelectedPolicies((item.selectedPolicyIds || []).map(id => String(id)));
 
     if ((item as any).rateOptions && Array.isArray((item as any).rateOptions) && (item as any).rateOptions.length > 0) {
       setCatRateOptions((item as any).rateOptions);
@@ -388,6 +393,12 @@ export const Rooms: React.FC<RoomsProps> = ({
       : (catChildren === 1 ? "1 Child" : `${catChildren} Children`);
     const capacityString = childrenText ? `${adultsText}, ${childrenText}` : adultsText;
 
+    // Map amenity IDs from managedAmenities
+    const selectedAmenityList = catAmenities.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    const amenityIds = managedAmenities
+      .filter(am => selectedAmenityList.some(s => s === am.name.toLowerCase()))
+      .map(am => am.id);
+
     const data = {
       name: catName.trim(),
       priceUGX: Number(catPriceUGX),
@@ -397,7 +408,9 @@ export const Rooms: React.FC<RoomsProps> = ({
       description: catDescription.trim(),
       image: catImage.trim() || (catPhotos.length > 0 ? catPhotos[0] : 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300'),
       photos: catPhotos,
-      rateOptions: catRateOptions
+      rateOptions: catRateOptions,
+      selectedAmenityIds: amenityIds,
+      selectedPolicyIds: catSelectedPolicies
     };
 
     if (editCategoryItem) {
@@ -476,6 +489,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   const [bookCheckOut, setBookCheckOut] = useState('');
   const [bookTotalPaid, setBookTotalPaid] = useState<number>(0);
   const [bookStatus, setBookStatus] = useState<BookingRecord['status']>('Reserved');
+  const [bookSelectedRateId, setBookSelectedRateId] = useState<string>('');
 
   const [allClients, setAllClients] = useState<any[]>([]);
   const [selectedGuests, setSelectedGuests] = useState<{ id: number; name: string; isChild: boolean }[]>([]);
@@ -496,31 +510,116 @@ export const Rooms: React.FC<RoomsProps> = ({
     }
   }, [isBookingDrawerOpen, isDetailsOpen]);
 
+  const activeBookCat = useMemo(() => {
+    return categories.find(c => c.id === bookCatId);
+  }, [categories, bookCatId]);
+
+  const activeCatRateOptions = useMemo<CategoryRateOption[]>(() => {
+    if (!activeBookCat) return [];
+    if (activeBookCat.rateOptions && Array.isArray(activeBookCat.rateOptions) && activeBookCat.rateOptions.length > 0) {
+      return activeBookCat.rateOptions;
+    }
+    return [
+      {
+        id: 'ro-standard',
+        name: 'Standard Room Rate (Room Only)',
+        priceUGX: activeBookCat.priceUGX,
+        priceUSD: activeBookCat.priceUSD,
+        description: 'Standard room rate.',
+        inclusions: ['Free Wi-Fi', 'Room Only'],
+        isActive: true
+      },
+      {
+        id: 'ro-bb',
+        name: 'Bed & Breakfast (BB)',
+        priceUGX: activeBookCat.priceUGX + 50000,
+        priceUSD: activeBookCat.priceUSD + 15,
+        description: 'Includes full daily breakfast for occupants.',
+        inclusions: ['Breakfast Included', 'Free Wi-Fi', 'Free Cancellation'],
+        isActive: true
+      },
+      {
+        id: 'ro-fb',
+        name: 'Full Board (FB)',
+        priceUGX: activeBookCat.priceUGX + 150000,
+        priceUSD: activeBookCat.priceUSD + 40,
+        description: 'Includes breakfast, lunch, and dinner.',
+        inclusions: ['Breakfast Included', 'Lunch Included', 'Dinner Included', 'Free Wi-Fi'],
+        isActive: true
+      }
+    ];
+  }, [activeBookCat]);
+
+  const categoryAmenitiesList = useMemo(() => {
+    if (!activeBookCat) return [];
+    const names = activeBookCat.amenities || [];
+    const mappedFromIds = (activeBookCat.selectedAmenityIds || [])
+      .map(id => managedAmenities.find(ma => String(ma.id) === String(id))?.name)
+      .filter(Boolean) as string[];
+
+    const combined = Array.from(new Set([...names, ...mappedFromIds]));
+    if (combined.length > 0) return combined;
+    return ['Free High-Speed Wi-Fi', 'Air Conditioning', 'En-suite Bathroom', 'Nile View'];
+  }, [activeBookCat, managedAmenities]);
+
+  const categoryPoliciesList = useMemo(() => {
+    if (!activeBookCat) return [];
+    const selectedIds = (activeBookCat.selectedPolicyIds || []).map(id => String(id));
+    const matchedManaged = managedPolicies.filter(p => selectedIds.includes(String(p.id)));
+    if (matchedManaged.length > 0) return matchedManaged;
+    return [
+      { id: 'pol-1', title: 'Check-in: 2:00 PM | Check-out: 10:00 AM', description: 'Standard check-in and check-out times.', iconName: 'clock', category: 'Check-in/out' },
+      { id: 'pol-2', title: 'Non-Smoking Cottage', description: 'Smoking is strictly prohibited inside the rooms.', iconName: 'cigarette-off', category: 'Smoking' },
+      { id: 'pol-3', title: 'Free Cancellation up to 24h before', description: 'Cancel without penalty 24 hours prior to check-in.', iconName: 'check-circle-2', category: 'Cancellation' }
+    ];
+  }, [activeBookCat, managedPolicies]);
+
   const getCategoryCapacity = (catId: string) => {
     const cat = categories.find(c => c.id === catId);
     if (!cat) return { maxAdults: 2, maxChildren: 1 };
 
-    const capStr = (cat.capacity || "").toLowerCase();
-    let maxAdults = 2;
+    let maxAdults = cat.maxOccupancy && cat.maxOccupancy > 0 ? cat.maxOccupancy : 2;
     let maxChildren = 1;
 
+    const capStr = (cat.capacity || "").toLowerCase();
     const adultMatch = capStr.match(/(\d+)\s*adult/);
-    if (adultMatch) {
+    if (adultMatch && !cat.maxOccupancy) {
       maxAdults = parseInt(adultMatch[1]);
-    } else if (capStr.includes("adult")) {
-      maxAdults = 1;
     }
 
     const childMatch = capStr.match(/(\d+)\s*child/);
     if (childMatch) {
       maxChildren = parseInt(childMatch[1]);
-    } else if (capStr.includes("child")) {
-      maxChildren = 1;
     } else if (capStr.includes("no child")) {
       maxChildren = 0;
     }
 
     return { maxAdults, maxChildren };
+  };
+
+  const calculateBookingPrice = (catId: string, rateId: string, checkInVal: string, checkOutVal: string) => {
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return;
+    const start = new Date(checkInVal);
+    const end = new Date(checkOutVal);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+    const diff = end.getTime() - start.getTime();
+    if (diff <= 0) return;
+    const nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+    const rates = (cat.rateOptions && cat.rateOptions.length > 0) ? cat.rateOptions : [
+      { id: 'ro-standard', priceUGX: cat.priceUGX },
+      { id: 'ro-bb', priceUGX: cat.priceUGX + 50000 },
+      { id: 'ro-fb', priceUGX: cat.priceUGX + 150000 }
+    ];
+    const selectedRate = rates.find((r: any) => String(r.id) === String(rateId)) || rates[0];
+    const unitPrice = Number(selectedRate?.priceUGX || cat.priceUGX);
+    setBookTotalPaid(unitPrice * nights);
+  };
+
+  const handleBookingDateOrCatChange = (catId: string, checkInVal: string, checkOutVal: string, rateId?: string) => {
+    const activeRate = rateId || bookSelectedRateId;
+    calculateBookingPrice(catId, activeRate, checkInVal, checkOutVal);
   };
 
   const openAddBooking = () => {
@@ -532,14 +631,24 @@ export const Rooms: React.FC<RoomsProps> = ({
     const defaultCat = categories[0]?.id || '';
     setBookCatId(defaultCat);
     setBookRoomUnitId('');
-    setBookCheckIn(new Date().toISOString().split('T')[0]);
+    
+    const checkInDate = new Date().toISOString().split('T')[0];
+    setBookCheckIn(checkInDate);
 
     const nextThreeDays = new Date();
     nextThreeDays.setDate(nextThreeDays.getDate() + 3);
-    setBookCheckOut(nextThreeDays.toISOString().split('T')[0]);
+    const checkOutDate = nextThreeDays.toISOString().split('T')[0];
+    setBookCheckOut(checkOutDate);
 
-    setBookTotalPaid(categories[0] ? categories[0].priceUGX * 3 : 900000);
-    setBookStatus('Reserved');
+    const catObj = categories.find(c => c.id === defaultCat);
+    const rates = (catObj?.rateOptions && catObj.rateOptions.length > 0) ? catObj.rateOptions : [{ id: 'ro-standard', priceUGX: catObj?.priceUGX || 300000 }];
+    const defaultRateId = rates[0]?.id || 'ro-standard';
+    setBookSelectedRateId(defaultRateId);
+
+    const unitPrice = Number(rates[0]?.priceUGX || catObj?.priceUGX || 300000);
+    setBookTotalPaid(unitPrice * 3);
+    setBookStatus('Pending');
+    setBookRoomUnitId('');
     setIsBookingDrawerOpen(true);
   };
 
@@ -553,6 +662,7 @@ export const Rooms: React.FC<RoomsProps> = ({
     setBookCheckOut(item.checkOut);
     setBookTotalPaid(item.totalPaid);
     setBookStatus(item.status);
+    setBookSelectedRateId(item.ratePlanId || 'ro-standard');
 
     const primaryClient = allClients.find(c => c.full_name.toLowerCase() === item.guestName.toLowerCase());
     const primaryId = primaryClient ? primaryClient.customer_id : (item.customerId || 1);
@@ -597,7 +707,7 @@ export const Rooms: React.FC<RoomsProps> = ({
 
     const catObj = categories.find(c => c.id === bookCatId);
     const roomUnitObj = roomUnits.find(ru => ru.id === bookRoomUnitId);
-    
+
     const { maxAdults, maxChildren } = getCategoryCapacity(bookCatId);
     const maxOccupancy = roomUnitObj?.maxOccupancy || maxAdults;
 
@@ -623,6 +733,8 @@ export const Rooms: React.FC<RoomsProps> = ({
     const primaryClient = allClients.find(c => c.customer_id === primaryGuest.id);
     const guestEmail = primaryClient?.email || 'guest@seyeyalodge.com';
 
+    const selectedRatePlan = activeCatRateOptions.find(r => String(r.id) === String(bookSelectedRateId)) || activeCatRateOptions[0];
+
     const data = {
       roomId: bookCatId,
       roomName: catObj ? catObj.name : 'Unknown Category',
@@ -635,7 +747,10 @@ export const Rooms: React.FC<RoomsProps> = ({
       roomUnitId: bookRoomUnitId || undefined,
       roomUnitNumber: roomUnitObj ? roomUnitObj.roomNumber : undefined,
       customerId: primaryGuest.id,
-      guests: selectedGuests.map(g => ({ customer_id: g.id, is_child: g.isChild }))
+      guests: selectedGuests.map(g => ({ customer_id: g.id, is_child: g.isChild })),
+      ratePlanId: selectedRatePlan?.id,
+      ratePlanName: selectedRatePlan?.name,
+      rateInclusions: selectedRatePlan?.inclusions || []
     };
 
     if (editBookingItem) {
@@ -646,28 +761,35 @@ export const Rooms: React.FC<RoomsProps> = ({
     setIsBookingDrawerOpen(false);
   };
 
-  // Helper: auto calculate total booking price when dates or category changes in booking form
-  const handleBookingDateOrCatChange = (catId: string, checkInVal: string, checkOutVal: string) => {
-    const cat = categories.find(c => c.id === catId);
-    if (!cat) return;
-    const start = new Date(checkInVal);
-    const end = new Date(checkOutVal);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
-    const diff = end.getTime() - start.getTime();
-    if (diff <= 0) return;
-    const nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    setBookTotalPaid(cat.priceUGX * nights);
-  };
-
-  // Available room units filterable by category for assignment in drawer
+  // Available room units filterable by category and date availability for assignment in drawer
   const availableRoomUnitsForCategory = useMemo(() => {
     const activeCatId = bookCatId;
+    if (!activeCatId) return [];
+
     return roomUnits.filter(ru => {
-      // Allow assigning to the currently assigned unit or any unit that is available
+      // Allow assigning to the currently assigned unit if editing
       if (editBookingItem && editBookingItem.roomUnitId === ru.id) return true;
-      return ru.roomCategoryId === activeCatId && ru.roomStatus === 'Available';
+
+      // Must belong to active category and have roomStatus Available
+      if (ru.roomCategoryId !== activeCatId || ru.roomStatus !== 'Available') return false;
+
+      // Date collision check
+      if (bookCheckIn && bookCheckOut) {
+        const hasCollision = bookings.some(b => {
+          if (editBookingItem && b.id === editBookingItem.id) return false;
+          if (b.roomUnitId !== ru.id) return false;
+          if (b.status === 'Cancelled' || b.status === 'Checked Out') return false;
+
+          // Check overlap: b.checkIn < bookCheckOut && b.checkOut > bookCheckIn
+          return b.checkIn < bookCheckOut && b.checkOut > bookCheckIn;
+        });
+
+        if (hasCollision) return false;
+      }
+
+      return true;
     });
-  }, [roomUnits, bookCatId, editBookingItem]);
+  }, [roomUnits, bookCatId, bookCheckIn, bookCheckOut, bookings, editBookingItem]);
 
   // -------------------------------------------------------------
   // Data Filtering
@@ -740,12 +862,14 @@ export const Rooms: React.FC<RoomsProps> = ({
       accessorKey: 'roomUnitNumber',
       header: 'Assigned Unit',
       cell: ({ row }) => (
-        row.original.roomUnitNumber ? (
+        row.original.roomUnitNumber && row.original.roomUnitNumber !== 'Unassigned' ? (
           <span className="font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded-md text-[10px]">
             Room {row.original.roomUnitNumber}
           </span>
         ) : (
-          <span className="text-zinc-400 dark:text-zinc-500 italic text-[11px]">Unassigned</span>
+          <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] font-bold px-2 py-0.5 rounded-md">
+            Unassigned
+          </Badge>
         )
       )
     },
@@ -773,12 +897,16 @@ export const Rooms: React.FC<RoomsProps> = ({
       cell: ({ row }) => {
         const s = row.original.status;
         const colorClass = s === 'Checked In'
-          ? 'bg-violet-50 dark:bg-violet-955/20 text-violet-750 dark:text-violet-300 border-violet-200 dark:border-violet-900/50'
-          : s === 'Reserved'
-            ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
-            : s === 'Checked Out'
-              ? 'bg-zinc-100 dark:bg-zinc-800/40 text-zinc-650 dark:text-zinc-350 border-zinc-200 dark:border-zinc-700'
-              : 'bg-red-50 dark:bg-red-955/20 text-red-700 dark:text-red-350 border-red-200 dark:border-red-900/50';
+          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+          : s === 'Confirmed'
+            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
+            : s === 'Pending'
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+              : s === 'Reserved'
+                ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30'
+                : s === 'Checked Out'
+                  ? 'bg-zinc-100 dark:bg-zinc-800/40 text-zinc-650 dark:text-zinc-350 border-zinc-200 dark:border-zinc-700'
+                  : 'bg-red-50 dark:bg-red-955/20 text-red-700 dark:text-red-350 border-red-200 dark:border-red-900/50';
         return (
           <Badge className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorClass}`}>
             {s}
@@ -1068,87 +1196,11 @@ export const Rooms: React.FC<RoomsProps> = ({
   };
 
   if (activeTab === 'amenities') {
-    return (
-      <div className="space-y-6 animate-fade-in relative h-full">
-        {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('reservations')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Reservations
-          </button>
-          <button
-            onClick={() => setActiveTab('rooms')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Rooms List
-          </button>
-          <button
-            onClick={() => setActiveTab('categories')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Categories
-          </button>
-          <button
-            onClick={() => setActiveTab('amenities')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs flex items-center gap-1.5"
-          >
-            Amenities
-          </button>
-          <button
-            onClick={() => setActiveTab('policies')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
-          >
-            Policies
-          </button>
-        </div>
-
-        <AmenitiesView />
-      </div>
-    );
+    return <AmenitiesView />;
   }
 
   if (activeTab === 'policies') {
-    return (
-      <div className="space-y-6 animate-fade-in relative h-full">
-        {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('reservations')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Reservations
-          </button>
-          <button
-            onClick={() => setActiveTab('rooms')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Rooms List
-          </button>
-          <button
-            onClick={() => setActiveTab('categories')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-          >
-            Categories
-          </button>
-          <button
-            onClick={() => setActiveTab('amenities')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 flex items-center gap-1.5"
-          >
-            Amenities
-          </button>
-          <button
-            onClick={() => setActiveTab('policies')}
-            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs flex items-center gap-1.5"
-          >
-            Policies
-          </button>
-        </div>
-
-        <PoliciesView />
-      </div>
-    );
+    return <PoliciesView />;
   }
 
   return (
@@ -1157,8 +1209,22 @@ export const Rooms: React.FC<RoomsProps> = ({
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">Rooms</h3>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">Coordinate room reservations, vacancies, check-ins and configure lodgings catalog.</p>
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
+            {activeTab === 'reservations'
+              ? 'Room Reservations'
+              : activeTab === 'rooms'
+                ? 'Rooms List'
+                : activeTab === 'categories'
+                  ? 'Room Categories'
+                  : 'Rooms'}
+          </h3>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            {activeTab === 'reservations'
+              ? 'Coordinate room reservations, vacancies, check-ins, and guest stay details.'
+              : activeTab === 'rooms'
+                ? 'Manage individual room units, room numbers, status, and floor assignments.'
+                : 'Configure room types, capacities, base pricing, and category details.'}
+          </p>
         </div>
 
         {/* Dynamic Add Buttons */}
@@ -1166,7 +1232,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           {activeTab === 'reservations' && (
             <ShadcnButton
               onClick={openAddBooking}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+              className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
             >
               <Plus className="h-4 w-4" />
               New Reservation
@@ -1175,7 +1241,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           {activeTab === 'rooms' && (
             <ShadcnButton
               onClick={openAddRoom}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+              className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
             >
               <Plus className="h-4 w-4" />
               Add Room Unit
@@ -1184,7 +1250,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           {activeTab === 'categories' && (
             <ShadcnButton
               onClick={openAddCategory}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+              className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
             >
               <Plus className="h-4 w-4" />
               Add Category
@@ -1193,304 +1259,252 @@ export const Rooms: React.FC<RoomsProps> = ({
         </div>
       </div>
 
-      {/* Sub-Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-zinc-150 dark:border-zinc-800 pb-3 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('reservations')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'reservations'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
-        >
-          Reservations
-        </button>
-        <button
-          onClick={() => setActiveTab('rooms')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'rooms'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
-        >
-          Rooms List
-        </button>
-        <button
-          onClick={() => setActiveTab('categories')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'categories'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
-        >
-          Categories
-        </button>
-        <button
-          onClick={() => setActiveTab('amenities')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-            (activeTab as string) === 'amenities'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
-        >
-          Amenities
-        </button>
-        <button
-          onClick={() => setActiveTab('policies')}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-            (activeTab as string) === 'policies'
-              ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-xs'
-              : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-          }`}
-        >
-          Policies
-        </button>
-      </div>
-        <>
-          {/* Analytics widgets */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider">Total Rooms</CardDescription>
-          <CardTitle className="text-xl font-bold text-zinc-800 dark:text-zinc-100 mt-1">{totalUnits} Units</CardTitle>
-        </Card>
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Checked In</CardDescription>
-          <CardTitle className="text-xl font-bold text-violet-600 dark:text-violet-400 mt-1">{occupiedCount} Rooms</CardTitle>
-        </Card>
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Reserved</CardDescription>
-          <CardTitle className="text-xl font-bold text-amber-500 dark:text-amber-400 mt-1">{reservedCount} Rooms</CardTitle>
-        </Card>
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Vacant & Prepared</CardDescription>
-          <CardTitle className="text-xl font-bold text-emerald-500 dark:text-emerald-400 mt-1">{vacantCount} Rooms</CardTitle>
-        </Card>
-        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs col-span-2 lg:col-span-1">
-          <CardDescription className="text-[10px] uppercase font-bold text-zinc-455 dark:text-zinc-400 tracking-wider font-sans">Occupancy Rate</CardDescription>
-          <CardTitle className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{occupancyRate}%</CardTitle>
-        </Card>
-      </div>
 
-      {/* Advanced Filter Section */}
-      <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
-
-            {/* Search filter */}
-            <div className="relative flex-1 max-w-md">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
-                <Search className="h-4 w-4" />
-              </span>
-              <ShadcnInput
-                type="text"
-                placeholder={
-                  activeTab === 'reservations'
-                    ? "Search reservations by guest name or email..."
-                    : activeTab === 'rooms'
-                      ? "Search rooms by room number or floor..."
-                      : "Search categories by name..."
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-foreground placeholder-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700 focus-visible:border-zinc-955 outline-hidden transition-all"
-              />
-            </div>
-
-            {/* Category Select Filter (Not applicable to categories tab itself) */}
-            {activeTab !== 'categories' && (
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
-                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
-                    All Categories
-                  </SelectItem>
-                  {categories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id} className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
-                      {cat.name.replace('Seyeya ', '')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Status Select Filter (Not applicable to categories tab itself) */}
-            {activeTab !== 'categories' && (
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
-                  <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
-                    All Status
-                  </SelectItem>
-                  {activeTab === 'reservations' ? (
-                    <>
-                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
-                      <SelectItem value="Checked In" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked In</SelectItem>
-                      <SelectItem value="Checked Out" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked Out</SelectItem>
-                      <SelectItem value="Cancelled" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Cancelled</SelectItem>
-                    </>
-                  ) : (
-                    <>
-                      <SelectItem value="Available" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Available</SelectItem>
-                      <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
-                      <SelectItem value="Occupied" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Occupied</SelectItem>
-                      <SelectItem value="Maintenance" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Maintenance</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Reset Button */}
-            {(searchTerm || filterCategory !== 'ALL' || filterStatus !== 'ALL') && (
-              <ShadcnButton
-                onClick={resetFilters}
-                variant="ghost"
-                className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-xl h-10 px-3 cursor-pointer"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Reset Filters
-              </ShadcnButton>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 justify-end">
-            {/* Columns selector dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 cursor-pointer text-xs font-bold shadow-xs transition-all">
-                  <SlidersHorizontal className="h-3.5 w-3.5" />
-                  Columns
-                  <ChevronDown className="h-4 w-4 text-zinc-500" />
-                </ShadcnButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[170px] bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-xl shadow-md p-1.5 mt-1 z-50">
-                {table
-                  .getAllColumns()
-                  .filter((column) => column.getCanHide())
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden flex items-center gap-2"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                      >
-                        {column.id === 'roomUnitNumber'
-                          ? 'Assigned Room'
-                          : column.id === 'roomName'
-                            ? 'Category Type'
-                            : column.id === 'totalPaid'
-                              ? 'Total Value'
-                              : column.id === 'roomStatus'
-                                ? 'Room Status'
-                                : column.id}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+      <>
+        {/* Analytics widgets */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider">Total Rooms</CardDescription>
+            <CardTitle className="text-xl font-bold text-zinc-800 dark:text-zinc-100 mt-1">{totalUnits} Units</CardTitle>
+          </Card>
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Checked In</CardDescription>
+            <CardTitle className="text-xl font-bold text-violet-600 dark:text-violet-400 mt-1">{occupiedCount} Rooms</CardTitle>
+          </Card>
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Reserved</CardDescription>
+            <CardTitle className="text-xl font-bold text-amber-500 dark:text-amber-400 mt-1">{reservedCount} Rooms</CardTitle>
+          </Card>
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-450 dark:text-zinc-400 tracking-wider font-sans">Vacant & Prepared</CardDescription>
+            <CardTitle className="text-xl font-bold text-emerald-500 dark:text-emerald-400 mt-1">{vacantCount} Rooms</CardTitle>
+          </Card>
+          <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs col-span-2 lg:col-span-1">
+            <CardDescription className="text-[10px] uppercase font-bold text-zinc-455 dark:text-zinc-400 tracking-wider font-sans">Occupancy Rate</CardDescription>
+            <CardTitle className="text-xl font-bold text-zinc-900 dark:text-zinc-100 mt-1">{occupancyRate}%</CardTitle>
+          </Card>
         </div>
-      </Card>
 
-      {/* DataTable Container */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-[20px] shadow-xs overflow-hidden">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-955 dark:border-zinc-300 border-t-transparent" />
-            <p className="text-xs text-zinc-500 dark:text-zinc-450 font-semibold tracking-wider uppercase">Loading Console...</p>
-          </div>
-        ) : activeTableData.length === 0 ? (
-          <div className="text-center py-20">
-            <ClipboardList className="h-9 w-9 mx-auto text-zinc-400 mb-3 animate-pulse" />
-            <h5 className="text-sm font-bold text-zinc-700 dark:text-zinc-350 uppercase tracking-wider">No matching items found</h5>
-            <p className="text-xs text-zinc-555 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
-              We couldn't find any entries matching the active search or filter parameters.
-            </p>
-          </div>
-        ) : (
-          <div>
-            <Table>
-              <TableHeader className="bg-zinc-50/70 dark:bg-zinc-950/40 border-b border-zinc-150 dark:border-zinc-800">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} className="text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    onClick={() => handleRowClick(row.original)}
-                    className={`border-zinc-100 dark:border-zinc-800 transition-colors ${activeTab === 'reservations'
-                      ? 'cursor-pointer hover:bg-zinc-50/40 dark:hover:bg-zinc-850/40'
-                      : 'hover:bg-transparent'
-                      }`}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-750 dark:text-zinc-300">
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        {/* Advanced Filter Section */}
+        <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
 
-            {/* Pagination Controls */}
-            <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-950/20 text-xs text-zinc-500 dark:text-zinc-400">
-              <div className="flex-1 text-zinc-450 dark:text-zinc-400 font-bold">
-                Showing {table.getRowModel().rows.length} of {activeTableData.length} entries
+              {/* Search filter */}
+              <div className="relative flex-1 max-w-md">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
+                  <Search className="h-4 w-4" />
+                </span>
+                <ShadcnInput
+                  type="text"
+                  placeholder={
+                    activeTab === 'reservations'
+                      ? "Search reservations by guest name or email..."
+                      : activeTab === 'rooms'
+                        ? "Search rooms by room number or floor..."
+                        : "Search categories by name..."
+                  }
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-foreground placeholder-zinc-500 focus-visible:ring-1 focus-visible:ring-zinc-300 dark:focus-visible:ring-zinc-700 focus-visible:border-zinc-955 outline-hidden transition-all"
+                />
               </div>
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-1">
-                  <span className="font-semibold">Page</span>
-                  <strong className="text-zinc-900 dark:text-zinc-200 font-extrabold">
-                    {table.getState().pagination.pageIndex + 1} of{' '}
-                    {table.getPageCount()}
-                  </strong>
+
+              {/* Category Select Filter (Not applicable to categories tab itself) */}
+              {activeTab !== 'categories' && (
+                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                  <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
+                    <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
+                      All Categories
+                    </SelectItem>
+                    {categories.map(cat => (
+                      <SelectItem key={cat.id} value={cat.id} className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
+                        {cat.name.replace('Seyeya ', '')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* Status Select Filter (Not applicable to categories tab itself) */}
+              {activeTab !== 'categories' && (
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="w-full sm:w-44 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 h-10 px-3.5 text-xs text-zinc-700 dark:text-zinc-300 font-semibold cursor-pointer transition-all">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50 shadow-md">
+                    <SelectItem value="ALL" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">
+                      All Status
+                    </SelectItem>
+                    {activeTab === 'reservations' ? (
+                      <>
+                        <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
+                        <SelectItem value="Checked In" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked In</SelectItem>
+                        <SelectItem value="Checked Out" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Checked Out</SelectItem>
+                        <SelectItem value="Cancelled" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Cancelled</SelectItem>
+                      </>
+                    ) : (
+                      <>
+                        <SelectItem value="Available" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Available</SelectItem>
+                        <SelectItem value="Reserved" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Reserved</SelectItem>
+                        <SelectItem value="Occupied" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Occupied</SelectItem>
+                        <SelectItem value="Maintenance" className="text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden">Maintenance</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* Reset Button */}
+              {(searchTerm || filterCategory !== 'ALL' || filterStatus !== 'ALL') && (
+                <ShadcnButton
+                  onClick={resetFilters}
+                  variant="ghost"
+                  className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-xl h-10 px-3 cursor-pointer"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset Filters
+                </ShadcnButton>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 justify-end">
+              {/* Columns selector dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 cursor-pointer text-xs font-bold shadow-xs transition-all">
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    Columns
+                    <ChevronDown className="h-4 w-4 text-zinc-500" />
+                  </ShadcnButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[170px] bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-xl shadow-md p-1.5 mt-1 z-50">
+                  {table
+                    .getAllColumns()
+                    .filter((column) => column.getCanHide())
+                    .map((column) => {
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={column.id}
+                          className="capitalize text-xs rounded-lg px-2.5 py-1.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 outline-hidden flex items-center gap-2"
+                          checked={column.getIsVisible()}
+                          onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                        >
+                          {column.id === 'roomUnitNumber'
+                            ? 'Assigned Room'
+                            : column.id === 'roomName'
+                              ? 'Category Type'
+                              : column.id === 'totalPaid'
+                                ? 'Total Value'
+                                : column.id === 'roomStatus'
+                                  ? 'Room Status'
+                                  : column.id}
+                        </DropdownMenuCheckboxItem>
+                      )
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </Card>
+
+        {/* DataTable Container */}
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-[20px] shadow-xs overflow-hidden">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-955 dark:border-zinc-300 border-t-transparent" />
+              <p className="text-xs text-zinc-500 dark:text-zinc-450 font-semibold tracking-wider uppercase">Loading Console...</p>
+            </div>
+          ) : activeTableData.length === 0 ? (
+            <div className="text-center py-20">
+              <ClipboardList className="h-9 w-9 mx-auto text-zinc-400 mb-3 animate-pulse" />
+              <h5 className="text-sm font-bold text-zinc-700 dark:text-zinc-350 uppercase tracking-wider">No matching items found</h5>
+              <p className="text-xs text-zinc-555 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
+                We couldn't find any entries matching the active search or filter parameters.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <Table>
+                <TableHeader className="bg-zinc-50/70 dark:bg-zinc-950/40 border-b border-zinc-150 dark:border-zinc-800">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id} className="hover:bg-transparent border-zinc-100 dark:border-zinc-800">
+                      {headerGroup.headers.map((header) => (
+                        <TableHead key={header.id} className="text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider py-3.5 px-4 text-left">
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      onClick={() => handleRowClick(row.original)}
+                      className={`border-zinc-100 dark:border-zinc-800 transition-colors ${activeTab === 'reservations'
+                        ? 'cursor-pointer hover:bg-zinc-50/40 dark:hover:bg-zinc-850/40'
+                        : 'hover:bg-transparent'
+                        }`}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="py-3 px-4 text-xs font-medium text-zinc-750 dark:text-zinc-300">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/20 dark:bg-zinc-950/20 text-xs text-zinc-500 dark:text-zinc-400">
+                <div className="flex-1 text-zinc-450 dark:text-zinc-400 font-bold">
+                  Showing {table.getRowModel().rows.length} of {activeTableData.length} entries
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <ShadcnButton
-                    variant="outline"
-                    onClick={() => table.previousPage()}
-                    disabled={!table.getCanPreviousPage()}
-                    className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </ShadcnButton>
-                  <ShadcnButton
-                    variant="outline"
-                    onClick={() => table.nextPage()}
-                    disabled={!table.getCanNextPage()}
-                    className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </ShadcnButton>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold">Page</span>
+                    <strong className="text-zinc-900 dark:text-zinc-200 font-extrabold">
+                      {table.getState().pagination.pageIndex + 1} of{' '}
+                      {table.getPageCount()}
+                    </strong>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <ShadcnButton
+                      variant="outline"
+                      onClick={() => table.previousPage()}
+                      disabled={!table.getCanPreviousPage()}
+                      className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </ShadcnButton>
+                    <ShadcnButton
+                      variant="outline"
+                      onClick={() => table.nextPage()}
+                      disabled={!table.getCanNextPage()}
+                      className="h-8 w-8 p-0 rounded-lg flex items-center justify-center border border-zinc-200 dark:border-zinc-800 disabled:opacity-40 cursor-pointer bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </ShadcnButton>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
-    </>
+          )}
+        </div>
+      </>
 
       {/* -------------------------------------------------------------
           DRAWER: Add / Edit Room Category
@@ -1524,13 +1538,9 @@ export const Rooms: React.FC<RoomsProps> = ({
                 type="number"
                 required
                 min={0}
-                placeholder="300000"
+                placeholder="e.g. 300000"
                 value={catPriceUGX}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setCatPriceUGX(val);
-                  setCatPriceUSD(val);
-                }}
+                onChange={(e) => handleCatPriceUGXChange(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
               />
             </div>
@@ -1542,8 +1552,9 @@ export const Rooms: React.FC<RoomsProps> = ({
                   type="number"
                   required
                   min={1}
+                  placeholder="e.g. 2"
                   value={catAdults}
-                  onChange={(e) => setCatAdults(Number(e.target.value))}
+                  onChange={(e) => setCatAdults(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
@@ -1551,10 +1562,10 @@ export const Rooms: React.FC<RoomsProps> = ({
                 <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Max Children</label>
                 <input
                   type="number"
-                  required
                   min={0}
+                  placeholder="e.g. 1"
                   value={catChildren}
-                  onChange={(e) => setCatChildren(Number(e.target.value))}
+                  onChange={(e) => setCatChildren(e.target.value === '' ? '' : Number(e.target.value))}
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
                 />
               </div>
@@ -1621,13 +1632,12 @@ export const Rooms: React.FC<RoomsProps> = ({
                   </div>
                 ) : (
                   catRateOptions.map((rate) => (
-                    <div 
+                    <div
                       key={rate.id}
-                      className={`p-3 rounded-xl border transition-all ${
-                        rate.isActive 
-                          ? 'bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-zinc-800' 
+                      className={`p-3 rounded-xl border transition-all ${rate.isActive
+                          ? 'bg-zinc-50/70 dark:bg-zinc-950/50 border-zinc-200 dark:border-zinc-800'
                           : 'bg-zinc-100/40 dark:bg-zinc-900/30 border-zinc-200/50 dark:border-zinc-800/40 opacity-60'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <input
@@ -1709,13 +1719,13 @@ export const Rooms: React.FC<RoomsProps> = ({
                   <Sparkles className="h-3 w-3" /> Auto-Icon Match
                 </span>
               </div>
-              
+
               {/* Quick Select Badges */}
               <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 max-h-36 overflow-y-auto">
                 {managedAmenities.map(am => {
                   const selectedList = catAmenities.split(',').map(s => s.trim()).filter(Boolean);
                   const isSelected = selectedList.some(s => s.toLowerCase() === am.name.toLowerCase());
-                  
+
                   const toggleAmenity = () => {
                     if (isSelected) {
                       const newList = selectedList.filter(s => s.toLowerCase() !== am.name.toLowerCase());
@@ -1731,11 +1741,10 @@ export const Rooms: React.FC<RoomsProps> = ({
                       key={am.id}
                       type="button"
                       onClick={toggleAmenity}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${
-                        isSelected
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer border ${isSelected
                           ? 'bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/40 shadow-xs font-bold'
                           : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
-                      }`}
+                        }`}
                     >
                       {renderAssetIcon(am.iconName, "h-3.5 w-3.5 text-amber-500")}
                       <span>{am.name}</span>
@@ -1753,9 +1762,53 @@ export const Rooms: React.FC<RoomsProps> = ({
               />
             </div>
 
+            {/* Category Stay Policies Multi-Select Tag Picker */}
+            <div className="space-y-1.5 pt-2 border-t border-zinc-150 dark:border-zinc-800">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 font-sans flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>Category Stay Policies</span>
+                </label>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Auto-Icon Match
+                </span>
+              </div>
+
+              {/* Quick Select Badges */}
+              <div className="flex flex-wrap gap-1.5 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50 max-h-36 overflow-y-auto">
+                {managedPolicies.map(pol => {
+                  const isSelected = catSelectedPolicies.includes(pol.id) || catSelectedPolicies.includes(pol.title);
+
+                  const togglePolicy = () => {
+                    if (isSelected) {
+                      setCatSelectedPolicies(prev => prev.filter(p => p !== pol.id && p !== pol.title));
+                    } else {
+                      setCatSelectedPolicies(prev => [...prev, pol.id]);
+                    }
+                  };
+
+                  return (
+                    <button
+                      key={pol.id}
+                      type="button"
+                      onClick={togglePolicy}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${isSelected
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 shadow-2xs'
+                          : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+                        }`}
+                    >
+                      {renderAssetIcon(pol.iconName || autoDetectPolicyIcon(pol.title), 'h-3.5 w-3.5 text-indigo-500')}
+                      <span>{pol.title}</span>
+                      {isSelected && <Check className="h-3 w-3 text-indigo-600 dark:text-indigo-400 ml-0.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Category Photos (Unlimited)</label>
-              
+
               {/* Thumbnail grid */}
               {catPhotos.length > 0 && (
                 <div className="grid grid-cols-3 gap-2 mb-3">
@@ -1764,7 +1817,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                     return (
                       <div key={idx} className={`relative group aspect-square rounded-xl overflow-hidden border-2 transition-all ${isPrimary ? 'border-indigo-500 shadow-md' : 'border-zinc-200 dark:border-zinc-800'}`}>
                         <img src={getImageUrl(photoUrl)} alt={`Thumbnail ${idx}`} className="h-full w-full object-cover" />
-                        
+
                         {/* Overlay with options */}
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-1 text-center">
                           <button
@@ -1793,7 +1846,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                             Delete
                           </button>
                         </div>
-                        
+
                         {/* Primary Badge */}
                         {isPrimary && (
                           <div className="absolute top-1 left-1 bg-indigo-600 text-white text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
@@ -1858,7 +1911,7 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 shadow-sm"
               >
                 Save Category
               </ShadcnButton>
@@ -1977,7 +2030,7 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 shadow-sm"
               >
                 Save Room
               </ShadcnButton>
@@ -2017,6 +2070,19 @@ export const Rooms: React.FC<RoomsProps> = ({
               </select>
             </div>
 
+            {activeBookCat && (
+              <div className="flex items-center justify-between p-2.5 bg-zinc-50 dark:bg-zinc-950/40 rounded-xl border border-zinc-200/60 dark:border-zinc-800 text-xs">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/50 text-[10px] font-bold py-0.5">
+                    Max Occupancy: {getCategoryCapacity(bookCatId).maxAdults} Adults{getCategoryCapacity(bookCatId).maxChildren > 0 ? `, ${getCategoryCapacity(bookCatId).maxChildren} Child` : ''}
+                  </Badge>
+                </div>
+                <span className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400">
+                  Base Rate: UGX {activeBookCat.priceUGX.toLocaleString()} / night
+                </span>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Assign Room Unit (Optional)</label>
               <select
@@ -2024,11 +2090,101 @@ export const Rooms: React.FC<RoomsProps> = ({
                 onChange={(e) => setBookRoomUnitId(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 cursor-pointer font-semibold"
               >
-                <option value="" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Keep Unassigned (Auto Assign at Check-In)</option>
+                <option value="" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Keep Unassigned (Submit without room number)</option>
                 {availableRoomUnitsForCategory.map(ru => (
                   <option key={ru.id} value={ru.id} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Room {ru.roomNumber} ({ru.floor})</option>
                 ))}
               </select>
+            </div>
+
+            {/* Captured Rates Section */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-sans">
+                Rate Plan / Included Rates *
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {activeCatRateOptions.map(rate => {
+                  const isSelected = String(rate.id) === String(bookSelectedRateId);
+                  return (
+                    <div
+                      key={rate.id}
+                      onClick={() => {
+                        setBookSelectedRateId(rate.id);
+                        handleBookingDateOrCatChange(bookCatId, bookCheckIn, bookCheckOut, rate.id);
+                      }}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-1.5 ${
+                        isSelected
+                          ? 'bg-violet-50/50 dark:bg-violet-950/20 border-violet-500/80 dark:border-violet-600/80 ring-1 ring-violet-500/30'
+                          : 'bg-white dark:bg-zinc-900 border-zinc-200/70 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-bold text-xs text-zinc-900 dark:text-zinc-100">
+                          <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-violet-600 bg-violet-600' : 'border-zinc-300 dark:border-zinc-700'}`}>
+                            {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                          </div>
+                          <span>{rate.name}</span>
+                        </div>
+                        <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-100">
+                          UGX {Number(rate.priceUGX).toLocaleString()} <span className="text-[10px] text-zinc-400 font-medium">/ night</span>
+                        </span>
+                      </div>
+                      
+                      {rate.description && (
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 pl-6">{rate.description}</p>
+                      )}
+
+                      {rate.inclusions && rate.inclusions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pl-6 pt-0.5">
+                          {rate.inclusions.map((inc, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40">
+                              <Check className="h-2.5 w-2.5" />
+                              {inc}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Room Amenities & Policies Attached Section */}
+            <div className="space-y-3 p-3.5 bg-zinc-50/70 dark:bg-zinc-950/30 rounded-2xl border border-zinc-200/60 dark:border-zinc-800">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-450 dark:text-zinc-500 block mb-1.5">
+                  Amenities Included in {activeBookCat?.name || 'Room'}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {categoryAmenitiesList.map((amenityName, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 shadow-2xs"
+                    >
+                      {renderAssetIcon(autoDetectAmenityIcon(amenityName), "h-3 w-3 text-violet-500 dark:text-violet-400")}
+                      {amenityName}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-zinc-200/40 dark:border-zinc-800/60">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-450 dark:text-zinc-500 block mb-1.5">
+                  Cottage Policies & Guidelines
+                </span>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {categoryPoliciesList.map((pol: any) => (
+                    <div
+                      key={pol.id}
+                      className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-[10px] text-zinc-700 dark:text-zinc-300"
+                    >
+                      {renderAssetIcon(autoDetectPolicyIcon(pol.title || pol.name || ''), "h-3.5 w-3.5 text-amber-500 shrink-0")}
+                      <span className="font-semibold">{pol.title || pol.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="relative">
@@ -2071,8 +2227,8 @@ export const Rooms: React.FC<RoomsProps> = ({
 
                       const eligible = allClients.filter(c => {
                         const matchesSearch = c.full_name.toLowerCase().includes(guestSearchTerm.toLowerCase());
-                        const notSelectedYet = !selectedGuests.some(sg => 
-                          String(sg.id) === String(c.customer_id) || 
+                        const notSelectedYet = !selectedGuests.some(sg =>
+                          String(sg.id) === String(c.customer_id) ||
                           sg.name.toLowerCase() === c.full_name.toLowerCase()
                         );
                         if (!matchesSearch || !notSelectedYet) return false;
@@ -2098,8 +2254,8 @@ export const Rooms: React.FC<RoomsProps> = ({
                         <div
                           key={c.customer_id}
                           onClick={() => {
-                            if (selectedGuests.some(sg => 
-                              String(sg.id) === String(c.customer_id) || 
+                            if (selectedGuests.some(sg =>
+                              String(sg.id) === String(c.customer_id) ||
                               sg.name.toLowerCase() === c.full_name.toLowerCase()
                             )) {
                               alert("This guest is already selected.");
@@ -2247,9 +2403,10 @@ export const Rooms: React.FC<RoomsProps> = ({
                   onChange={(e) => setBookStatus(e.target.value as any)}
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 cursor-pointer font-semibold"
                 >
-                  <option value="Reserved" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Reserved</option>
-                  <option value="Checked In" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Checked In</option>
-                  <option value="Checked Out" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Checked Out</option>
+                  <option value="Pending" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Pending</option>
+                  <option value="Confirmed" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Confirmed (Is_True)</option>
+                  <option value="Checked In" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Check in (is_Occupied)</option>
+                  <option value="Checked Out" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Available (is_Unoccupied / Checked Out)</option>
                   <option value="Cancelled" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Cancelled</option>
                 </select>
               </div>
@@ -2266,7 +2423,7 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 shadow-sm"
               >
                 Save Reservation
               </ShadcnButton>
@@ -2318,8 +2475,8 @@ export const Rooms: React.FC<RoomsProps> = ({
                     <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                       {selectedBooking.guests && selectedBooking.guests.length > 0 ? (
                         selectedBooking.guests.map((g: any, index: number) => {
-                          const client = allClients.find(c => String(c.customer_id) === String(g.customer_id)) || 
-                                         allClients.find(c => c.full_name === g.name);
+                          const client = allClients.find(c => String(c.customer_id) === String(g.customer_id)) ||
+                            allClients.find(c => c.full_name === g.name);
                           const name = client?.full_name || g.name || `Guest #${g.customer_id}`;
                           const phone = client?.phone_number || g.phone_number || '';
                           const email = client?.email || g.email || '';
@@ -2334,7 +2491,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                                 <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-lg border uppercase tracking-wider shrink-0 ${isChild
                                   ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
                                   : 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
-                                }`}>
+                                  }`}>
                                   {isChild ? 'Child' : 'Adult'}
                                 </span>
                               </div>
@@ -2376,6 +2533,24 @@ export const Rooms: React.FC<RoomsProps> = ({
                       UGX {selectedBooking.totalPaid.toLocaleString()}
                     </span>
                   </div>
+
+                  {selectedBooking.ratePlanName && (
+                    <div className="bg-zinc-50/50 dark:bg-zinc-950/30 p-4 border border-zinc-200/50 dark:border-zinc-800 rounded-[18px] text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Captured Rate Plan</span>
+                        <span className="font-bold text-violet-600 dark:text-violet-400 text-xs">{selectedBooking.ratePlanName}</span>
+                      </div>
+                      {selectedBooking.rateInclusions && selectedBooking.rateInclusions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {selectedBooking.rateInclusions.map((inc, i) => (
+                            <span key={i} className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40">
+                              ✓ {inc}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Current Status</span>
@@ -2420,7 +2595,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                         }
                         setIsDetailsOpen(false);
                       }}
-                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-[#212121] hover:bg-zinc-800 text-white py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-[#0A2540] hover:bg-[#07192C] text-[#D4AF37] border border-[#D4AF37]/30 dark:bg-[#D4AF37] dark:text-[#0A192F] dark:hover:bg-[#B89320] py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm"
                     >
                       <UserCheck className="h-4 w-4" />
                       Check In Guest

@@ -710,7 +710,6 @@ class AmenityBase(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
-    price: Optional[Decimal] = Field(default=0.00)
     is_active: Optional[bool] = True
 
 
@@ -741,7 +740,6 @@ class RoomAmenityItem(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
-    price: Optional[Decimal] = Field(default=0.00)
     category_id: Optional[int] = None
     category_name: Optional[str] = None
     category: Optional[AmenityCategoryResponse] = None
@@ -762,7 +760,6 @@ class RoomRatePlanBase(BaseModel):
     rate_code: Optional[str] = None
     description: Optional[str] = None
     price: Decimal
-    currency: Optional[str] = None
     pricing_basis: Optional[str] = "PER_NIGHT"
     meal_plan: Optional[str] = None
     cancellation_policy: Optional[str] = None
@@ -790,7 +787,6 @@ class RoomRatePlanUpdate(BaseModel):
     rate_code: Optional[str] = None
     description: Optional[str] = None
     price: Optional[Decimal] = None
-    currency: Optional[str] = None
     pricing_basis: Optional[str] = None
     meal_plan: Optional[str] = None
     cancellation_policy: Optional[str] = None
@@ -907,12 +903,13 @@ class RoomCategoryResponse(BaseModel):
                 imgs_val = []
                 
             grouped_amenities = []
-            if hasattr(data, 'amenity_assignments') and data.amenity_assignments:
+            amenity_assignments = data.__dict__.get('amenity_assignments') or []
+            if amenity_assignments:
                 cat_dict = {}
-                for assignment in data.amenity_assignments:
-                    am = getattr(assignment, 'amenity', None)
+                for assignment in amenity_assignments:
+                    am = assignment.__dict__.get('amenity') if hasattr(assignment, '__dict__') else None
                     if not am: continue
-                    cat = getattr(am, 'category', None)
+                    cat = am.__dict__.get('category') if hasattr(am, '__dict__') else None
                     
                     cat_id = cat.category_id if cat else 0
                     cat_name = cat.name if cat else "Other Room Amenities"
@@ -942,7 +939,6 @@ class RoomCategoryResponse(BaseModel):
                         "name": am.name,
                         "description": am.description,
                         "icon": am.icon,
-                        "price": getattr(am, 'price', 0.00),
                         "category_id": cat_id if cat_id != 0 else None,
                         "category_name": cat_name,
                         "category": cat_obj
@@ -1114,9 +1110,11 @@ class GuestReservationDetail(BaseModel):
 
 class AccommodationReservationCreate(BaseModel):
     customer_id: int
-    room_id: int
+    room_id: Optional[int] = None
+    room_category_id: Optional[int] = None
     check_in_date: date
     check_out_date: date
+    reservation_status: Optional[str] = "Pending"
     num_adults: int = 1
     num_children: int = 0
     special_requests: Optional[str] = None
@@ -1147,6 +1145,8 @@ class GuestCheckInDetailResponse(BaseModel):
 
 
 class AccommodationReservationUpdate(BaseModel):
+    room_id: Optional[int] = None
+    room_category_id: Optional[int] = None
     reservation_status: Optional[str] = None
     payment_status: Optional[str] = None
     amount_paid: Optional[Decimal] = None
@@ -1155,7 +1155,8 @@ class AccommodationReservationUpdate(BaseModel):
 class AccommodationReservationResponse(BaseModel):
     reservation_id: int
     customer_id: int
-    room_id: int
+    room_id: Optional[int] = None
+    room_category_id: Optional[int] = None
     reservation_code: str
     check_in_date: date
     check_out_date: date
@@ -1278,6 +1279,77 @@ class ConferenceReservationResponse(BaseModel):
     customer: Optional[CustomerResponse] = None
     hall: Optional[ConferenceHallResponse] = None
     
+    class Config:
+        from_attributes = True
+
+
+class ConferenceEventCreate(BaseModel):
+    event_name: str
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    price: Decimal = Decimal('0.00')
+    discount: Optional[Decimal] = Decimal('0.00')
+    event_date: Optional[datetime] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    is_active: Optional[bool] = True
+
+
+class ConferenceEventUpdate(BaseModel):
+    event_name: Optional[str] = None
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    price: Optional[Decimal] = None
+    discount: Optional[Decimal] = None
+    event_date: Optional[datetime] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class ConferenceEventResponse(BaseModel):
+    event_id: int
+    event_name: str
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    price: Decimal
+    discount: Decimal
+    event_date: Optional[datetime] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConferenceFacilityBase(BaseModel):
+    name: str
+    category: Optional[str] = "General Services"
+    description: Optional[str] = None
+    icon_name: Optional[str] = "Sparkles"
+    is_active: Optional[bool] = True
+
+
+class ConferenceFacilityCreate(ConferenceFacilityBase):
+    pass
+
+
+class ConferenceFacilityUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    icon_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ConferenceFacilityResponse(ConferenceFacilityBase):
+    facility_id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
     class Config:
         from_attributes = True
 

@@ -284,11 +284,27 @@ export const renderAssetIcon = (iconName: string, className = "h-4 w-4"): React.
   }
 };
 
+import { api } from '../services/api';
+
+const extractCategoryString = (cat: any, defaultVal = 'General'): string => {
+  if (typeof cat === 'string' && cat.trim() !== '') return cat;
+  if (typeof cat === 'object' && cat !== null && cat.name) return String(cat.name);
+  return defaultVal;
+};
+
 export const useRoomAssets = () => {
   const [amenities, setAmenities] = useState<RoomAmenity[]>(() => {
     const saved = localStorage.getItem('seyeya_room_amenities');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item: any) => ({
+            ...item,
+            category: extractCategoryString(item.category, 'General')
+          }));
+        }
+      } catch (e) {}
     }
     return DEFAULT_AMENITIES;
   });
@@ -296,10 +312,67 @@ export const useRoomAssets = () => {
   const [policies, setPolicies] = useState<RoomPolicy[]>(() => {
     const saved = localStorage.getItem('seyeya_room_policies');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item: any) => ({
+            ...item,
+            category: extractCategoryString(item.category, 'General')
+          }));
+        }
+      } catch (e) {}
     }
     return DEFAULT_POLICIES;
   });
+
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Fetch Amenities from Backend API
+  const fetchAmenities = useCallback(async () => {
+    try {
+      const res = await api.get('/accommodation/amenities');
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        const mapped: RoomAmenity[] = res.data.map((item: any) => ({
+          id: String(item.amenity_id),
+          name: item.name,
+          category: extractCategoryString(item.category, 'General') as any,
+          description: item.description || '',
+          iconName: item.icon || autoDetectAmenityIcon(item.name),
+          isActive: item.is_active !== false
+        }));
+        setAmenities(mapped);
+      }
+    } catch (err) {
+      console.warn("Backend amenities fetch warning, using local state:", err);
+    }
+  }, []);
+
+  // Fetch Policies from Backend API
+  const fetchPolicies = useCallback(async () => {
+    try {
+      const res = await api.get('/accommodation/policies');
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        const mapped: RoomPolicy[] = res.data.map((item: any) => ({
+          id: String(item.policy_id),
+          title: item.title,
+          category: extractCategoryString(item.policy_type || item.category, 'General') as any,
+          description: item.description || '',
+          iconName: autoDetectPolicyIcon(item.title),
+          isActive: item.is_active !== false
+        }));
+        setPolicies(mapped);
+      }
+    } catch (err) {
+      console.warn("Backend policies fetch warning, using local state:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    Promise.all([fetchAmenities(), fetchPolicies()]).finally(() => {
+      setIsLoading(false);
+    });
+  }, [fetchAmenities, fetchPolicies]);
 
   useEffect(() => {
     localStorage.setItem('seyeya_room_amenities', JSON.stringify(amenities));
@@ -309,18 +382,41 @@ export const useRoomAssets = () => {
     localStorage.setItem('seyeya_room_policies', JSON.stringify(policies));
   }, [policies]);
 
-  const addAmenity = (data: Omit<RoomAmenity, 'id' | 'iconName'> & { iconName?: string }) => {
+  const addAmenity = async (data: Omit<RoomAmenity, 'id' | 'iconName'> & { iconName?: string }) => {
     const detectedIcon = data.iconName || autoDetectAmenityIcon(data.name);
-    const newAmenity: RoomAmenity = {
-      ...data,
-      id: `am-${Date.now()}`,
-      iconName: detectedIcon
-    };
-    setAmenities(prev => [newAmenity, ...prev]);
-    return newAmenity;
+    const tempId = `am-${Date.now()}`;
+    const tempAmenity: RoomAmenity = { ...data, id: tempId, iconName: detectedIcon };
+
+    setAmenities(prev => [tempAmenity, ...prev]);
+
+    try {
+      const payload = {
+        name: data.name,
+        category: data.category,
+        description: data.description || '',
+        icon: detectedIcon,
+        is_active: data.isActive
+      };
+      const res = await api.post('/accommodation/amenities', payload);
+      if (res.data && res.data.amenity_id) {
+        const created: RoomAmenity = {
+          id: String(res.data.amenity_id),
+          name: res.data.name,
+          category: extractCategoryString(res.data.category, data.category) as any,
+          description: res.data.description || '',
+          iconName: res.data.icon || detectedIcon,
+          isActive: res.data.is_active !== false
+        };
+        setAmenities(prev => prev.map(a => a.id === tempId ? created : a));
+        return created;
+      }
+    } catch (err) {
+      console.warn("Backend amenity creation failed, stored locally:", err);
+    }
+    return tempAmenity;
   };
 
-  const updateAmenity = (id: string, data: Partial<RoomAmenity>) => {
+  const updateAmenity = async (id: string, data: Partial<RoomAmenity>) => {
     setAmenities(prev => prev.map(a => {
       if (a.id === id) {
         const updatedName = data.name !== undefined ? data.name : a.name;
@@ -329,24 +425,70 @@ export const useRoomAssets = () => {
       }
       return a;
     }));
+
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId) && numericId > 0) {
+      try {
+        const payload: any = {};
+        if (data.name !== undefined) payload.name = data.name;
+        if (data.category !== undefined) payload.category = data.category;
+        if (data.description !== undefined) payload.description = data.description;
+        if (data.iconName !== undefined) payload.icon = data.iconName;
+        if (data.isActive !== undefined) payload.is_active = data.isActive;
+
+        await api.put(`/accommodation/amenities/${numericId}`, payload);
+      } catch (err) {
+        console.warn("Backend amenity update failed:", err);
+      }
+    }
   };
 
-  const deleteAmenity = (id: string) => {
+  const deleteAmenity = async (id: string) => {
     setAmenities(prev => prev.filter(a => a.id !== id));
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId) && numericId > 0) {
+      try {
+        await api.delete(`/accommodation/amenities/${numericId}`);
+      } catch (err) {
+        console.warn("Backend amenity deletion failed:", err);
+      }
+    }
   };
 
-  const addPolicy = (data: Omit<RoomPolicy, 'id' | 'iconName'> & { iconName?: string }) => {
+  const addPolicy = async (data: Omit<RoomPolicy, 'id' | 'iconName'> & { iconName?: string }) => {
     const detectedIcon = data.iconName || autoDetectPolicyIcon(data.title);
-    const newPolicy: RoomPolicy = {
-      ...data,
-      id: `pol-${Date.now()}`,
-      iconName: detectedIcon
-    };
-    setPolicies(prev => [newPolicy, ...prev]);
-    return newPolicy;
+    const tempId = `pol-${Date.now()}`;
+    const tempPolicy: RoomPolicy = { ...data, id: tempId, iconName: detectedIcon };
+
+    setPolicies(prev => [tempPolicy, ...prev]);
+
+    try {
+      const payload = {
+        policy_type: data.category,
+        title: data.title,
+        description: data.description,
+        is_active: data.isActive
+      };
+      const res = await api.post('/accommodation/policies', payload);
+      if (res.data && res.data.policy_id) {
+        const created: RoomPolicy = {
+          id: String(res.data.policy_id),
+          title: res.data.title,
+          category: res.data.policy_type || data.category,
+          description: res.data.description || '',
+          iconName: autoDetectPolicyIcon(res.data.title),
+          isActive: res.data.is_active !== false
+        };
+        setPolicies(prev => prev.map(p => p.id === tempId ? created : p));
+        return created;
+      }
+    } catch (err) {
+      console.warn("Backend policy creation failed, stored locally:", err);
+    }
+    return tempPolicy;
   };
 
-  const updatePolicy = (id: string, data: Partial<RoomPolicy>) => {
+  const updatePolicy = async (id: string, data: Partial<RoomPolicy>) => {
     setPolicies(prev => prev.map(p => {
       if (p.id === id) {
         const updatedTitle = data.title !== undefined ? data.title : p.title;
@@ -355,15 +497,41 @@ export const useRoomAssets = () => {
       }
       return p;
     }));
+
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId) && numericId > 0) {
+      try {
+        const payload: any = {};
+        if (data.category !== undefined) payload.policy_type = data.category;
+        if (data.title !== undefined) payload.title = data.title;
+        if (data.description !== undefined) payload.description = data.description;
+        if (data.isActive !== undefined) payload.is_active = data.isActive;
+
+        await api.put(`/accommodation/policies/${numericId}`, payload);
+      } catch (err) {
+        console.warn("Backend policy update failed:", err);
+      }
+    }
   };
 
-  const deletePolicy = (id: string) => {
+  const deletePolicy = async (id: string) => {
     setPolicies(prev => prev.filter(p => p.id !== id));
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId) && numericId > 0) {
+      try {
+        await api.delete(`/accommodation/policies/${numericId}`);
+      } catch (err) {
+        console.warn("Backend policy deletion failed:", err);
+      }
+    }
   };
 
   return {
     amenities,
     policies,
+    isLoading,
+    fetchAmenities,
+    fetchPolicies,
     addAmenity,
     updateAmenity,
     deleteAmenity,

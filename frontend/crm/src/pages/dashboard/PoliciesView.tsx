@@ -4,6 +4,13 @@ import { Card } from '@/components/ui/card';
 import { Button as ShadcnButton } from '@/components/ui/button';
 import { Input as ShadcnInput } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   Plus, 
   Search, 
@@ -48,11 +55,17 @@ export const PoliciesView: React.FC = () => {
 
   const detectedIcon = autoDetectPolicyIcon(title);
 
+  const getCategoryName = (cat: any): string => {
+    if (typeof cat === 'string') return cat;
+    if (typeof cat === 'object' && cat !== null && cat.name) return String(cat.name);
+    return 'General';
+  };
+
   const filteredPolicies = useMemo(() => {
     return policies.filter(item => {
       const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesCategory = filterCategory === 'ALL' || item.category === filterCategory;
+      const matchesCategory = filterCategory === 'ALL' || getCategoryName(item.category) === filterCategory;
       return matchesSearch && matchesCategory;
     });
   }, [policies, searchTerm, filterCategory]);
@@ -69,7 +82,7 @@ export const PoliciesView: React.FC = () => {
   const openEditDrawer = (item: RoomPolicy) => {
     setEditingPolicy(item);
     setTitle(item.title);
-    setCategory(item.category);
+    setCategory(getCategoryName(item.category) as RoomPolicy['category']);
     setDescription(item.description);
     setIsActive(item.isActive);
     setIsDrawerOpen(true);
@@ -120,7 +133,7 @@ export const PoliciesView: React.FC = () => {
 
         <ShadcnButton
           onClick={openAddDrawer}
-          className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! dark:bg-white! dark:text-black! dark:hover:bg-white/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none"
+          className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
         >
           <Plus className="h-4 w-4" />
           Add Policy
@@ -130,60 +143,48 @@ export const PoliciesView: React.FC = () => {
       {/* Filter Bar */}
       <Card className="p-4 bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-800 rounded-2xl shadow-xs">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex flex-1 items-center gap-3 w-full sm:w-auto">
-            {/* Search */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3.5 top-3 h-4 w-4 text-zinc-400" />
-              <ShadcnInput
-                type="text"
-                placeholder="Search policies by title or terms..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-foreground placeholder-zinc-500 outline-hidden"
-              />
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="hidden lg:flex items-center gap-1.5 overflow-x-auto pb-1 max-w-xl">
-              <button
-                onClick={() => setFilterCategory('ALL')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  filterCategory === 'ALL'
-                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                }`}
-              >
-                All ({policies.length})
-              </button>
-              {CATEGORIES.map(cat => {
-                const count = policies.filter(p => p.category === cat).length;
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setFilterCategory(cat)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                      filterCategory === cat
-                        ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-bold'
-                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                    }`}
-                  >
-                    {cat} {count > 0 && <span className="opacity-70 text-[10px]">({count})</span>}
-                  </button>
-                );
-              })}
-            </div>
+          <div className="relative flex-1 max-w-md w-full">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
+              <Search className="h-4 w-4" />
+            </span>
+            <ShadcnInput
+              type="text"
+              placeholder="Search policies by title or terms..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-foreground placeholder-zinc-500 outline-hidden"
+            />
           </div>
 
-          {(searchTerm || filterCategory !== 'ALL') && (
-            <ShadcnButton
-              onClick={() => { setSearchTerm(''); setFilterCategory('ALL'); }}
-              variant="ghost"
-              className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center gap-1 cursor-pointer"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset Filters
-            </ShadcnButton>
-          )}
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Select value={filterCategory} onValueChange={(val: string) => setFilterCategory(val)}>
+              <SelectTrigger className="!flex !items-center !justify-between !h-10 !px-4 !rounded-xl !border-zinc-200 dark:!border-zinc-800 !bg-white dark:!bg-zinc-900 !text-xs !font-bold !w-44 sm:!w-48">
+                <SelectValue placeholder="All Categories" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50">
+                <SelectItem value="ALL" className="text-xs font-semibold">All Categories ({policies.length})</SelectItem>
+                {CATEGORIES.map(cat => {
+                  const count = policies.filter(p => getCategoryName(p.category) === cat).length;
+                  return (
+                    <SelectItem key={cat} value={cat} className="text-xs font-semibold">
+                      {cat} {count > 0 ? `(${count})` : ''}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+
+            {(searchTerm || filterCategory !== 'ALL') && (
+              <ShadcnButton
+                onClick={() => { setSearchTerm(''); setFilterCategory('ALL'); }}
+                variant="ghost"
+                className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 flex items-center gap-1 cursor-pointer h-10 px-3"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset
+              </ShadcnButton>
+            )}
+          </div>
         </div>
       </Card>
 
@@ -212,7 +213,7 @@ export const PoliciesView: React.FC = () => {
                         {item.title}
                       </h4>
                       <Badge variant="outline" className="mt-1 text-[10px] font-bold px-2 py-0.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700">
-                        {item.category}
+                        {getCategoryName(item.category)}
                       </Badge>
                     </div>
                   </div>
@@ -372,7 +373,7 @@ export const PoliciesView: React.FC = () => {
                 </ShadcnButton>
                 <ShadcnButton
                   type="submit"
-                  className="flex-1 rounded-xl h-10 text-xs font-bold bg-black text-white dark:bg-white dark:text-black cursor-pointer"
+                  className="flex-1 rounded-xl h-10 text-xs font-bold bg-black text-white dark:bg-zinc-800 dark:text-white cursor-pointer"
                 >
                   {editingPolicy ? 'Save Changes' : 'Create Policy'}
                 </ShadcnButton>
