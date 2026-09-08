@@ -844,6 +844,24 @@ class AccommodationRepository:
         )
         return result.scalar_one_or_none()
     
+    async def get_room_category_by_id(self, room_category_id: int) -> Optional[RoomCategory]:
+        """Get room category by ID"""
+        result = await self.db.execute(
+            select(RoomCategory)
+            .options(
+                selectinload(RoomCategory.beds),
+                selectinload(RoomCategory.views),
+                selectinload(RoomCategory.bathroom_features),
+                selectinload(RoomCategory.room_facilities),
+                selectinload(RoomCategory.images),
+                selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+                selectinload(RoomCategory.available_rates),
+                selectinload(RoomCategory.policies)
+            )
+            .where(RoomCategory.room_category_id == room_category_id)
+        )
+        return result.scalar_one_or_none()
+    
     async def create_reservation(self, customer_id: int, room_id: Optional[int], check_in_date, check_out_date, num_nights: int, rate_per_night, total_amount, reservation_code: str, room_category_id: Optional[int] = None) -> AccommodationReservation:
         """Create a new accommodation reservation"""
         reservation = AccommodationReservation(

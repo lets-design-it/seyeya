@@ -230,6 +230,22 @@ class Customer(Base):
     payments = relationship("Payment", back_populates="customer", cascade="all, delete-orphan")
     reviews = relationship("CustomerReview", back_populates="customer", cascade="all, delete-orphan")
 
+    @property
+    def phone(self) -> Optional[str]:
+        return self.phone_number
+
+    @phone.setter
+    def phone(self, value: Optional[str]):
+        self.phone_number = value
+
+    @property
+    def id_number(self) -> Optional[str]:
+        return self.passport_number or self.nin
+
+    @id_number.setter
+    def id_number(self, value: Optional[str]):
+        self.passport_number = value
+
     __table_args__ = (
         Index('ix_customers_email', 'email'),
         Index('ix_customers_phone_number', 'phone_number'),
@@ -631,6 +647,15 @@ class AccommodationReservation(Base):
     room = relationship("Room", back_populates="reservations")
     category = relationship("RoomCategory")
     guest_details = relationship("GuestCheckInDetail", back_populates="reservation", cascade="all, delete-orphan")
+    
+    @property
+    def category_id(self) -> Optional[int]:
+        return self.room_category_id
+
+    @category_id.setter
+    def category_id(self, value: Optional[int]):
+        self.room_category_id = value
+
     
     __table_args__ = (
         Index('ix_accommodation_reservations_customer_id', 'customer_id'),

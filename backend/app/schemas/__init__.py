@@ -1112,6 +1112,7 @@ class AccommodationReservationCreate(BaseModel):
     customer_id: int
     room_id: Optional[int] = None
     room_category_id: Optional[int] = None
+    category_id: Optional[int] = None
     check_in_date: date
     check_out_date: date
     reservation_status: Optional[str] = "Pending"
@@ -1147,6 +1148,7 @@ class GuestCheckInDetailResponse(BaseModel):
 class AccommodationReservationUpdate(BaseModel):
     room_id: Optional[int] = None
     room_category_id: Optional[int] = None
+    category_id: Optional[int] = None
     reservation_status: Optional[str] = None
     payment_status: Optional[str] = None
     amount_paid: Optional[Decimal] = None
@@ -1157,6 +1159,7 @@ class AccommodationReservationResponse(BaseModel):
     customer_id: int
     room_id: Optional[int] = None
     room_category_id: Optional[int] = None
+    category_id: Optional[int] = None
     reservation_code: str
     check_in_date: date
     check_out_date: date
