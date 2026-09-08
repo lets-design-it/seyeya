@@ -298,7 +298,7 @@ export const UserManagement: React.FC = () => {
         </div>
         <ShadcnButton
           onClick={handleOpenModal}
-          className="bg-black! text-white! hover:bg-black/90! font-bold px-4 py-5 rounded-xl border-none shadow-xs cursor-pointer flex items-center gap-1.5 h-11"
+          className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-4 py-5 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5 h-11"
         >
           <UserPlus className="h-4.5 w-4.5" />
           Provision Team Member
@@ -339,7 +339,7 @@ export const UserManagement: React.FC = () => {
             </div>
             <ShadcnButton
               onClick={() => setSearchTerm('')}
-              className="bg-black! text-white! hover:bg-black/90! font-bold px-4 rounded-xl cursor-pointer h-10 border-none flex items-center justify-center text-xs"
+              className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-4 rounded-xl cursor-pointer h-10 flex items-center justify-center text-xs"
             >
               Reset
             </ShadcnButton>

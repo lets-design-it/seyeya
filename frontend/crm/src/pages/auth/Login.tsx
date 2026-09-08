@@ -74,7 +74,7 @@ export const Login: React.FC = () => {
                     placeholder="name@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-150 py-2.5 pl-10 pr-4 text-xs text-foreground placeholder-zinc-400 outline-none transition-all focus:border-[#212121] focus:ring-2 focus:ring-[#212121]/5"
+                    className="w-full rounded-xl bg-zinc-50 border border-zinc-150 py-2.5 pl-10 pr-4 text-xs text-foreground placeholder-zinc-400 outline-none transition-all focus:border-[#0A2540] focus:ring-2 focus:ring-[#0A2540]/10"
                   />
                 </div>
               </div>
@@ -90,7 +90,7 @@ export const Login: React.FC = () => {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-150 py-2.5 pl-10 pr-4 text-xs text-foreground placeholder-zinc-400 outline-none transition-all focus:border-[#212121] focus:ring-2 focus:ring-[#212121]/5"
+                    className="w-full rounded-xl bg-zinc-50 border border-zinc-150 py-2.5 pl-10 pr-4 text-xs text-foreground placeholder-zinc-400 outline-none transition-all focus:border-[#0A2540] focus:ring-2 focus:ring-[#0A2540]/10"
                   />
                 </div>
               </div>
@@ -98,7 +98,7 @@ export const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="relative flex w-full items-center justify-center rounded-xl bg-[#212121] py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-zinc-800 disabled:opacity-50 mt-6 cursor-pointer"
+                className="relative flex w-full items-center justify-center rounded-xl bg-[#0A2540] hover:bg-[#07192C] text-[#D4AF37] border border-[#D4AF37]/30 py-3 text-sm font-semibold shadow-md transition-all disabled:opacity-50 mt-6 cursor-pointer"
               >
                 {isSubmitting ? (
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />

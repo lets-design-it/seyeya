@@ -647,7 +647,8 @@ export const Rooms: React.FC<RoomsProps> = ({
 
     const unitPrice = Number(rates[0]?.priceUGX || catObj?.priceUGX || 300000);
     setBookTotalPaid(unitPrice * 3);
-    setBookStatus('Reserved');
+    setBookStatus('Pending');
+    setBookRoomUnitId('');
     setIsBookingDrawerOpen(true);
   };
 
@@ -861,12 +862,14 @@ export const Rooms: React.FC<RoomsProps> = ({
       accessorKey: 'roomUnitNumber',
       header: 'Assigned Unit',
       cell: ({ row }) => (
-        row.original.roomUnitNumber ? (
+        row.original.roomUnitNumber && row.original.roomUnitNumber !== 'Unassigned' ? (
           <span className="font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 px-2 py-0.5 rounded-md text-[10px]">
             Room {row.original.roomUnitNumber}
           </span>
         ) : (
-          <span className="text-zinc-400 dark:text-zinc-500 italic text-[11px]">Unassigned</span>
+          <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 text-[10px] font-bold px-2 py-0.5 rounded-md">
+            Unassigned
+          </Badge>
         )
       )
     },
@@ -894,12 +897,16 @@ export const Rooms: React.FC<RoomsProps> = ({
       cell: ({ row }) => {
         const s = row.original.status;
         const colorClass = s === 'Checked In'
-          ? 'bg-violet-50 dark:bg-violet-955/20 text-violet-750 dark:text-violet-300 border-violet-200 dark:border-violet-900/50'
-          : s === 'Reserved'
-            ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
-            : s === 'Checked Out'
-              ? 'bg-zinc-100 dark:bg-zinc-800/40 text-zinc-650 dark:text-zinc-350 border-zinc-200 dark:border-zinc-700'
-              : 'bg-red-50 dark:bg-red-955/20 text-red-700 dark:text-red-350 border-red-200 dark:border-red-900/50';
+          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+          : s === 'Confirmed'
+            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30'
+            : s === 'Pending'
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+              : s === 'Reserved'
+                ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30'
+                : s === 'Checked Out'
+                  ? 'bg-zinc-100 dark:bg-zinc-800/40 text-zinc-650 dark:text-zinc-350 border-zinc-200 dark:border-zinc-700'
+                  : 'bg-red-50 dark:bg-red-955/20 text-red-700 dark:text-red-350 border-red-200 dark:border-red-900/50';
         return (
           <Badge className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${colorClass}`}>
             {s}
@@ -1225,7 +1232,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           {activeTab === 'reservations' && (
             <ShadcnButton
               onClick={openAddBooking}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+              className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
             >
               <Plus className="h-4 w-4" />
               New Reservation
@@ -1234,7 +1241,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           {activeTab === 'rooms' && (
             <ShadcnButton
               onClick={openAddRoom}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+              className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
             >
               <Plus className="h-4 w-4" />
               Add Room Unit
@@ -1243,7 +1250,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           {activeTab === 'categories' && (
             <ShadcnButton
               onClick={openAddCategory}
-              className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+              className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
             >
               <Plus className="h-4 w-4" />
               Add Category
@@ -1904,7 +1911,7 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+                className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 shadow-sm"
               >
                 Save Category
               </ShadcnButton>
@@ -2023,7 +2030,7 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+                className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 shadow-sm"
               >
                 Save Room
               </ShadcnButton>
@@ -2083,7 +2090,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                 onChange={(e) => setBookRoomUnitId(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 cursor-pointer font-semibold"
               >
-                <option value="" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Keep Unassigned (Auto Assign at Check-In)</option>
+                <option value="" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Keep Unassigned (Submit without room number)</option>
                 {availableRoomUnitsForCategory.map(ru => (
                   <option key={ru.id} value={ru.id} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Room {ru.roomNumber} ({ru.floor})</option>
                 ))}
@@ -2396,9 +2403,10 @@ export const Rooms: React.FC<RoomsProps> = ({
                   onChange={(e) => setBookStatus(e.target.value as any)}
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 cursor-pointer font-semibold"
                 >
-                  <option value="Reserved" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Reserved</option>
-                  <option value="Checked In" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Checked In</option>
-                  <option value="Checked Out" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Checked Out</option>
+                  <option value="Pending" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Pending</option>
+                  <option value="Confirmed" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Confirmed (Is_True)</option>
+                  <option value="Checked In" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Check in (is_Occupied)</option>
+                  <option value="Checked Out" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Available (is_Unoccupied / Checked Out)</option>
                   <option value="Cancelled" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Cancelled</option>
                 </select>
               </div>
@@ -2415,7 +2423,7 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+                className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-5 text-xs font-bold cursor-pointer h-10 shadow-sm"
               >
                 Save Reservation
               </ShadcnButton>
@@ -2587,7 +2595,7 @@ export const Rooms: React.FC<RoomsProps> = ({
                         }
                         setIsDetailsOpen(false);
                       }}
-                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-[#212121] hover:bg-zinc-800 text-white py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+                      className="w-full flex items-center justify-center gap-1.5 rounded-full bg-[#0A2540] hover:bg-[#07192C] text-[#D4AF37] border border-[#D4AF37]/30 dark:bg-[#D4AF37] dark:text-[#0A192F] dark:hover:bg-[#B89320] py-3 text-xs font-bold transition-colors cursor-pointer shadow-sm"
                     >
                       <UserCheck className="h-4 w-4" />
                       Check In Guest

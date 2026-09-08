@@ -726,14 +726,15 @@ class AccommodationService:
         self.db = db
         self.repo = AccommodationRepository(db)
     
-    async def create_reservation(self, customer_id: int, room_id: int, check_in_date, check_out_date, num_nights: int, rate_per_night, total_amount: Decimal) -> AccommodationReservation:
+    async def create_reservation(self, customer_id: int, room_id: Optional[int], check_in_date, check_out_date, num_nights: int, rate_per_night, total_amount: Decimal, room_category_id: Optional[int] = None) -> AccommodationReservation:
         """Create accommodation reservation"""
         # Generate reservation code
         reservation_code = f"ACC-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
         
         reservation = await self.repo.create_reservation(
             customer_id, room_id, check_in_date, check_out_date,
-            num_nights, rate_per_night, total_amount, reservation_code
+            num_nights, rate_per_night, total_amount, reservation_code,
+            room_category_id=room_category_id
         )
         
         # Trigger notification event
@@ -765,12 +766,13 @@ class AccommodationService:
         reservation.checked_in_by = checked_in_by
         
         # Update room status to Occupied
-        from app.models import Room
-        result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
-        room = result.scalar_one_or_none()
-        if room:
-            room.room_status = "Occupied"
-            self.db.add(room)
+        if reservation.room_id:
+            from app.models import Room
+            result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
+            room = result.scalar_one_or_none()
+            if room:
+                room.room_status = "Occupied"
+                self.db.add(room)
         
         self.db.add(reservation)
         await self.db.commit()
@@ -788,12 +790,13 @@ class AccommodationService:
         reservation.checked_out_by = checked_out_by
         
         # Update room status to Available
-        from app.models import Room
-        result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
-        room = result.scalar_one_or_none()
-        if room:
-            room.room_status = "Available"
-            self.db.add(room)
+        if reservation.room_id:
+            from app.models import Room
+            result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
+            room = result.scalar_one_or_none()
+            if room:
+                room.room_status = "Available"
+                self.db.add(room)
         
         self.db.add(reservation)
         await self.db.commit()

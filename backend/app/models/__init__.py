@@ -600,7 +600,8 @@ class AccommodationReservation(Base):
     
     reservation_id = Column(Integer, primary_key=True)
     customer_id = Column(Integer, ForeignKey("customers.customer_id"), nullable=False)
-    room_id = Column(Integer, ForeignKey("rooms.room_id"), nullable=False)
+    room_id = Column(Integer, ForeignKey("rooms.room_id"), nullable=True)
+    room_category_id = Column(Integer, ForeignKey("room_categories.room_category_id"), nullable=True)
     reservation_code = Column(String(20), nullable=False, unique=True)
     check_in_date = Column(Date, nullable=False)
     check_out_date = Column(Date, nullable=False)
@@ -628,6 +629,7 @@ class AccommodationReservation(Base):
     # Relationships
     customer = relationship("Customer", back_populates="reservations")
     room = relationship("Room", back_populates="reservations")
+    category = relationship("RoomCategory")
     guest_details = relationship("GuestCheckInDetail", back_populates="reservation", cascade="all, delete-orphan")
     
     __table_args__ = (

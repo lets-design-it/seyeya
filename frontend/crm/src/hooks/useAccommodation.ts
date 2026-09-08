@@ -152,20 +152,23 @@ export const useAccommodation = () => {
       // 3. Fetch reservations
       const resRes = await api.get('/accommodation/reservations');
       const parsedBookings = resRes.data.map((b: any) => {
-        const associatedRoom = parsedRooms.find((r: any) => r.id === String(b.room_id));
-        const associatedCat = parsedCats.find((c: any) => c.id === (associatedRoom ? associatedRoom.roomCategoryId : ""));
+        const associatedRoom = b.room_id ? parsedRooms.find((r: any) => r.id === String(b.room_id)) : null;
+        const categoryId = b.room_category_id ? String(b.room_category_id) : (associatedRoom ? associatedRoom.roomCategoryId : "");
+        const associatedCat = parsedCats.find((c: any) => c.id === categoryId);
         
-        let displayStatus: BookingRecord['status'] = 'Reserved';
-        if (b.reservation_status === 'CheckedIn') displayStatus = 'Checked In';
-        else if (b.reservation_status === 'CheckedOut') displayStatus = 'Checked Out';
+        let displayStatus: BookingRecord['status'] = 'Pending';
+        if (b.reservation_status === 'Confirmed') displayStatus = 'Confirmed';
+        else if (b.reservation_status === 'CheckedIn' || b.reservation_status === 'Checked In') displayStatus = 'Checked In';
+        else if (b.reservation_status === 'CheckedOut' || b.reservation_status === 'Checked Out') displayStatus = 'Checked Out';
         else if (b.reservation_status === 'Cancelled') displayStatus = 'Cancelled';
+        else if (b.reservation_status === 'Reserved') displayStatus = 'Reserved';
 
         return {
           id: String(b.reservation_id),
-          roomId: associatedRoom ? associatedRoom.roomCategoryId : "",
-          roomName: associatedCat ? associatedCat.name : "Unknown Category",
-          roomUnitId: String(b.room_id),
-          roomUnitNumber: associatedRoom ? associatedRoom.roomNumber : undefined,
+          roomId: categoryId,
+          roomName: associatedCat ? associatedCat.name : (associatedRoom ? "Cottage Room" : "Unassigned Room"),
+          roomUnitId: b.room_id ? String(b.room_id) : "",
+          roomUnitNumber: associatedRoom ? associatedRoom.roomNumber : "Unassigned",
           guestName: b.guest_name || `Customer #${b.customer_id}`,
           email: b.guest_email || "guest@seyeyalodge.com",
           checkIn: b.check_in_date,
@@ -449,41 +452,18 @@ export const useAccommodation = () => {
     try {
       const customerId = await getOrCreateCustomer(guestName, email);
       
-      // If no roomUnitId assigned, search for available room unit in category without date collisions
-      let targetRoomId = roomUnitId ? parseInt(roomUnitId) : null;
-      if (!targetRoomId) {
-        const matchingUnit = roomUnits.find(ru => 
-          ru.roomCategoryId === room.id && 
-          ru.roomStatus === 'Available' && 
-          !isUnitBookedForDates(ru.id, checkIn, checkOut)
-        );
-        if (matchingUnit) {
-          targetRoomId = parseInt(matchingUnit.id);
-        } else {
-          // Fallback to first non-colliding room in category
-          const openInCat = roomUnits.find(ru => 
-            ru.roomCategoryId === room.id && 
-            !isUnitBookedForDates(ru.id, checkIn, checkOut)
-          );
-          if (openInCat) targetRoomId = parseInt(openInCat.id);
-          else {
-            const firstInCat = roomUnits.find(ru => ru.roomCategoryId === room.id);
-            if (firstInCat) targetRoomId = parseInt(firstInCat.id);
-          }
-        }
-      }
-
-      if (!targetRoomId) {
-        throw new Error("No room units configured for this category.");
-      }
+      const targetRoomId = roomUnitId && roomUnitId.trim() !== "" ? parseInt(roomUnitId) : null;
+      const targetCategoryId = room && room.id ? parseInt(room.id) : null;
 
       await api.post('/accommodation/reservations', {
         customer_id: customerId,
         room_id: targetRoomId,
+        room_category_id: targetCategoryId,
         check_in_date: checkIn,
         check_out_date: checkOut,
         num_adults: 2,
-        num_children: 0
+        num_children: 0,
+        reservation_status: 'Pending'
       });
 
       await fetchAccommodationData();
@@ -501,36 +481,8 @@ export const useAccommodation = () => {
         customerId = await getOrCreateCustomer(booking.guestName, booking.email);
       }
       
-      let targetRoomId = booking.roomUnitId ? parseInt(booking.roomUnitId) : null;
-      if (!targetRoomId) {
-        // Auto-assign available room unit without date collision
-        const matchingUnit = roomUnits.find(ru => 
-          ru.roomCategoryId === booking.roomId && 
-          ru.roomStatus === 'Available' &&
-          !isUnitBookedForDates(ru.id, booking.checkIn, booking.checkOut)
-        );
-        if (matchingUnit) {
-          targetRoomId = parseInt(matchingUnit.id);
-        } else {
-          // Fallback to first non-colliding room in category
-          const openInCat = roomUnits.find(ru => 
-            ru.roomCategoryId === booking.roomId && 
-            !isUnitBookedForDates(ru.id, booking.checkIn, booking.checkOut)
-          );
-          if (openInCat) {
-            targetRoomId = parseInt(openInCat.id);
-          } else {
-            const firstInCat = roomUnits.find(ru => ru.roomCategoryId === booking.roomId);
-            if (firstInCat) {
-              targetRoomId = parseInt(firstInCat.id);
-            }
-          }
-        }
-      }
-
-      if (!targetRoomId) {
-        throw new Error("No rooms are configured in this category. Please create a room unit first.");
-      }
+      const targetRoomId = booking.roomUnitId && booking.roomUnitId.trim() !== "" ? parseInt(booking.roomUnitId) : null;
+      const targetCategoryId = booking.roomId && booking.roomId.trim() !== "" ? parseInt(booking.roomId) : null;
 
       const guestsList = booking.guests || [];
       const numAdults = guestsList.length > 0 ? guestsList.filter(g => !g.is_child).length : 1;
@@ -539,10 +491,12 @@ export const useAccommodation = () => {
       await api.post('/accommodation/reservations', {
         customer_id: customerId,
         room_id: targetRoomId,
+        room_category_id: targetCategoryId,
         check_in_date: booking.checkIn,
         check_out_date: booking.checkOut,
         num_adults: numAdults,
         num_children: numChildren,
+        reservation_status: booking.status || 'Pending',
         guests: guestsList
       });
 
@@ -561,39 +515,10 @@ export const useAccommodation = () => {
         customerId = await getOrCreateCustomer(updatedBooking.guestName, updatedBooking.email);
       }
       
-      // Update by deleting old and creating new if room or date changes,
-      // or simply delete and recreate as a clean update mechanism for full forms.
       await api.delete(`/accommodation/reservations/${updatedBooking.id}`);
       
-      let targetRoomId = updatedBooking.roomUnitId ? parseInt(updatedBooking.roomUnitId) : null;
-      if (!targetRoomId) {
-        // Auto-assign available room unit without date collision
-        const matchingUnit = roomUnits.find(ru => 
-          ru.roomCategoryId === updatedBooking.roomId && 
-          ru.roomStatus === 'Available' &&
-          !isUnitBookedForDates(ru.id, updatedBooking.checkIn, updatedBooking.checkOut, updatedBooking.id)
-        );
-        if (matchingUnit) {
-          targetRoomId = parseInt(matchingUnit.id);
-        } else {
-          const openInCat = roomUnits.find(ru => 
-            ru.roomCategoryId === updatedBooking.roomId && 
-            !isUnitBookedForDates(ru.id, updatedBooking.checkIn, updatedBooking.checkOut, updatedBooking.id)
-          );
-          if (openInCat) {
-            targetRoomId = parseInt(openInCat.id);
-          } else {
-            const firstInCat = roomUnits.find(ru => ru.roomCategoryId === updatedBooking.roomId);
-            if (firstInCat) {
-              targetRoomId = parseInt(firstInCat.id);
-            }
-          }
-        }
-      }
-
-      if (!targetRoomId) {
-        throw new Error("No rooms are configured in this category. Please create a room unit first.");
-      }
+      const targetRoomId = updatedBooking.roomUnitId && updatedBooking.roomUnitId.trim() !== "" ? parseInt(updatedBooking.roomUnitId) : null;
+      const targetCategoryId = updatedBooking.roomId && updatedBooking.roomId.trim() !== "" ? parseInt(updatedBooking.roomId) : null;
 
       const guestsList = updatedBooking.guests || [];
       const numAdults = guestsList.length > 0 ? guestsList.filter(g => !g.is_child).length : 1;
@@ -602,10 +527,12 @@ export const useAccommodation = () => {
       await api.post('/accommodation/reservations', {
         customer_id: customerId,
         room_id: targetRoomId,
+        room_category_id: targetCategoryId,
         check_in_date: updatedBooking.checkIn,
         check_out_date: updatedBooking.checkOut,
         num_adults: numAdults,
         num_children: numChildren,
+        reservation_status: updatedBooking.status || 'Pending',
         guests: guestsList
       });
 
@@ -625,11 +552,11 @@ export const useAccommodation = () => {
       } else if (newStatus === 'Checked Out') {
         await api.post(`/accommodation/reservations/${bookingId}/checkout`);
         addNotification('Guest Check-out Alert', 'Checked out guest successfully', 'booking');
-      } else if (newStatus === 'Cancelled') {
+      } else {
         await api.patch(`/accommodation/reservations/${bookingId}`, {
-          reservation_status: 'Cancelled'
+          reservation_status: newStatus
         });
-        addNotification('Booking Cancelled', 'Cancelled booking successfully', 'booking');
+        addNotification('Booking Status Updated', `Updated status to ${newStatus}`, 'booking');
       }
       await fetchAccommodationData();
     } catch (err: any) {
