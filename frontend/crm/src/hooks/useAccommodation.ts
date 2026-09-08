@@ -153,7 +153,7 @@ export const useAccommodation = () => {
       const resRes = await api.get('/accommodation/reservations');
       const parsedBookings = resRes.data.map((b: any) => {
         const associatedRoom = b.room_id ? parsedRooms.find((r: any) => r.id === String(b.room_id)) : null;
-        const categoryId = b.room_category_id ? String(b.room_category_id) : (associatedRoom ? associatedRoom.roomCategoryId : "");
+        const categoryId = (b.category_id || b.room_category_id) ? String(b.category_id || b.room_category_id) : (associatedRoom ? associatedRoom.roomCategoryId : "");
         const associatedCat = parsedCats.find((c: any) => c.id === categoryId);
         
         let displayStatus: BookingRecord['status'] = 'Pending';
@@ -492,6 +492,7 @@ export const useAccommodation = () => {
         customer_id: customerId,
         room_id: targetRoomId,
         room_category_id: targetCategoryId,
+        category_id: targetCategoryId,
         check_in_date: booking.checkIn,
         check_out_date: booking.checkOut,
         num_adults: numAdults,
@@ -528,6 +529,7 @@ export const useAccommodation = () => {
         customer_id: customerId,
         room_id: targetRoomId,
         room_category_id: targetCategoryId,
+        category_id: targetCategoryId,
         check_in_date: updatedBooking.checkIn,
         check_out_date: updatedBooking.checkOut,
         num_adults: numAdults,

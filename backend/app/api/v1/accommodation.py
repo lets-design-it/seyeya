@@ -97,7 +97,7 @@ async def create_reservation(
         repo = AccommodationRepository(db)
         room = None
         category = None
-        room_category_id = request.room_category_id
+        room_category_id = request.room_category_id or request.category_id
 
         if request.room_id:
             room = await repo.get_room_by_id(request.room_id)
@@ -105,7 +105,7 @@ async def create_reservation(
                 raise ValueError("Room not found")
             if hasattr(room, 'category') and room.category:
                 category = room.category
-                room_category_id = room.room_category_id
+                room_category_id = room.room_category_id or room_category_id
         elif room_category_id:
             category = await repo.get_room_category_by_id(room_category_id)
         
@@ -130,7 +130,6 @@ async def create_reservation(
 
         # Check date collisions for the requested room only if room_id is assigned
         if request.room_id:
-            from sqlalchemy import select, and_
             collision_res = await db.execute(
                 select(AccommodationReservation).where(
                     and_(
@@ -185,8 +184,9 @@ async def create_reservation(
                         reservation_id=reservation.reservation_id,
                         customer_id=customer_obj.customer_id,
                         guest_name=customer_obj.full_name,
-                        phone_number=customer_obj.phone,
-                        passport_number=customer_obj.id_number,
+                        phone_number=getattr(customer_obj, 'phone_number', None) or getattr(customer_obj, 'phone', None),
+                        passport_number=getattr(customer_obj, 'passport_number', None) or getattr(customer_obj, 'id_number', None),
+                        nin=getattr(customer_obj, 'nin', None),
                         is_primary=is_primary,
                         is_child=guest.is_child
                     )
@@ -200,8 +200,9 @@ async def create_reservation(
                     reservation_id=reservation.reservation_id,
                     customer_id=primary_c.customer_id,
                     guest_name=primary_c.full_name,
-                    phone_number=primary_c.phone,
-                    passport_number=primary_c.id_number,
+                    phone_number=getattr(primary_c, 'phone_number', None) or getattr(primary_c, 'phone', None),
+                    passport_number=getattr(primary_c, 'passport_number', None) or getattr(primary_c, 'id_number', None),
+                    nin=getattr(primary_c, 'nin', None),
                     is_primary=True,
                     is_child=False
                 )
@@ -299,8 +300,9 @@ async def update_reservation(
     
     if request.room_id is not None:
         reservation.room_id = request.room_id
-    if request.room_category_id is not None:
-        reservation.room_category_id = request.room_category_id
+    cat_id = request.category_id if request.category_id is not None else request.room_category_id
+    if cat_id is not None:
+        reservation.room_category_id = cat_id
         
     if request.reservation_status:
         reservation.reservation_status = request.reservation_status
