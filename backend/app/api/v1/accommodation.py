@@ -93,11 +93,21 @@ async def create_reservation(
         if num_nights <= 0:
             raise ValueError("Check-out date must be after check-in date")
         
-        # Get room to get rate
+        # Get room to get rate if room_id is provided
         repo = AccommodationRepository(db)
-        room = await repo.get_room_by_id(request.room_id)
-        if not room:
-            raise ValueError("Room not found")
+        room = None
+        category = None
+        room_category_id = request.room_category_id
+
+        if request.room_id:
+            room = await repo.get_room_by_id(request.room_id)
+            if not room:
+                raise ValueError("Room not found")
+            if hasattr(room, 'category') and room.category:
+                category = room.category
+                room_category_id = room.room_category_id
+        elif room_category_id:
+            category = await repo.get_room_category_by_id(room_category_id)
         
         # Validate capacity levels
         adults_count = sum(1 for g in request.guests if not g.is_child)
@@ -107,32 +117,35 @@ async def create_reservation(
             adults_count = request.num_adults
             children_count = request.num_children
             
-        max_occupancy = getattr(room, 'max_occupancy', None)
-        if max_occupancy is None and hasattr(room, 'category') and room.category:
-            max_occupancy = getattr(room.category, 'max_occupancy', 2)
+        max_occupancy = None
+        if room:
+            max_occupancy = getattr(room, 'max_occupancy', None)
+        if max_occupancy is None and category:
+            max_occupancy = getattr(category, 'max_occupancy', 2)
         if max_occupancy is None:
             max_occupancy = 2
             
         if adults_count > max_occupancy:
-            raise ValueError(f"Room maximum capacity is {max_occupancy} adults. You cannot add {adults_count} adults.")
+            raise ValueError(f"Maximum capacity is {max_occupancy} adults. You cannot add {adults_count} adults.")
 
-        # Check date collisions for the requested room
-        from sqlalchemy import select, and_
-        collision_res = await db.execute(
-            select(AccommodationReservation).where(
-                and_(
-                    AccommodationReservation.room_id == request.room_id,
-                    AccommodationReservation.reservation_status.in_(["Pending", "Confirmed", "CheckedIn", "Reserved"]),
-                    AccommodationReservation.check_in_date < request.check_out_date,
-                    AccommodationReservation.check_out_date > request.check_in_date
+        # Check date collisions for the requested room only if room_id is assigned
+        if request.room_id:
+            from sqlalchemy import select, and_
+            collision_res = await db.execute(
+                select(AccommodationReservation).where(
+                    and_(
+                        AccommodationReservation.room_id == request.room_id,
+                        AccommodationReservation.reservation_status.in_(["Pending", "Confirmed", "CheckedIn", "Reserved"]),
+                        AccommodationReservation.check_in_date < request.check_out_date,
+                        AccommodationReservation.check_out_date > request.check_in_date
+                    )
                 )
             )
-        )
-        if collision_res.scalar_one_or_none():
-            room_num = getattr(room, 'room_number', str(request.room_id))
-            raise ValueError(f"Room {room_num} is already reserved for the selected dates ({request.check_in_date} to {request.check_out_date}). Please select different dates or choose another room.")
+            if collision_res.scalar_one_or_none():
+                room_num = getattr(room, 'room_number', str(request.room_id))
+                raise ValueError(f"Room {room_num} is already reserved for the selected dates ({request.check_in_date} to {request.check_out_date}). Please select different dates or choose another room.")
         
-        rate_per_night = getattr(room.category, 'base_rate', 0)
+        rate_per_night = getattr(category, 'base_rate', 0) if category else (getattr(room.category, 'base_rate', 0) if (room and hasattr(room, 'category') and room.category) else 0)
         total_amount = rate_per_night * num_nights
         
         reservation = await service.create_reservation(
@@ -142,13 +155,16 @@ async def create_reservation(
             check_out_date=request.check_out_date,
             num_nights=num_nights,
             rate_per_night=rate_per_night,
-            total_amount=total_amount
+            total_amount=total_amount,
+            room_category_id=room_category_id
         )
         
         # Set additional fields
         reservation.num_adults = adults_count
         reservation.num_children = children_count
         reservation.special_requests = request.special_requests
+        if request.reservation_status:
+            reservation.reservation_status = request.reservation_status
         
         db.add(reservation)
         await db.commit()
@@ -169,10 +185,8 @@ async def create_reservation(
                         reservation_id=reservation.reservation_id,
                         customer_id=customer_obj.customer_id,
                         guest_name=customer_obj.full_name,
-                        nationality=customer_obj.nationality,
-                        phone_number=customer_obj.phone_number,
-                        passport_number=customer_obj.passport_number,
-                        nin=customer_obj.nin,
+                        phone_number=customer_obj.phone,
+                        passport_number=customer_obj.id_number,
                         is_primary=is_primary,
                         is_child=guest.is_child
                     )
@@ -180,23 +194,36 @@ async def create_reservation(
         
         if not primary_saved:
             c_res = await db.execute(select(Customer).where(Customer.customer_id == request.customer_id))
-            customer_obj = c_res.scalar_one_or_none()
-            if customer_obj:
-                guest_detail = GuestCheckInDetail(
+            primary_c = c_res.scalar_one_or_none()
+            if primary_c:
+                primary_detail = GuestCheckInDetail(
                     reservation_id=reservation.reservation_id,
-                    customer_id=customer_obj.customer_id,
-                    guest_name=customer_obj.full_name,
-                    nationality=customer_obj.nationality,
-                    phone_number=customer_obj.phone_number,
-                    passport_number=customer_obj.passport_number,
-                    nin=customer_obj.nin,
+                    customer_id=primary_c.customer_id,
+                    guest_name=primary_c.full_name,
+                    phone_number=primary_c.phone,
+                    passport_number=primary_c.id_number,
                     is_primary=True,
                     is_child=False
                 )
-                db.add(guest_detail)
+                db.add(primary_detail)
                 
         await db.commit()
         
+        # Sync room status if room_id is assigned
+        if reservation.room_id and reservation.reservation_status:
+            from app.models import Room
+            r_res = await db.execute(select(Room).where(Room.room_id == reservation.room_id))
+            r_obj = r_res.scalar_one_or_none()
+            if r_obj:
+                if reservation.reservation_status in ["CheckedIn", "Checked In"]:
+                    r_obj.room_status = "Occupied"
+                elif reservation.reservation_status in ["Confirmed", "Reserved"]:
+                    r_obj.room_status = "Reserved"
+                elif reservation.reservation_status in ["Available", "CheckedOut", "Checked Out", "Cancelled"]:
+                    r_obj.room_status = "Available"
+                db.add(r_obj)
+                await db.commit()
+
         # Reload with customer relation loaded
         result = await db.execute(
             select(AccommodationReservation)
@@ -225,7 +252,7 @@ async def get_reservation(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get reservation details"""
+    """Get reservation by ID"""
     from app.models import AccommodationReservation
     from sqlalchemy.orm import selectinload
     result = await db.execute(
@@ -258,8 +285,8 @@ async def update_reservation(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Update reservation status"""
-    from app.models import AccommodationReservation
+    """Update reservation status and room assignment"""
+    from app.models import AccommodationReservation, Room
     from sqlalchemy.orm import selectinload
     service = AccommodationService(db)
     reservation = await service.get_reservation(reservation_id)
@@ -270,6 +297,11 @@ async def update_reservation(
             detail="Reservation not found"
         )
     
+    if request.room_id is not None:
+        reservation.room_id = request.room_id
+    if request.room_category_id is not None:
+        reservation.room_category_id = request.room_category_id
+        
     if request.reservation_status:
         reservation.reservation_status = request.reservation_status
     
@@ -282,6 +314,21 @@ async def update_reservation(
     
     db.add(reservation)
     await db.commit()
+
+    # Sync room status if room_id is assigned
+    if reservation.room_id:
+        r_res = await db.execute(select(Room).where(Room.room_id == reservation.room_id))
+        r_obj = r_res.scalar_one_or_none()
+        if r_obj:
+            status_val = reservation.reservation_status
+            if status_val in ["CheckedIn", "Checked In"]:
+                r_obj.room_status = "Occupied"
+            elif status_val in ["Confirmed", "Reserved"]:
+                r_obj.room_status = "Reserved"
+            elif status_val in ["Available", "CheckedOut", "Checked Out", "Cancelled"]:
+                r_obj.room_status = "Available"
+            db.add(r_obj)
+            await db.commit()
     
     # Reload with customer
     result = await db.execute(

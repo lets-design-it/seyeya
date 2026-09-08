@@ -437,7 +437,7 @@ export const MenuEditor: React.FC = () => {
           </ShadcnButton>
           <ShadcnButton
             onClick={openAddModal}
-            className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+            className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
           >
             <Plus className="h-4 w-4" />
             Add Menu Item
@@ -569,7 +569,7 @@ export const MenuEditor: React.FC = () => {
             </p>
             <ShadcnButton
               onClick={openAddModal}
-              className="mt-4 flex items-center gap-1.5 mx-auto bg-black! text-white! hover:bg-black/90! rounded-xl px-4.5 py-2 text-xs font-bold cursor-pointer h-9 shadow-sm border-none dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+              className="mt-4 flex items-center gap-1.5 mx-auto bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4.5 py-2 text-xs font-bold cursor-pointer h-9 shadow-sm"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Menu Item
@@ -1019,7 +1019,7 @@ export const MenuEditor: React.FC = () => {
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! font-bold px-6 py-2.5 rounded-xl shadow-sm border-none cursor-pointer dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+                className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-6 py-2.5 rounded-xl shadow-sm cursor-pointer"
               >
                 {editItem ? 'Save Updates' : 'Add Item'}
               </ShadcnButton>
@@ -1308,7 +1308,7 @@ export const MenuEditor: React.FC = () => {
                       setCategoryError(err.message || 'Failed to create category');
                     }
                   }}
-                  className="bg-black! text-white! hover:bg-black/90! font-bold px-4 py-2 rounded-xl text-xs shadow-sm border-none cursor-pointer dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+                  className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-4 py-2 rounded-xl text-xs shadow-sm cursor-pointer"
                 >
                   Add Category
                 </ShadcnButton>
@@ -1376,7 +1376,7 @@ export const MenuEditor: React.FC = () => {
                                   setCategoryError(err.message || 'Failed to update category');
                                 }
                               }}
-                              className="bg-black! text-white! hover:bg-black/90! text-xs px-4 py-1.5 font-bold rounded-xl border-none cursor-pointer dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+                              className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! text-xs px-4 py-1.5 font-bold rounded-xl cursor-pointer"
                             >
                               Save
                             </ShadcnButton>

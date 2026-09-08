@@ -133,7 +133,7 @@ export const PoliciesView: React.FC = () => {
 
         <ShadcnButton
           onClick={openAddDrawer}
-          className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none"
+          className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
         >
           <Plus className="h-4 w-4" />
           Add Policy

@@ -844,11 +844,12 @@ class AccommodationRepository:
         )
         return result.scalar_one_or_none()
     
-    async def create_reservation(self, customer_id: int, room_id: int, check_in_date, check_out_date, num_nights: int, rate_per_night, total_amount, reservation_code: str) -> AccommodationReservation:
+    async def create_reservation(self, customer_id: int, room_id: Optional[int], check_in_date, check_out_date, num_nights: int, rate_per_night, total_amount, reservation_code: str, room_category_id: Optional[int] = None) -> AccommodationReservation:
         """Create a new accommodation reservation"""
         reservation = AccommodationReservation(
             customer_id=customer_id,
             room_id=room_id,
+            room_category_id=room_category_id,
             check_in_date=check_in_date,
             check_out_date=check_out_date,
             num_nights=num_nights,
