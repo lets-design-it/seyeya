@@ -107,8 +107,30 @@ async def create_reservation(
             adults_count = request.num_adults
             children_count = request.num_children
             
-        if adults_count > room.max_occupancy:
-            raise ValueError(f"Room maximum capacity is {room.max_occupancy} adults. You cannot add {adults_count} adults.")
+        max_occupancy = getattr(room, 'max_occupancy', None)
+        if max_occupancy is None and hasattr(room, 'category') and room.category:
+            max_occupancy = getattr(room.category, 'max_occupancy', 2)
+        if max_occupancy is None:
+            max_occupancy = 2
+            
+        if adults_count > max_occupancy:
+            raise ValueError(f"Room maximum capacity is {max_occupancy} adults. You cannot add {adults_count} adults.")
+
+        # Check date collisions for the requested room
+        from sqlalchemy import select, and_
+        collision_res = await db.execute(
+            select(AccommodationReservation).where(
+                and_(
+                    AccommodationReservation.room_id == request.room_id,
+                    AccommodationReservation.reservation_status.in_(["Pending", "Confirmed", "CheckedIn", "Reserved"]),
+                    AccommodationReservation.check_in_date < request.check_out_date,
+                    AccommodationReservation.check_out_date > request.check_in_date
+                )
+            )
+        )
+        if collision_res.scalar_one_or_none():
+            room_num = getattr(room, 'room_number', str(request.room_id))
+            raise ValueError(f"Room {room_num} is already reserved for the selected dates ({request.check_in_date} to {request.check_out_date}). Please select different dates or choose another room.")
         
         rate_per_night = getattr(room.category, 'base_rate', 0)
         total_amount = rate_per_night * num_nights

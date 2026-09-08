@@ -489,6 +489,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   const [bookCheckOut, setBookCheckOut] = useState('');
   const [bookTotalPaid, setBookTotalPaid] = useState<number>(0);
   const [bookStatus, setBookStatus] = useState<BookingRecord['status']>('Reserved');
+  const [bookSelectedRateId, setBookSelectedRateId] = useState<string>('');
 
   const [allClients, setAllClients] = useState<any[]>([]);
   const [selectedGuests, setSelectedGuests] = useState<{ id: number; name: string; isChild: boolean }[]>([]);
@@ -509,31 +510,116 @@ export const Rooms: React.FC<RoomsProps> = ({
     }
   }, [isBookingDrawerOpen, isDetailsOpen]);
 
+  const activeBookCat = useMemo(() => {
+    return categories.find(c => c.id === bookCatId);
+  }, [categories, bookCatId]);
+
+  const activeCatRateOptions = useMemo<CategoryRateOption[]>(() => {
+    if (!activeBookCat) return [];
+    if (activeBookCat.rateOptions && Array.isArray(activeBookCat.rateOptions) && activeBookCat.rateOptions.length > 0) {
+      return activeBookCat.rateOptions;
+    }
+    return [
+      {
+        id: 'ro-standard',
+        name: 'Standard Room Rate (Room Only)',
+        priceUGX: activeBookCat.priceUGX,
+        priceUSD: activeBookCat.priceUSD,
+        description: 'Standard room rate.',
+        inclusions: ['Free Wi-Fi', 'Room Only'],
+        isActive: true
+      },
+      {
+        id: 'ro-bb',
+        name: 'Bed & Breakfast (BB)',
+        priceUGX: activeBookCat.priceUGX + 50000,
+        priceUSD: activeBookCat.priceUSD + 15,
+        description: 'Includes full daily breakfast for occupants.',
+        inclusions: ['Breakfast Included', 'Free Wi-Fi', 'Free Cancellation'],
+        isActive: true
+      },
+      {
+        id: 'ro-fb',
+        name: 'Full Board (FB)',
+        priceUGX: activeBookCat.priceUGX + 150000,
+        priceUSD: activeBookCat.priceUSD + 40,
+        description: 'Includes breakfast, lunch, and dinner.',
+        inclusions: ['Breakfast Included', 'Lunch Included', 'Dinner Included', 'Free Wi-Fi'],
+        isActive: true
+      }
+    ];
+  }, [activeBookCat]);
+
+  const categoryAmenitiesList = useMemo(() => {
+    if (!activeBookCat) return [];
+    const names = activeBookCat.amenities || [];
+    const mappedFromIds = (activeBookCat.selectedAmenityIds || [])
+      .map(id => managedAmenities.find(ma => String(ma.id) === String(id))?.name)
+      .filter(Boolean) as string[];
+
+    const combined = Array.from(new Set([...names, ...mappedFromIds]));
+    if (combined.length > 0) return combined;
+    return ['Free High-Speed Wi-Fi', 'Air Conditioning', 'En-suite Bathroom', 'Nile View'];
+  }, [activeBookCat, managedAmenities]);
+
+  const categoryPoliciesList = useMemo(() => {
+    if (!activeBookCat) return [];
+    const selectedIds = (activeBookCat.selectedPolicyIds || []).map(id => String(id));
+    const matchedManaged = managedPolicies.filter(p => selectedIds.includes(String(p.id)));
+    if (matchedManaged.length > 0) return matchedManaged;
+    return [
+      { id: 'pol-1', title: 'Check-in: 2:00 PM | Check-out: 10:00 AM', description: 'Standard check-in and check-out times.', iconName: 'clock', category: 'Check-in/out' },
+      { id: 'pol-2', title: 'Non-Smoking Cottage', description: 'Smoking is strictly prohibited inside the rooms.', iconName: 'cigarette-off', category: 'Smoking' },
+      { id: 'pol-3', title: 'Free Cancellation up to 24h before', description: 'Cancel without penalty 24 hours prior to check-in.', iconName: 'check-circle-2', category: 'Cancellation' }
+    ];
+  }, [activeBookCat, managedPolicies]);
+
   const getCategoryCapacity = (catId: string) => {
     const cat = categories.find(c => c.id === catId);
     if (!cat) return { maxAdults: 2, maxChildren: 1 };
 
-    const capStr = (cat.capacity || "").toLowerCase();
-    let maxAdults = 2;
+    let maxAdults = cat.maxOccupancy && cat.maxOccupancy > 0 ? cat.maxOccupancy : 2;
     let maxChildren = 1;
 
+    const capStr = (cat.capacity || "").toLowerCase();
     const adultMatch = capStr.match(/(\d+)\s*adult/);
-    if (adultMatch) {
+    if (adultMatch && !cat.maxOccupancy) {
       maxAdults = parseInt(adultMatch[1]);
-    } else if (capStr.includes("adult")) {
-      maxAdults = 1;
     }
 
     const childMatch = capStr.match(/(\d+)\s*child/);
     if (childMatch) {
       maxChildren = parseInt(childMatch[1]);
-    } else if (capStr.includes("child")) {
-      maxChildren = 1;
     } else if (capStr.includes("no child")) {
       maxChildren = 0;
     }
 
     return { maxAdults, maxChildren };
+  };
+
+  const calculateBookingPrice = (catId: string, rateId: string, checkInVal: string, checkOutVal: string) => {
+    const cat = categories.find(c => c.id === catId);
+    if (!cat) return;
+    const start = new Date(checkInVal);
+    const end = new Date(checkOutVal);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+    const diff = end.getTime() - start.getTime();
+    if (diff <= 0) return;
+    const nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
+
+    const rates = (cat.rateOptions && cat.rateOptions.length > 0) ? cat.rateOptions : [
+      { id: 'ro-standard', priceUGX: cat.priceUGX },
+      { id: 'ro-bb', priceUGX: cat.priceUGX + 50000 },
+      { id: 'ro-fb', priceUGX: cat.priceUGX + 150000 }
+    ];
+    const selectedRate = rates.find((r: any) => String(r.id) === String(rateId)) || rates[0];
+    const unitPrice = Number(selectedRate?.priceUGX || cat.priceUGX);
+    setBookTotalPaid(unitPrice * nights);
+  };
+
+  const handleBookingDateOrCatChange = (catId: string, checkInVal: string, checkOutVal: string, rateId?: string) => {
+    const activeRate = rateId || bookSelectedRateId;
+    calculateBookingPrice(catId, activeRate, checkInVal, checkOutVal);
   };
 
   const openAddBooking = () => {
@@ -545,13 +631,22 @@ export const Rooms: React.FC<RoomsProps> = ({
     const defaultCat = categories[0]?.id || '';
     setBookCatId(defaultCat);
     setBookRoomUnitId('');
-    setBookCheckIn(new Date().toISOString().split('T')[0]);
+    
+    const checkInDate = new Date().toISOString().split('T')[0];
+    setBookCheckIn(checkInDate);
 
     const nextThreeDays = new Date();
     nextThreeDays.setDate(nextThreeDays.getDate() + 3);
-    setBookCheckOut(nextThreeDays.toISOString().split('T')[0]);
+    const checkOutDate = nextThreeDays.toISOString().split('T')[0];
+    setBookCheckOut(checkOutDate);
 
-    setBookTotalPaid(categories[0] ? categories[0].priceUGX * 3 : 900000);
+    const catObj = categories.find(c => c.id === defaultCat);
+    const rates = (catObj?.rateOptions && catObj.rateOptions.length > 0) ? catObj.rateOptions : [{ id: 'ro-standard', priceUGX: catObj?.priceUGX || 300000 }];
+    const defaultRateId = rates[0]?.id || 'ro-standard';
+    setBookSelectedRateId(defaultRateId);
+
+    const unitPrice = Number(rates[0]?.priceUGX || catObj?.priceUGX || 300000);
+    setBookTotalPaid(unitPrice * 3);
     setBookStatus('Reserved');
     setIsBookingDrawerOpen(true);
   };
@@ -566,6 +661,7 @@ export const Rooms: React.FC<RoomsProps> = ({
     setBookCheckOut(item.checkOut);
     setBookTotalPaid(item.totalPaid);
     setBookStatus(item.status);
+    setBookSelectedRateId(item.ratePlanId || 'ro-standard');
 
     const primaryClient = allClients.find(c => c.full_name.toLowerCase() === item.guestName.toLowerCase());
     const primaryId = primaryClient ? primaryClient.customer_id : (item.customerId || 1);
@@ -636,6 +732,8 @@ export const Rooms: React.FC<RoomsProps> = ({
     const primaryClient = allClients.find(c => c.customer_id === primaryGuest.id);
     const guestEmail = primaryClient?.email || 'guest@seyeyalodge.com';
 
+    const selectedRatePlan = activeCatRateOptions.find(r => String(r.id) === String(bookSelectedRateId)) || activeCatRateOptions[0];
+
     const data = {
       roomId: bookCatId,
       roomName: catObj ? catObj.name : 'Unknown Category',
@@ -648,7 +746,10 @@ export const Rooms: React.FC<RoomsProps> = ({
       roomUnitId: bookRoomUnitId || undefined,
       roomUnitNumber: roomUnitObj ? roomUnitObj.roomNumber : undefined,
       customerId: primaryGuest.id,
-      guests: selectedGuests.map(g => ({ customer_id: g.id, is_child: g.isChild }))
+      guests: selectedGuests.map(g => ({ customer_id: g.id, is_child: g.isChild })),
+      ratePlanId: selectedRatePlan?.id,
+      ratePlanName: selectedRatePlan?.name,
+      rateInclusions: selectedRatePlan?.inclusions || []
     };
 
     if (editBookingItem) {
@@ -659,28 +760,35 @@ export const Rooms: React.FC<RoomsProps> = ({
     setIsBookingDrawerOpen(false);
   };
 
-  // Helper: auto calculate total booking price when dates or category changes in booking form
-  const handleBookingDateOrCatChange = (catId: string, checkInVal: string, checkOutVal: string) => {
-    const cat = categories.find(c => c.id === catId);
-    if (!cat) return;
-    const start = new Date(checkInVal);
-    const end = new Date(checkOutVal);
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
-    const diff = end.getTime() - start.getTime();
-    if (diff <= 0) return;
-    const nights = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    setBookTotalPaid(cat.priceUGX * nights);
-  };
-
-  // Available room units filterable by category for assignment in drawer
+  // Available room units filterable by category and date availability for assignment in drawer
   const availableRoomUnitsForCategory = useMemo(() => {
     const activeCatId = bookCatId;
+    if (!activeCatId) return [];
+
     return roomUnits.filter(ru => {
-      // Allow assigning to the currently assigned unit or any unit that is available
+      // Allow assigning to the currently assigned unit if editing
       if (editBookingItem && editBookingItem.roomUnitId === ru.id) return true;
-      return ru.roomCategoryId === activeCatId && ru.roomStatus === 'Available';
+
+      // Must belong to active category and have roomStatus Available
+      if (ru.roomCategoryId !== activeCatId || ru.roomStatus !== 'Available') return false;
+
+      // Date collision check
+      if (bookCheckIn && bookCheckOut) {
+        const hasCollision = bookings.some(b => {
+          if (editBookingItem && b.id === editBookingItem.id) return false;
+          if (b.roomUnitId !== ru.id) return false;
+          if (b.status === 'Cancelled' || b.status === 'Checked Out') return false;
+
+          // Check overlap: b.checkIn < bookCheckOut && b.checkOut > bookCheckIn
+          return b.checkIn < bookCheckOut && b.checkOut > bookCheckIn;
+        });
+
+        if (hasCollision) return false;
+      }
+
+      return true;
     });
-  }, [roomUnits, bookCatId, editBookingItem]);
+  }, [roomUnits, bookCatId, bookCheckIn, bookCheckOut, bookings, editBookingItem]);
 
   // -------------------------------------------------------------
   // Data Filtering
@@ -1955,6 +2063,19 @@ export const Rooms: React.FC<RoomsProps> = ({
               </select>
             </div>
 
+            {activeBookCat && (
+              <div className="flex items-center justify-between p-2.5 bg-zinc-50 dark:bg-zinc-950/40 rounded-xl border border-zinc-200/60 dark:border-zinc-800 text-xs">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/50 text-[10px] font-bold py-0.5">
+                    Max Occupancy: {getCategoryCapacity(bookCatId).maxAdults} Adults{getCategoryCapacity(bookCatId).maxChildren > 0 ? `, ${getCategoryCapacity(bookCatId).maxChildren} Child` : ''}
+                  </Badge>
+                </div>
+                <span className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400">
+                  Base Rate: UGX {activeBookCat.priceUGX.toLocaleString()} / night
+                </span>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Assign Room Unit (Optional)</label>
               <select
@@ -1967,6 +2088,96 @@ export const Rooms: React.FC<RoomsProps> = ({
                   <option key={ru.id} value={ru.id} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Room {ru.roomNumber} ({ru.floor})</option>
                 ))}
               </select>
+            </div>
+
+            {/* Captured Rates Section */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-sans">
+                Rate Plan / Included Rates *
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {activeCatRateOptions.map(rate => {
+                  const isSelected = String(rate.id) === String(bookSelectedRateId);
+                  return (
+                    <div
+                      key={rate.id}
+                      onClick={() => {
+                        setBookSelectedRateId(rate.id);
+                        handleBookingDateOrCatChange(bookCatId, bookCheckIn, bookCheckOut, rate.id);
+                      }}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col gap-1.5 ${
+                        isSelected
+                          ? 'bg-violet-50/50 dark:bg-violet-950/20 border-violet-500/80 dark:border-violet-600/80 ring-1 ring-violet-500/30'
+                          : 'bg-white dark:bg-zinc-900 border-zinc-200/70 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-bold text-xs text-zinc-900 dark:text-zinc-100">
+                          <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-violet-600 bg-violet-600' : 'border-zinc-300 dark:border-zinc-700'}`}>
+                            {isSelected && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                          </div>
+                          <span>{rate.name}</span>
+                        </div>
+                        <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-100">
+                          UGX {Number(rate.priceUGX).toLocaleString()} <span className="text-[10px] text-zinc-400 font-medium">/ night</span>
+                        </span>
+                      </div>
+                      
+                      {rate.description && (
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 pl-6">{rate.description}</p>
+                      )}
+
+                      {rate.inclusions && rate.inclusions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pl-6 pt-0.5">
+                          {rate.inclusions.map((inc, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40">
+                              <Check className="h-2.5 w-2.5" />
+                              {inc}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Room Amenities & Policies Attached Section */}
+            <div className="space-y-3 p-3.5 bg-zinc-50/70 dark:bg-zinc-950/30 rounded-2xl border border-zinc-200/60 dark:border-zinc-800">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-450 dark:text-zinc-500 block mb-1.5">
+                  Amenities Included in {activeBookCat?.name || 'Room'}
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {categoryAmenitiesList.map((amenityName, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-[10px] font-semibold text-zinc-700 dark:text-zinc-300 shadow-2xs"
+                    >
+                      {renderAssetIcon(autoDetectAmenityIcon(amenityName), "h-3 w-3 text-violet-500 dark:text-violet-400")}
+                      {amenityName}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-zinc-200/40 dark:border-zinc-800/60">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-450 dark:text-zinc-500 block mb-1.5">
+                  Cottage Policies & Guidelines
+                </span>
+                <div className="grid grid-cols-1 gap-1.5">
+                  {categoryPoliciesList.map((pol: any) => (
+                    <div
+                      key={pol.id}
+                      className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 text-[10px] text-zinc-700 dark:text-zinc-300"
+                    >
+                      {renderAssetIcon(autoDetectPolicyIcon(pol.title || pol.name || ''), "h-3.5 w-3.5 text-amber-500 shrink-0")}
+                      <span className="font-semibold">{pol.title || pol.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="relative">
@@ -2314,6 +2525,24 @@ export const Rooms: React.FC<RoomsProps> = ({
                       UGX {selectedBooking.totalPaid.toLocaleString()}
                     </span>
                   </div>
+
+                  {selectedBooking.ratePlanName && (
+                    <div className="bg-zinc-50/50 dark:bg-zinc-950/30 p-4 border border-zinc-200/50 dark:border-zinc-800 rounded-[18px] text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">Captured Rate Plan</span>
+                        <span className="font-bold text-violet-600 dark:text-violet-400 text-xs">{selectedBooking.ratePlanName}</span>
+                      </div>
+                      {selectedBooking.rateInclusions && selectedBooking.rateInclusions.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {selectedBooking.rateInclusions.map((inc, i) => (
+                            <span key={i} className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/40">
+                              ✓ {inc}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block">Current Status</span>

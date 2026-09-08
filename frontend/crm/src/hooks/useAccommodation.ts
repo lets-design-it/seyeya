@@ -8,6 +8,7 @@ export interface RoomType {
   priceUGX: number;
   priceUSD: number;
   capacity: string;
+  maxOccupancy?: number;
   amenities: string[];
   description: string;
   image: string;
@@ -42,6 +43,9 @@ export interface BookingRecord {
   totalPaid: number; // in UGX
   customerId?: number;
   guests?: { customer_id: number; is_child: boolean }[];
+  ratePlanId?: string;
+  ratePlanName?: string;
+  rateInclusions?: string[];
 }
 
 const getErrorMessage = (err: any, fallback = 'An error occurred'): string => {
@@ -80,6 +84,7 @@ export const useAccommodation = () => {
               priceUGX: Number(r.price || 0),
               priceUSD: Number(r.price || 0),
               description: r.description || '',
+              inclusions: r.inclusions || [],
               isActive: r.is_active !== false
             }))
           : undefined;
@@ -118,6 +123,7 @@ export const useAccommodation = () => {
           priceUGX: Number(c.base_rate || 0),
           priceUSD: Number(c.base_rate || 0),
           capacity: "2 Adults, 1 Child",
+          maxOccupancy: c.max_occupancy ? Number(c.max_occupancy) : undefined,
           amenities: extractedAmenityNames,
           description: c.description || "",
           image: defaultImg,
@@ -422,6 +428,15 @@ export const useAccommodation = () => {
   };
 
   // Bookings CRUD
+  const isUnitBookedForDates = (unitId: string, checkIn: string, checkOut: string, excludeBookingId?: string) => {
+    return bookings.some(b => {
+      if (excludeBookingId && b.id === excludeBookingId) return false;
+      if (b.roomUnitId !== unitId) return false;
+      if (b.status === 'Cancelled' || b.status === 'Checked Out') return false;
+      return b.checkIn < checkOut && b.checkOut > checkIn;
+    });
+  };
+
   const reserveRoom = async (
     room: RoomType,
     guestName: string,
@@ -434,16 +449,27 @@ export const useAccommodation = () => {
     try {
       const customerId = await getOrCreateCustomer(guestName, email);
       
-      // If no roomUnitId assigned, search for available room unit in category
+      // If no roomUnitId assigned, search for available room unit in category without date collisions
       let targetRoomId = roomUnitId ? parseInt(roomUnitId) : null;
       if (!targetRoomId) {
-        const matchingUnit = roomUnits.find(ru => ru.roomCategoryId === room.id && ru.roomStatus === 'Available');
+        const matchingUnit = roomUnits.find(ru => 
+          ru.roomCategoryId === room.id && 
+          ru.roomStatus === 'Available' && 
+          !isUnitBookedForDates(ru.id, checkIn, checkOut)
+        );
         if (matchingUnit) {
           targetRoomId = parseInt(matchingUnit.id);
         } else {
-          // Fallback to first room in category if none available
-          const firstInCat = roomUnits.find(ru => ru.roomCategoryId === room.id);
-          if (firstInCat) targetRoomId = parseInt(firstInCat.id);
+          // Fallback to first non-colliding room in category
+          const openInCat = roomUnits.find(ru => 
+            ru.roomCategoryId === room.id && 
+            !isUnitBookedForDates(ru.id, checkIn, checkOut)
+          );
+          if (openInCat) targetRoomId = parseInt(openInCat.id);
+          else {
+            const firstInCat = roomUnits.find(ru => ru.roomCategoryId === room.id);
+            if (firstInCat) targetRoomId = parseInt(firstInCat.id);
+          }
         }
       }
 
@@ -477,15 +503,27 @@ export const useAccommodation = () => {
       
       let targetRoomId = booking.roomUnitId ? parseInt(booking.roomUnitId) : null;
       if (!targetRoomId) {
-        // Auto-assign available room unit
-        const matchingUnit = roomUnits.find(ru => ru.roomCategoryId === booking.roomId && ru.roomStatus === 'Available');
+        // Auto-assign available room unit without date collision
+        const matchingUnit = roomUnits.find(ru => 
+          ru.roomCategoryId === booking.roomId && 
+          ru.roomStatus === 'Available' &&
+          !isUnitBookedForDates(ru.id, booking.checkIn, booking.checkOut)
+        );
         if (matchingUnit) {
           targetRoomId = parseInt(matchingUnit.id);
         } else {
-          // Fallback to first room in category
-          const firstInCat = roomUnits.find(ru => ru.roomCategoryId === booking.roomId);
-          if (firstInCat) {
-            targetRoomId = parseInt(firstInCat.id);
+          // Fallback to first non-colliding room in category
+          const openInCat = roomUnits.find(ru => 
+            ru.roomCategoryId === booking.roomId && 
+            !isUnitBookedForDates(ru.id, booking.checkIn, booking.checkOut)
+          );
+          if (openInCat) {
+            targetRoomId = parseInt(openInCat.id);
+          } else {
+            const firstInCat = roomUnits.find(ru => ru.roomCategoryId === booking.roomId);
+            if (firstInCat) {
+              targetRoomId = parseInt(firstInCat.id);
+            }
           }
         }
       }
@@ -529,15 +567,26 @@ export const useAccommodation = () => {
       
       let targetRoomId = updatedBooking.roomUnitId ? parseInt(updatedBooking.roomUnitId) : null;
       if (!targetRoomId) {
-        // Auto-assign available room unit
-        const matchingUnit = roomUnits.find(ru => ru.roomCategoryId === updatedBooking.roomId && ru.roomStatus === 'Available');
+        // Auto-assign available room unit without date collision
+        const matchingUnit = roomUnits.find(ru => 
+          ru.roomCategoryId === updatedBooking.roomId && 
+          ru.roomStatus === 'Available' &&
+          !isUnitBookedForDates(ru.id, updatedBooking.checkIn, updatedBooking.checkOut, updatedBooking.id)
+        );
         if (matchingUnit) {
           targetRoomId = parseInt(matchingUnit.id);
         } else {
-          // Fallback to first room in category
-          const firstInCat = roomUnits.find(ru => ru.roomCategoryId === updatedBooking.roomId);
-          if (firstInCat) {
-            targetRoomId = parseInt(firstInCat.id);
+          const openInCat = roomUnits.find(ru => 
+            ru.roomCategoryId === updatedBooking.roomId && 
+            !isUnitBookedForDates(ru.id, updatedBooking.checkIn, updatedBooking.checkOut, updatedBooking.id)
+          );
+          if (openInCat) {
+            targetRoomId = parseInt(openInCat.id);
+          } else {
+            const firstInCat = roomUnits.find(ru => ru.roomCategoryId === updatedBooking.roomId);
+            if (firstInCat) {
+              targetRoomId = parseInt(firstInCat.id);
+            }
           }
         }
       }
