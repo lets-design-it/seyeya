@@ -770,9 +770,9 @@ class RestaurantOrderRepository:
         )
         return result.scalar_one_or_none()
     
-    async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
+    async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: Optional[int] = None) -> List[RestaurantOrder]:
         """Get orders for a customer"""
-        result = await self.db.execute(
+        query = (
             select(RestaurantOrder)
             .where(RestaurantOrder.customer_id == customer_id)
             .options(
@@ -781,9 +781,12 @@ class RestaurantOrderRepository:
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
             )
-            .offset(skip)
-            .limit(limit)
         )
+        if skip:
+            query = query.offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        result = await self.db.execute(query)
         return result.scalars().all()
 
     async def delete_order(self, order_id: int) -> bool:

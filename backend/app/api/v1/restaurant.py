@@ -337,7 +337,7 @@ async def create_order(
 async def list_orders(
     customer_id: Optional[int] = None,
     skip: int = 0,
-    limit: int = 50,
+    limit: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):

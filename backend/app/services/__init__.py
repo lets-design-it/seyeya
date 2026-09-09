@@ -695,13 +695,13 @@ class RestaurantOrderService:
         await self.db.commit()
         return await self.get_order(order_id)
 
-    async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
+    async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: Optional[int] = None) -> List[RestaurantOrder]:
         """Get orders for a customer"""
         return await self.order_repo.get_customer_orders(customer_id, skip=skip, limit=limit)
 
-    async def get_all_orders(self, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
+    async def get_all_orders(self, skip: int = 0, limit: Optional[int] = None) -> List[RestaurantOrder]:
         """Get all restaurant orders"""
-        result = await self.db.execute(
+        query = (
             select(RestaurantOrder)
             .options(
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.extras).selectinload(OrderItemExtra.extra),
@@ -709,9 +709,12 @@ class RestaurantOrderService:
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
             )
-            .offset(skip)
-            .limit(limit)
         )
+        if skip:
+            query = query.offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        result = await self.db.execute(query)
         return result.scalars().all()
 
     async def delete_order(self, order_id: int) -> bool:
