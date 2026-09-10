@@ -20,10 +20,11 @@ export const Button: React.FC<ButtonProps> = ({
   
   const variants = {
     primary: "bg-[#0A2540] hover:bg-[#07192C] text-[#D4AF37] border border-[#D4AF37]/30 shadow-sm dark:bg-[#D4AF37] dark:text-[#0A192F] dark:hover:bg-[#B89320]",
-    secondary: "bg-white hover:bg-zinc-100 text-[#0A2540] dark:bg-[#0E1B2E] dark:hover:bg-[#162A45] dark:border-[#1E3A5F] dark:text-[#D4AF37] border border-zinc-200",
+    secondary: "bg-[#D4AF37] hover:bg-[#B89320] text-[#0A192F] border border-[#D4AF37]/30 dark:bg-[#D4AF37] dark:text-[#0A192F] dark:hover:bg-[#B89320]",
     outline: "border border-[#D4AF37]/40 bg-transparent text-[#0A2540] hover:bg-[#0A2540]/10 dark:text-[#D4AF37] dark:hover:bg-[#162A45] dark:border-[#1E3A5F]",
     ghost: "bg-transparent hover:bg-zinc-100 dark:hover:bg-[#162A45] text-zinc-600 dark:text-zinc-300",
-    danger: "bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400"
+    danger: "bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400",
+    gold: "bg-[#D4AF37] hover:bg-[#B89320] text-[#0A192F] dark:bg-[#D4AF37] dark:text-[#0A192F] dark:hover:bg-[#B89320] border border-[#D4AF37]/30 shadow-sm font-bold"
   };
 
   const sizes = {

@@ -17,6 +17,7 @@ import { ClientsCRM } from './pages/dashboard/ClientsCRM';
 import { MenuEditor } from './pages/dashboard/MenuEditor';
 import { UserManagement } from './pages/dashboard/UserManagement';
 import { Settings } from './pages/dashboard/Settings';
+import { ReportsView } from './pages/dashboard/ReportsView';
 
 // Client Views
 import { Restaurant } from './pages/client/Restaurant';
@@ -164,6 +165,24 @@ const CRMApp: React.FC = () => {
             <UserManagement />
           </ProtectedRoute>
         );
+      case 'reports':
+      case 'reports-executive':
+      case 'reports-staff':
+      case 'reports-guests':
+      case 'reports-channels':
+      case 'reports-vat': {
+        const subTab = activeStaffTab === 'reports'
+          ? 'executive'
+          : (activeStaffTab.split('-')[1] as any);
+        return (
+          <ProtectedRoute allowedRoles={['admin', 'manager', 'agent']}>
+            <ReportsView 
+              activeSubTab={subTab}
+              setActiveSubTab={(tab) => setActiveStaffTab(`reports-${tab}`)}
+            />
+          </ProtectedRoute>
+        );
+      }
       case 'settings':
       case 'settings-profile':
       case 'settings-hotel':

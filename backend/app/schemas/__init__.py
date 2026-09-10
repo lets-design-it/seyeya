@@ -2010,3 +2010,103 @@ class NotificationStatistics(BaseModel):
     deleted_count: int
     category_counts: dict
 
+
+# =====================================================================
+# REPORT SCHEMAS
+# =====================================================================
+
+class ReportExecutiveSummary(BaseModel):
+    total_revenue_ugx: Decimal
+    total_revenue_usd: Decimal
+    lodge_revenue: Decimal
+    restaurant_revenue: Decimal
+    conference_revenue: Decimal
+    crm_revenue: Decimal
+    active_checkins: int
+    pending_orders: int
+    pending_quotes: int
+    distribution_data: List[dict]
+    monthly_trend_data: List[dict]
+
+
+class StaffPerformanceItem(BaseModel):
+    user_id: int
+    full_name: str
+    email: str
+    roles: List[str]
+    orders_managed_count: int
+    orders_managed_value: Decimal
+    reservations_managed_count: int
+    reservations_managed_value: Decimal
+    accounts_created_count: int
+    cancellations_count: int
+    cash_collected: Decimal
+    card_collected: Decimal
+    mobile_money_collected: Decimal
+    total_financial_collected: Decimal
+    last_active: Optional[datetime] = None
+
+
+class StaffPerformanceResponse(BaseModel):
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
+    staff_members: List[StaffPerformanceItem]
+    total_managed_value: Decimal
+
+
+class GuestAnalyticsResponse(BaseModel):
+    total_guests: int
+    online_registered_count: int
+    staff_provisioned_count: int
+    contract_clients_count: int
+    child_guests_count: int
+    total_guest_spend: Decimal
+    top_spending_guests: List[dict]
+
+
+class GuestTimelineEvent(BaseModel):
+    id: str
+    event_type: str  # Accommodation | Restaurant | Conference | Payment
+    title: str
+    date: datetime
+    amount: Decimal
+    status: str
+    details: dict
+
+
+class GuestHistory360Response(BaseModel):
+    customer_id: int
+    customer_code: str
+    full_name: str
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    customer_type: str
+    created_at: datetime
+    total_spent: Decimal
+    visit_count: int
+    timeline: List[GuestTimelineEvent]
+
+
+class SalesChannelResponse(BaseModel):
+    restaurant_eat_in_count: int
+    restaurant_eat_in_value: Decimal
+    restaurant_room_service_count: int
+    restaurant_room_service_value: Decimal
+    restaurant_external_delivery_count: int
+    restaurant_external_delivery_value: Decimal
+    accommodation_online_count: int
+    accommodation_online_value: Decimal
+    accommodation_front_desk_count: int
+    accommodation_front_desk_value: Decimal
+
+
+class FinancialVatResponse(BaseModel):
+    gross_sales_ugx: Decimal
+    taxable_subtotal: Decimal
+    vat_collected_ugx: Decimal  # 18% VAT
+    delivery_charge_total: Decimal
+    amount_paid_total: Decimal
+    balance_due_total: Decimal
+    payment_method_breakdown: List[dict]
+
+
