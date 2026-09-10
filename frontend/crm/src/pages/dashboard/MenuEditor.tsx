@@ -651,9 +651,8 @@ export const MenuEditor: React.FC = () => {
         )}
       </div>
 
-      {/* Add / Edit Drawer */}
       <Drawer open={isOpen} onOpenChange={setIsOpen} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl">
           <DrawerHeader className="border-b border-zinc-150 pb-4">
             <DrawerTitle className="text-base font-bold">
               {editItem ? 'Edit Menu Item' : 'New Menu Listing'}
@@ -1030,14 +1029,14 @@ export const MenuEditor: React.FC = () => {
       {/* Sliding Details Drawer Backdrop Overlay */}
       {selectedItem && (
         <div
-          className="fixed inset-0 z-30 bg-zinc-950/15 backdrop-blur-xs transition-opacity duration-300"
+          className="fixed inset-0 z-30 bg-black/50 dark:bg-zinc-955/60 backdrop-blur-md transition-opacity duration-300"
           onClick={() => setSelectedItem(null)}
         />
       )}
 
       {/* Sliding Details Drawer */}
       <div
-        className={`fixed inset-y-0 right-0 z-40 w-full sm:max-w-md bg-card shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col border-l border-zinc-100 dark:border-zinc-800 ${selectedItem ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed inset-y-0 right-0 z-40 w-full sm:max-w-xl md:max-w-2xl bg-card shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col border-l border-zinc-100 dark:border-zinc-800 ${selectedItem ? 'translate-x-0' : 'translate-x-full'
           }`}
       >
         {selectedItem && (
@@ -1223,7 +1222,7 @@ export const MenuEditor: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 animate-fade-in backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in">
           <div className="glass-panel w-full max-w-sm bg-card rounded-[24px] p-6 text-center shadow-2xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
             <h4 className="text-sm font-bold text-primary dark:text-white uppercase tracking-wider mb-2">Delete Menu Item?</h4>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-6">
@@ -1249,7 +1248,7 @@ export const MenuEditor: React.FC = () => {
 
       {/* Category Manager Drawer */}
       <Drawer open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl">
           <DrawerHeader className="border-b border-zinc-150 pb-4">
             <div className="flex items-center justify-between">
               <div>

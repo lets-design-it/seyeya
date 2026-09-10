@@ -113,8 +113,12 @@ export const UserManagement: React.FC = () => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // Filtered users for search
+  // Filtered users for search (Staff personnel only)
   const filteredUsers = users.filter(u => {
+    // Exclude guest/customer user accounts from staff management workspace
+    const hasCustomerRole = u.roles && u.roles.some(r => r.toLowerCase() === 'customer' || r.toLowerCase() === 'guest');
+    if (hasCustomerRole && !u.is_staff) return false;
+
     if (!searchTerm) return true;
     const query = searchTerm.toLowerCase();
     return (
@@ -494,7 +498,7 @@ export const UserManagement: React.FC = () => {
 
       {/* Provision Member Drawer */}
       <Drawer open={isModalOpen} onOpenChange={setIsModalOpen} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl">
           <DrawerHeader className="border-b border-zinc-150 pb-4">
             <DrawerTitle className="text-base font-bold">Provision Team Member</DrawerTitle>
             <DrawerDescription className="text-xs text-zinc-500">
@@ -630,7 +634,7 @@ export const UserManagement: React.FC = () => {
 
       {/* Details & Update Drawer */}
       <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl">
           {selectedUser && (
             <>
               <DrawerHeader className="border-b border-zinc-150 pb-4">

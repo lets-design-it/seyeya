@@ -150,7 +150,7 @@ export const Overview: React.FC = () => {
           </CardHeader>
           <CardContent className="h-[250px] w-full">
             {isMounted && (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={250}>
+              <ResponsiveContainer width="100%" height={230} minWidth={0} minHeight={230}>
                 <AreaChart data={analytics.monthlyTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorLodge" x1="0" y1="0" x2="0" y2="1">

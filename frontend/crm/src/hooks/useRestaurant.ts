@@ -46,10 +46,13 @@ export interface MenuItem {
 
 export interface RestaurantOrder {
   id: string;
+  orderId?: number;
+  customerId?: number | string | null;
   orderNumber: string;
   table: string;
+  seatingLocation?: string;
   items: string;
-  status: 'Pending' | 'Preparing' | 'Ready' | 'Completed';
+  status: 'Pending' | 'Preparing' | 'Ready' | 'Completed' | 'Cancelled' | string;
   timestamp: string;
   value: number; // Value in UGX
   paymentStatus: string;
@@ -58,12 +61,19 @@ export interface RestaurantOrder {
   specialInstr?: string;
   deliveryOption: string;
   deliveryAddress?: string;
+  deliveryLocation?: string;
+  deliveryDistanceKm?: string;
+  pricePerKmUsed?: string;
   rawItems: any[];
   subTotal?: number;
   deliveryCharge?: number;
   taxAmount?: number;
-  createdAt?: string;
-  updatedAt?: string;
+  totalAmount?: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  cancelledAt?: string | null;
+  cancelReason?: string | null;
+  rawOrder?: any;
 }
 
 export const useRestaurant = () => {
@@ -156,39 +166,58 @@ export const useRestaurant = () => {
         }
 
         const rawSubTotal = Number(o.sub_total || 0);
+        const rawTax = Number(o.tax_amount || 0);
         const deliveryCharge = Number(o.delivery_charge || 0);
+        const totalAmount = Number(o.total_amount || 0);
         const itemsSum = (o.items && Array.isArray(o.items))
           ? o.items.reduce((acc: number, it: any) => acc + Number(it.total_price || 0), 0)
           : 0;
 
         const subTotal = rawSubTotal > 0 ? rawSubTotal : itemsSum;
-        const taxAmount = Math.round(subTotal * (vatRate / 100));
+        const taxAmount = rawTax > 0 ? rawTax : Math.round(subTotal * (vatRate / 100));
         
-        // Dynamic order value incorporating current active hotel VAT rate
-        const orderValue = subTotal > 0
-          ? Math.round(subTotal + deliveryCharge + taxAmount)
-          : Number(o.total_amount || 0);
+        // Dynamic order value incorporating total_amount or calculated subtotal + delivery + tax
+        const orderValue = totalAmount > 0
+          ? totalAmount
+          : Math.round(subTotal + deliveryCharge + taxAmount);
+
+        const amountPaid = Number(o.amount_paid || 0);
+        const balanceDue = (o.balance_due !== undefined && o.balance_due !== null)
+          ? Number(o.balance_due)
+          : Math.max(0, orderValue - amountPaid);
+
+        const deliveryLoc = o.delivery_location || o.delivery_address || '';
 
         return {
           id: String(o.order_id),
+          orderId: o.order_id,
+          customerId: o.customer_id ?? null,
           orderNumber: o.order_number || String(o.order_id),
           table: o.seating_location || 'Table',
+          seatingLocation: o.seating_location || '',
           items: itemsStr,
           status: o.order_status || 'Pending',
           timestamp: timeStr,
           value: orderValue,
           paymentStatus: o.payment_status || 'Pending',
-          amountPaid: Number(o.amount_paid || 0),
-          balanceDue: Math.max(0, orderValue - Number(o.amount_paid || 0)),
+          amountPaid: amountPaid,
+          balanceDue: balanceDue,
           specialInstr: o.special_instr || '',
           deliveryOption: o.delivery_option || 'Premises',
-          deliveryAddress: o.delivery_address || '',
+          deliveryAddress: deliveryLoc,
+          deliveryLocation: deliveryLoc,
+          deliveryDistanceKm: o.delivery_distance_km != null ? String(o.delivery_distance_km) : '0.00',
+          pricePerKmUsed: o.price_per_km_used != null ? String(o.price_per_km_used) : '0.00',
           rawItems: o.items || [],
           subTotal: subTotal,
           deliveryCharge: deliveryCharge,
           taxAmount: taxAmount,
+          totalAmount: orderValue,
           createdAt: o.created_at || null,
-          updatedAt: o.updated_at || null
+          updatedAt: o.updated_at || null,
+          cancelledAt: o.cancelled_at || null,
+          cancelReason: o.cancel_reason || null,
+          rawOrder: o
         };
       });
       setOrders(mappedOrders);

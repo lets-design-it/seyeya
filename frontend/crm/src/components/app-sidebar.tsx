@@ -19,6 +19,7 @@ import {
   Utensils,
   Shield,
   Settings as SettingsIcon,
+  BarChart3,
 } from "lucide-react"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -96,6 +97,19 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
       title: 'Menu',
       icon: Utensils,
       roles: ['admin', 'manager']
+    },
+    {
+      id: 'reports',
+      title: 'Reports',
+      icon: BarChart3,
+      roles: ['admin', 'manager', 'agent'],
+      items: [
+        { id: 'reports-executive', title: 'Executive Overview' },
+        { id: 'reports-staff', title: 'Staff Performance' },
+        { id: 'reports-guests', title: 'Guest 360 & Origins' },
+        { id: 'reports-channels', title: 'Sales Channels' },
+        { id: 'reports-vat', title: 'Financial & VAT' }
+      ]
     },
     {
       id: 'users',

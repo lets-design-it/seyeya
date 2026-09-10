@@ -1510,7 +1510,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           DRAWER: Add / Edit Room Category
           ------------------------------------------------------------- */}
       <Drawer open={isCategoryDrawerOpen} onOpenChange={setIsCategoryDrawerOpen} direction="right" modal={false}>
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
           <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4 bg-zinc-50/50 dark:bg-zinc-950/40">
             <DrawerTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50">
               {editCategoryItem ? 'Edit Room Category' : 'New Room Category'}
@@ -1924,7 +1924,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           DRAWER: Add / Edit Room Unit
           ------------------------------------------------------------- */}
       <Drawer open={isRoomDrawerOpen} onOpenChange={setIsRoomDrawerOpen} direction="right" modal={false}>
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
           <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4 bg-zinc-50/50 dark:bg-zinc-950/40">
             <DrawerTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50">
               {editRoomItem ? 'Edit Room Unit' : 'New Room Unit'}
@@ -2043,7 +2043,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           DRAWER: Add / Edit Reservation
           ------------------------------------------------------------- */}
       <Drawer open={isBookingDrawerOpen} onOpenChange={setIsBookingDrawerOpen} direction="right" modal={false}>
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg bg-card text-card-foreground dark:bg-zinc-900 border-zinc-200/50 dark:border-zinc-800">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl bg-card text-card-foreground dark:bg-zinc-900 border-zinc-200/50 dark:border-zinc-800">
           <DrawerHeader className="border-b border-zinc-200/50 dark:border-zinc-800 pb-4 bg-zinc-50/50 dark:bg-zinc-950/40">
             <DrawerTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50">
               {editBookingItem ? 'Edit Room Reservation' : 'New Room Reservation'}
@@ -2436,7 +2436,7 @@ export const Rooms: React.FC<RoomsProps> = ({
           DETAILS SLIDE-OVER DRAWER: Booking Details Summary
           ------------------------------------------------------------- */}
       <Drawer open={isDetailsOpen} onOpenChange={setIsDetailsOpen} direction="right" modal={false}>
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-md bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl bg-card text-card-foreground dark:bg-zinc-900 border-zinc-150 dark:border-zinc-800">
           {selectedBooking && (
             <div className="flex flex-col h-full font-sans bg-white dark:bg-zinc-900">
               <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4 flex justify-between items-center shrink-0 bg-zinc-50/50 dark:bg-zinc-950/40">
