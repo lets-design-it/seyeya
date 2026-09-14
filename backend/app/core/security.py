@@ -117,7 +117,7 @@ def check_permission(permission_key: str):
         
         # Resolve the db session dynamically to prevent dependency override issues inside dependencies
         db_gen = get_db()
-        db_session = await anext(db_gen)
+        db_session = await db_gen.__anext__()
         
         try:
             # Query the user
@@ -157,8 +157,8 @@ def check_permission(permission_key: str):
             return current_user
         finally:
             try:
-                await anext(db_gen)
-            except StopAsyncIteration:
+                await db_gen.__anext__()
+            except (StopAsyncIteration, Exception):
                 pass
                 
     return dependency
