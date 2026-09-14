@@ -617,12 +617,14 @@ class RestaurantOrderService:
             except Exception:
                 pass
             
-            tax_rate = vat_percent / Decimal("100.00")
-            tax = total * tax_rate
+            if vat_percent > 0:
+                tax = round(total * (vat_percent / (Decimal("100.00") + vat_percent)), 2)
+            else:
+                tax = Decimal(0)
             
             order.tax_amount = tax
-            order.sub_total = total
-            order.total_amount = total + charge + tax
+            order.sub_total = total - tax
+            order.total_amount = total + charge
             order.balance_due = order.total_amount - (order.amount_paid or Decimal(0))
         
         self.db.add(order)

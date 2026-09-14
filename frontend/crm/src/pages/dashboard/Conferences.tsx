@@ -55,6 +55,7 @@ import {
   CalendarRange,
   Plus,
   Building,
+  Building2,
   Sparkles,
   Ticket,
   Tag,
@@ -115,6 +116,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
   const [facilityFormCategory, setFacilityFormCategory] = useState('General Services');
   const [facilityFormDescription, setFacilityFormDescription] = useState('');
   const [facilityFormIcon, setFacilityFormIcon] = useState('Sparkles');
+  const [facilityFormPriceUGX, setFacilityFormPriceUGX] = useState<number | string>('');
   const [facilityFormIsActive, setFacilityFormIsActive] = useState(true);
 
   // Events Drawer & State
@@ -167,6 +169,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
   const [newHallHourly, setNewHallHourly] = useState<string>('');
   const [newHallHalfDay, setNewHallHalfDay] = useState<string>('');
   const [newHallFullDay, setNewHallFullDay] = useState<string>('');
+  const [newHallIncludesVat, setNewHallIncludesVat] = useState<boolean>(true);
   const [newHallDescription, setNewHallDescription] = useState('');
   const [newHallAmenities, setNewHallAmenities] = useState('');
 
@@ -177,18 +180,93 @@ export const Conferences: React.FC<ConferencesProps> = ({
   const [resEmail, setResEmail] = useState('');
   const [resHallId, setResHallId] = useState('');
   const [resEventName, setResEventName] = useState('');
+  const [resCompanyName, setResCompanyName] = useState('');
   const [resEventDate, setResEventDate] = useState(() => {
     const today = new Date();
     return today.toISOString().split('T')[0];
   });
   const [resStartTime, setResStartTime] = useState('08:00');
   const [resEndTime, setResEndTime] = useState('17:00');
-  const [resGuests, setResGuests] = useState<number>(100);
+  const [resGuests, setResGuests] = useState<number>(50);
   const [resBookingType, setResBookingType] = useState('FullDay');
   const [resSpecialRequests, setResSpecialRequests] = useState('');
   const [resSoundSystem, setResSoundSystem] = useState(false);
   const [resProjector, setResProjector] = useState(false);
   const [resCateringOption, setResCateringOption] = useState<'None' | 'Standard Breakfast' | 'Executive Full Day'>('None');
+  const [resIncludeTeaLunch, setResIncludeTeaLunch] = useState(true); // Water, Break Tea & Lunch: UGX 30,000 / person
+  const [resIncludeEveningTea, setResIncludeEveningTea] = useState(false); // Evening Tea: UGX 16,000 / person
+  const [resPaymentMethod, setResPaymentMethod] = useState<'cash' | 'contract_invoice' | 'bank_transfer' | 'card'>('contract_invoice');
+  const [resPaymentStatus, setResPaymentStatus] = useState<'Pending' | 'Paid' | 'PartiallyPaid'>('Pending');
+  const [resInitialPaid, setResInitialPaid] = useState<number>(0);
+
+  // Reservation Selected Facilities & Custom Prices State
+  const [resSelectedFacilityIds, setResSelectedFacilityIds] = useState<string[]>([]);
+  const [resFacilityPrices, setResFacilityPrices] = useState<Record<string, number>>({});
+
+  const handleFacilityPriceChange = (facId: string, price: number) => {
+    setResFacilityPrices(prev => ({
+      ...prev,
+      [facId]: price
+    }));
+  };
+
+  const toggleFacilitySelection = (facId: string, defaultPrice: number = 0) => {
+    setResSelectedFacilityIds(prev => {
+      if (prev.includes(facId)) {
+        return prev.filter(id => id !== facId);
+      } else {
+        if (resFacilityPrices[facId] === undefined) {
+          setResFacilityPrices(p => ({ ...p, [facId]: defaultPrice }));
+        }
+        return [...prev, facId];
+      }
+    });
+  };
+
+  const calculateLiveReservationTotal = () => {
+    const selectedHall = halls.find(h => String(h.id) === String(resHallId));
+    let hallPrice = 0;
+    if (selectedHall) {
+      if (resBookingType === 'Hourly') hallPrice = selectedHall.hourlyPriceUGX || selectedHall.basePriceUGX || 0;
+      else if (resBookingType === 'HalfDay') hallPrice = selectedHall.halfDayPriceUGX || selectedHall.basePriceUGX || 0;
+      else hallPrice = selectedHall.fullDayPriceUGX || selectedHall.basePriceUGX || 0;
+    }
+
+    const headcount = Number(resGuests) || 0;
+    const teaLunchCost = resIncludeTeaLunch ? 30000 * headcount : 0;
+    const eveningTeaCost = resIncludeEveningTea ? 16000 * headcount : 0;
+    const paSystemCost = resSoundSystem ? (resFacilityPrices['pa_system'] ?? 100000) : 0;
+    const projectorCost = resProjector ? (resFacilityPrices['projector'] ?? 150000) : 0;
+
+    let dynamicFacilitiesCost = 0;
+    const selectedFacilityBreakdown: { id: string; name: string; price: number }[] = [];
+
+    facilities.forEach(fac => {
+      const facIdStr = String(fac.id);
+      if (resSelectedFacilityIds.includes(facIdStr)) {
+        const priceVal = resFacilityPrices[facIdStr] !== undefined ? resFacilityPrices[facIdStr] : (fac.price || 100000);
+        dynamicFacilitiesCost += priceVal;
+        selectedFacilityBreakdown.push({ id: facIdStr, name: fac.name, price: priceVal });
+      }
+    });
+
+    const totalAmount = hallPrice + teaLunchCost + eveningTeaCost + paSystemCost + projectorCost + dynamicFacilitiesCost;
+    const vatAmount = Math.round(totalAmount * (18 / 118));
+    const netAmount = totalAmount - vatAmount;
+
+    return {
+      hallPrice,
+      teaLunchCost,
+      eveningTeaCost,
+      paSystemCost,
+      projectorCost,
+      dynamicFacilitiesCost,
+      selectedFacilityBreakdown,
+      netAmount,
+      vatAmount,
+      totalAmount
+    };
+  };
 
   // Selected Reservation detail drawer state
   const [selectedQuote, setSelectedQuote] = useState<ConferenceQuote | null>(null);
@@ -512,14 +590,19 @@ export const Conferences: React.FC<ConferencesProps> = ({
     if (!newHallName.trim() || !newHallCapacity) return;
 
     try {
+      const hourlyRateVal = Number(newHallHourly || 0);
+      const halfDayRateVal = Number(newHallHalfDay || 0);
+      const fullDayRateVal = Number(newHallFullDay || 0);
+
       await addConferenceHall({
         hall_name: newHallName.trim(),
         capacity: Number(newHallCapacity),
-        hourly_rate: Number(newHallHourly || 0),
-        half_day_rate: Number(newHallHalfDay || 0),
-        full_day_rate: Number(newHallFullDay || 0),
+        hourly_rate: newHallIncludesVat ? Math.round(hourlyRateVal * 1.18) : hourlyRateVal,
+        half_day_rate: newHallIncludesVat ? Math.round(halfDayRateVal * 1.18) : halfDayRateVal,
+        full_day_rate: newHallIncludesVat ? Math.round(fullDayRateVal * 1.18) : fullDayRateVal,
         description: newHallDescription.trim(),
-        amenities: newHallAmenities.trim()
+        amenities: newHallAmenities.trim(),
+        is_vat_inclusive: newHallIncludesVat
       });
 
       // Clear form
@@ -541,38 +624,64 @@ export const Conferences: React.FC<ConferencesProps> = ({
     if (!resHallId || !resEventName.trim() || !resEventDate) return;
 
     try {
+      const liveTotals = calculateLiveReservationTotal();
+      const facilitySummary = liveTotals.selectedFacilityBreakdown
+        .map(f => `${f.name} (UGX ${f.price.toLocaleString()})`)
+        .join(', ');
+
+      const extrasSummary = [
+        resCompanyName.trim() ? `Organisation/Company: ${resCompanyName.trim()}` : '',
+        `Billing Method: ${resPaymentMethod === 'contract_invoice' ? 'Organisation Contract-Invoice' : resPaymentMethod.toUpperCase()}`,
+        `Payment Status: ${resPaymentStatus}`,
+        resIncludeTeaLunch ? 'Water, Break Tea & Lunch (UGX 30k/head)' : '',
+        resIncludeEveningTea ? 'Evening Tea (UGX 16k/head)' : '',
+        resSoundSystem ? `Public Address PA System (UGX ${(resFacilityPrices['pa_system'] ?? 100000).toLocaleString()})` : '',
+        resProjector ? `Projector Hire (UGX ${(resFacilityPrices['projector'] ?? 150000).toLocaleString()})` : '',
+        facilitySummary ? `Facilities Included: ${facilitySummary}` : '',
+        resSpecialRequests.trim() ? `Notes: ${resSpecialRequests.trim()}` : ''
+      ].filter(Boolean).join(' | ');
+
+      const effectiveEventName = resCompanyName.trim()
+        ? `${resEventName.trim()} (${resCompanyName.trim()})`
+        : resEventName.trim();
+
       await createReservation({
         customer_id: resCustomerId !== 'new' ? Number(resCustomerId) : undefined,
         clientName: resClientName.trim() || undefined,
         email: resEmail.trim() || undefined,
         hall_id: Number(resHallId),
-        event_name: resEventName.trim(),
+        event_name: effectiveEventName,
         event_date: resEventDate,
         start_time: resStartTime,
         end_time: resEndTime,
         num_participants: resGuests,
         booking_type: resBookingType,
-        special_requests: resSpecialRequests.trim(),
+        special_requests: extrasSummary,
         soundSystem: resSoundSystem,
         projector: resProjector,
-        cateringOption: resCateringOption
+        cateringOption: resIncludeTeaLunch ? 'Executive Full Day' : (resIncludeEveningTea ? 'Standard Breakfast' : 'None')
       });
 
       // Clear form
       setResCustomerId('new');
       setResClientName('');
       setResEmail('');
+      setResCompanyName('');
       setResHallId('');
       setResEventName('');
       setResEventDate(new Date().toISOString().split('T')[0]);
       setResStartTime('08:00');
       setResEndTime('17:00');
-      setResGuests(100);
+      setResGuests(50);
       setResBookingType('FullDay');
       setResSpecialRequests('');
       setResSoundSystem(false);
       setResProjector(false);
-      setResCateringOption('None');
+      setResIncludeTeaLunch(true);
+      setResIncludeEveningTea(false);
+      setResPaymentMethod('contract_invoice');
+      setResPaymentStatus('Pending');
+      setResInitialPaid(0);
       setIsResDrawerOpen(false);
     } catch (err) {
       console.error(err);
@@ -666,6 +775,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
     setFacilityFormCategory('General Services');
     setFacilityFormDescription('');
     setFacilityFormIcon('Sparkles');
+    setFacilityFormPriceUGX('');
     setFacilityFormIsActive(true);
     setIsFacilityDrawerOpen(true);
   };
@@ -676,6 +786,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
     setFacilityFormCategory(fac.category);
     setFacilityFormDescription(fac.description || '');
     setFacilityFormIcon(fac.icon_name || 'Sparkles');
+    setFacilityFormPriceUGX(fac.price || '');
     setFacilityFormIsActive(fac.is_active);
     setIsFacilityDrawerOpen(true);
   };
@@ -689,6 +800,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
       category: facilityFormCategory,
       description: facilityFormDescription.trim(),
       icon_name: facilityFormIcon,
+      price: Number(facilityFormPriceUGX || 0),
       is_active: facilityFormIsActive
     };
 
@@ -903,9 +1015,16 @@ export const Conferences: React.FC<ConferencesProps> = ({
                             <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-50 tracking-tight leading-snug">
                               {fac.name}
                             </h4>
-                            <Badge variant="outline" className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 mt-1">
-                              {fac.category}
-                            </Badge>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800">
+                                {fac.category}
+                              </Badge>
+                              {fac.price ? (
+                                <span className="text-xs font-extrabold text-amber-600 dark:text-amber-400">
+                                  UGX {fac.price.toLocaleString()}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
                         </div>
 
@@ -1615,6 +1734,54 @@ export const Conferences: React.FC<ConferencesProps> = ({
                 </div>
               </div>
 
+              <div className="pt-0.5">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  <input
+                    type="checkbox"
+                    checked={newHallIncludesVat}
+                    onChange={(e) => setNewHallIncludesVat(e.target.checked)}
+                    className="rounded border-zinc-300 dark:border-zinc-700 accent-[#D4AF37] h-4 w-4 cursor-pointer"
+                  />
+                  <span>Add VAT (18%)</span>
+                </label>
+                {(Number(newHallFullDay) > 0 || Number(newHallHalfDay) > 0 || Number(newHallHourly) > 0) && (
+                  <div className="mt-1.5 text-xs font-semibold">
+                    {newHallIncludesVat ? (
+                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex flex-col gap-1.5">
+                        {Number(newHallHourly) > 0 && (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">Hourly (Base UGX {Number(newHallHourly).toLocaleString()} + 18% VAT):</span>
+                            <span className="font-extrabold text-foreground dark:text-zinc-50 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded-lg border border-amber-500/30">
+                              New Total: UGX {Math.round(Number(newHallHourly) * 1.18).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {Number(newHallHalfDay) > 0 && (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">Half Day (Base UGX {Number(newHallHalfDay).toLocaleString()} + 18% VAT):</span>
+                            <span className="font-extrabold text-foreground dark:text-zinc-50 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded-lg border border-amber-500/30">
+                              New Total: UGX {Math.round(Number(newHallHalfDay) * 1.18).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {Number(newHallFullDay) > 0 && (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] text-zinc-500 dark:text-zinc-400">Full Day (Base UGX {Number(newHallFullDay).toLocaleString()} + 18% VAT):</span>
+                            <span className="font-extrabold text-foreground dark:text-zinc-50 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded-lg border border-amber-500/30">
+                              New Total: UGX {Math.round(Number(newHallFullDay) * 1.18).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-zinc-500 dark:text-zinc-400 pl-1">
+                        New Total Rates <span className="text-[11px] font-normal">(No VAT added)</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5">Facilities (comma-separated)</label>
                 <input
@@ -1666,241 +1833,467 @@ export const Conferences: React.FC<ConferencesProps> = ({
           <div
             onClick={() => setIsResDrawerOpen(false)}
             className="fixed inset-0 z-50 bg-zinc-950/25 dark:bg-zinc-950/50 backdrop-blur-xs transition-opacity duration-300"
+            className="fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-md transition-opacity duration-300"
           />
 
-          {/* Slide-out Drawer */}
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-card text-card-foreground dark:bg-zinc-900 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-150 dark:border-zinc-800 animate-slide-in">
+          {/* Wide Slide-out Drawer */}
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl md:max-w-3xl lg:max-w-4xl bg-card text-card-foreground dark:bg-zinc-900 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-200 dark:border-zinc-800 animate-slide-in">
             {/* Header */}
-            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/40">
+            <div className="p-6 border-b border-zinc-150 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/70 dark:bg-zinc-950/60">
               <div>
-                <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">Book Conference / Event</h4>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold mt-1">Reserve a venue hall and configure custom technical/seating requirements.</p>
+                <h4 className="text-base font-extrabold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-[#D4AF37]" />
+                  Book Venue Hall & Conference Reservation
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mt-1">
+                  Configure hall rental, participant headcount, catering packages, technical hire, and contract-invoice billing.
+                </p>
               </div>
               <button
                 onClick={() => setIsResDrawerOpen(false)}
-                className="text-zinc-455 hover:bg-zinc-100 dark:hover:bg-zinc-800 p-2 rounded-xl transition-colors cursor-pointer"
+                className="text-zinc-450 hover:bg-zinc-200 dark:hover:bg-zinc-800 p-2 rounded-xl transition-colors cursor-pointer"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Scrollable Form Body */}
-            <form onSubmit={handleAddReservationSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 bg-white dark:bg-zinc-900">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Client Profile *</label>
-                <select
-                  value={resCustomerId}
-                  onChange={(e) => {
-                    setResCustomerId(e.target.value);
-                    if (e.target.value !== 'new') {
-                      const selected = customers.find(c => String(c.customer_id) === e.target.value);
-                      if (selected) {
-                        setResClientName(selected.full_name);
-                        setResEmail(selected.email || '');
-                      }
-                    } else {
-                      setResClientName('');
-                      setResEmail('');
-                    }
-                  }}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
-                >
-                  <option value="new" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Create New Client Profile</option>
-                  {customers.map(c => (
-                    <option key={c.customer_id} value={String(c.customer_id)} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">
-                      {c.full_name} ({c.email || 'No email'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {resCustomerId === 'new' && (
-                <div className="grid grid-cols-2 gap-3.5 animate-fade-in">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Contact Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Sarah Jenkins"
-                      value={resClientName}
-                      onChange={(e) => setResClientName(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Email Address *</label>
-                    <input
-                      type="email"
-                      required
-                      placeholder="sarah@apex.com"
-                      value={resEmail}
-                      onChange={(e) => setResEmail(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Venue Hall *</label>
-                <select
-                  required
-                  value={resHallId}
-                  onChange={(e) => setResHallId(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
-                >
-                  <option value="" disabled className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Select Venue...</option>
-                  {halls.map(h => (
-                    <option key={h.id} value={h.id} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">
-                      {h.name} (Max: {h.capacity} guests)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Event / Company Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Apex Corp AGM"
-                    value={resEventName}
-                    onChange={(e) => setResEventName(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Event Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={resEventDate}
-                    onChange={(e) => setResEventDate(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Start Time *</label>
-                  <input
-                    type="time"
-                    required
-                    value={resStartTime}
-                    onChange={(e) => setResStartTime(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">End Time *</label>
-                  <input
-                    type="time"
-                    required
-                    value={resEndTime}
-                    onChange={(e) => setResEndTime(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Guests Headcount *</label>
-                  <input
-                    type="number"
-                    min={1}
-                    required
-                    value={resGuests}
-                    onChange={(e) => setResGuests(Number(e.target.value))}
-                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Booking Type *</label>
-                  <select
-                    required
-                    value={resBookingType}
-                    onChange={(e) => setResBookingType(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
-                  >
-                    <option value="Hourly" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Hourly Rate</option>
-                    <option value="HalfDay" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Half Day Rate</option>
-                    <option value="FullDay" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Full Day Rate</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Catering Option</label>
-                <select
-                  value={resCateringOption}
-                  onChange={(e) => setResCateringOption(e.target.value as any)}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
-                >
-                  <option value="None" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">No Catering (Space only)</option>
-                  <option value="Standard Breakfast" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Breakfast Buffet (UGX 25k/head)</option>
-                  <option value="Executive Full Day" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Full Day Executive Catering (UGX 55k/head)</option>
-                </select>
-              </div>
-
-              <div className="space-y-2.5">
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Facilities & Event Inclusions</label>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {facilities.map((fac) => {
-                    const isSelected = selectedFacilityNames.includes(fac.name);
-                    const FacIcon = getFacilityIconComponent(fac.icon_name, fac.name, fac.category);
-                    return (
-                      <button
-                        key={fac.id}
-                        type="button"
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedFacilityNames(prev => prev.filter(n => n !== fac.name));
+            <form onSubmit={handleAddReservationSubmit} className="flex-1 overflow-y-auto p-6 bg-white dark:bg-zinc-900 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* LEFT COLUMN: Client, Venue & Timing */}
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-zinc-50/50 dark:bg-zinc-955/30 border border-zinc-200 dark:border-zinc-800/80 space-y-3.5">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-[#D4AF37] flex items-center gap-1.5">
+                      Client & Organisation Profile
+                    </h5>
+                    
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Select Client Profile *</label>
+                      <select
+                        value={resCustomerId}
+                        onChange={(e) => {
+                          setResCustomerId(e.target.value);
+                          if (e.target.value !== 'new') {
+                            const selected = customers.find(c => String(c.customer_id) === e.target.value);
+                            if (selected) {
+                              setResClientName(selected.full_name);
+                              setResEmail(selected.email || '');
+                            }
                           } else {
-                            setSelectedFacilityNames(prev => [...prev, fac.name]);
+                            setResClientName('');
+                            setResEmail('');
                           }
                         }}
-                        className={`rounded-xl border p-2.5 text-left flex items-center justify-between transition-all cursor-pointer ${isSelected
-                            ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-bold shadow-xs'
-                            : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
-                          }`}
+                        className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
                       >
-                        <span className="text-xs font-semibold truncate mr-1">{fac.name}</span>
-                        <FacIcon className="h-4 w-4 shrink-0" />
-                      </button>
-                    );
-                  })}
+                        <option value="new" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">+ Create New Client Profile</option>
+                        {customers.map(c => (
+                          <option key={c.customer_id} value={String(c.customer_id)} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">
+                            {c.full_name} ({c.email || 'No email'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {resCustomerId === 'new' && (
+                      <div className="grid grid-cols-2 gap-3 animate-fade-in">
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Contact Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Sarah Jenkins"
+                            value={resClientName}
+                            onChange={(e) => setResClientName(e.target.value)}
+                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Email Address *</label>
+                          <input
+                            type="email"
+                            required
+                            placeholder="sarah@apex.com"
+                            value={resEmail}
+                            onChange={(e) => setResEmail(e.target.value)}
+                            className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Company / Organisation Name</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Apex Group Ltd / Ministry of Health"
+                        value={resCompanyName}
+                        onChange={(e) => setResCompanyName(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-zinc-50/50 dark:bg-zinc-955/30 border border-zinc-200 dark:border-zinc-800/80 space-y-3.5">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-[#D4AF37] flex items-center gap-1.5">
+                      Venue & Event Schedule
+                    </h5>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Select Venue Hall *</label>
+                      <select
+                        required
+                        value={resHallId}
+                        onChange={(e) => setResHallId(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
+                      >
+                        <option value="" disabled className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Select Venue...</option>
+                        {halls.map(h => (
+                          <option key={h.id} value={h.id} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">
+                            {h.name} (Max: {h.capacity} guests • Full Day: UGX {h.fullDayPriceUGX?.toLocaleString() || h.basePriceUGX?.toLocaleString()})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Event Title / Purpose *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Annual General Meeting"
+                          value={resEventName}
+                          onChange={(e) => setResEventName(e.target.value)}
+                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Booking Type *</label>
+                        <select
+                          required
+                          value={resBookingType}
+                          onChange={(e) => setResBookingType(e.target.value)}
+                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
+                        >
+                          <option value="FullDay" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Full Day Rate</option>
+                          <option value="HalfDay" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Half Day Rate</option>
+                          <option value="Hourly" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Hourly Rate</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Event Date *</label>
+                        <input
+                          type="date"
+                          required
+                          value={resEventDate}
+                          onChange={(e) => setResEventDate(e.target.value)}
+                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Start Time *</label>
+                        <input
+                          type="time"
+                          required
+                          value={resStartTime}
+                          onChange={(e) => setResStartTime(e.target.value)}
+                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">End Time *</label>
+                        <input
+                          type="time"
+                          required
+                          value={resEndTime}
+                          onChange={(e) => setResEndTime(e.target.value)}
+                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN: Headcount, Catering, Equipment & Billing */}
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl bg-zinc-50/50 dark:bg-zinc-955/30 border border-zinc-200 dark:border-zinc-800/80 space-y-3.5">
+                    <h5 className="text-xs font-bold uppercase tracking-wider text-[#D4AF37] flex items-center gap-1.5">
+                      Headcount & Catering Package Add-ons
+                    </h5>
+
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Participants Headcount (Number of People) *</label>
+                      <input
+                        type="number"
+                        min={1}
+                        required
+                        value={resGuests}
+                        onChange={(e) => setResGuests(Number(e.target.value))}
+                        className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
+                      />
+                    </div>
+
+                    <div className="space-y-2 pt-1">
+                      <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-zinc-800 dark:text-zinc-200 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={resIncludeTeaLunch}
+                          onChange={(e) => setResIncludeTeaLunch(e.target.checked)}
+                          className="rounded border-zinc-300 dark:border-zinc-700 accent-[#D4AF37] h-4 w-4 cursor-pointer"
+                        />
+                        <div className="flex-1 flex justify-between items-center">
+                          <span>Water, Break Tea & Lunch</span>
+                          <span className="font-bold text-amber-600 dark:text-amber-400">UGX 30,000 / head</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-zinc-800 dark:text-zinc-200 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={resIncludeEveningTea}
+                          onChange={(e) => setResIncludeEveningTea(e.target.checked)}
+                          className="rounded border-zinc-300 dark:border-zinc-700 accent-[#D4AF37] h-4 w-4 cursor-pointer"
+                        />
+                        <div className="flex-1 flex justify-between items-center">
+                          <span>Evening Tea</span>
+                          <span className="font-bold text-amber-600 dark:text-amber-400">UGX 16,000 / head</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-zinc-50/50 dark:bg-zinc-955/30 border border-zinc-200 dark:border-zinc-800/80 space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-xs font-bold uppercase tracking-wider text-[#D4AF37] flex items-center gap-1.5">
+                        <Sparkles className="h-4 w-4" />
+                        Conference Facilities & Equipment (Price Input)
+                      </h5>
+                      <span className="text-[10px] text-zinc-450 dark:text-zinc-500 font-medium">Set price per selected facility</span>
+                    </div>
+
+                    {/* Standard Equipment Preset Overlays */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className={`p-3 rounded-xl border transition-all ${resSoundSystem ? 'border-[#D4AF37] bg-amber-500/5 dark:bg-amber-550/10' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-zinc-900 dark:text-zinc-100 flex-1">
+                            <input
+                              type="checkbox"
+                              checked={resSoundSystem}
+                              onChange={(e) => setResSoundSystem(e.target.checked)}
+                              className="rounded border-zinc-300 dark:border-zinc-700 accent-[#D4AF37] h-4 w-4 cursor-pointer"
+                            />
+                            <Volume2 className="h-4 w-4 text-amber-500 shrink-0" />
+                            <span className="truncate">Public Address (PA)</span>
+                          </label>
+                          <div className="flex items-center gap-1 w-28 shrink-0">
+                            <span className="text-[10px] font-bold text-zinc-450">UGX</span>
+                            <input
+                              type="number"
+                              min={0}
+                              disabled={!resSoundSystem}
+                              value={resFacilityPrices['pa_system'] ?? 100000}
+                              onChange={(e) => handleFacilityPriceChange('pa_system', Number(e.target.value))}
+                              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-xs font-bold text-zinc-900 dark:text-zinc-50 disabled:opacity-40 focus:border-[#D4AF37]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`p-3 rounded-xl border transition-all ${resProjector ? 'border-[#D4AF37] bg-amber-500/5 dark:bg-amber-550/10' : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-zinc-900 dark:text-zinc-100 flex-1">
+                            <input
+                              type="checkbox"
+                              checked={resProjector}
+                              onChange={(e) => setResProjector(e.target.checked)}
+                              className="rounded border-zinc-300 dark:border-zinc-700 accent-[#D4AF37] h-4 w-4 cursor-pointer"
+                            />
+                            <Video className="h-4 w-4 text-indigo-500 shrink-0" />
+                            <span className="truncate">HD Projector Hire</span>
+                          </label>
+                          <div className="flex items-center gap-1 w-28 shrink-0">
+                            <span className="text-[10px] font-bold text-zinc-450">UGX</span>
+                            <input
+                              type="number"
+                              min={0}
+                              disabled={!resProjector}
+                              value={resFacilityPrices['projector'] ?? 150000}
+                              onChange={(e) => handleFacilityPriceChange('projector', Number(e.target.value))}
+                              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-xs font-bold text-zinc-900 dark:text-zinc-50 disabled:opacity-40 focus:border-[#D4AF37]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Catalog Facilities Selection List */}
+                    {facilities.length > 0 && (
+                      <div className="space-y-2 pt-2 border-t border-zinc-150 dark:border-zinc-800/80">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-450 dark:text-zinc-500 block mb-1">
+                          Select Additional Conference Facilities
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {facilities.map((fac) => {
+                            const facIdStr = String(fac.id);
+                            const isSelected = resSelectedFacilityIds.includes(facIdStr);
+                            const currentPrice = resFacilityPrices[facIdStr] !== undefined ? resFacilityPrices[facIdStr] : (fac.price || 100000);
+                            const FacIcon = getFacilityIconComponent(fac.icon_name, fac.name, fac.category);
+
+                            return (
+                              <div
+                                key={fac.id}
+                                className={`p-3 rounded-xl border transition-all ${
+                                  isSelected
+                                    ? 'border-[#D4AF37] bg-amber-500/5 dark:bg-amber-550/10 shadow-xs'
+                                    : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-zinc-900 dark:text-zinc-100 flex-1 min-w-0">
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={() => toggleFacilitySelection(facIdStr, fac.price || 100000)}
+                                      className="rounded border-zinc-300 dark:border-zinc-700 accent-[#D4AF37] h-4 w-4 cursor-pointer shrink-0"
+                                    />
+                                    <FacIcon className="h-4 w-4 text-[#D4AF37] shrink-0" />
+                                    <div className="truncate">
+                                      <div className="truncate font-bold">{fac.name}</div>
+                                      <div className="text-[9px] font-normal text-zinc-450 dark:text-zinc-500 truncate">{fac.category}</div>
+                                    </div>
+                                  </label>
+
+                                  <div className="flex items-center gap-1 w-28 shrink-0">
+                                    <span className="text-[10px] font-bold text-zinc-450">UGX</span>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      disabled={!isSelected}
+                                      value={currentPrice}
+                                      onChange={(e) => handleFacilityPriceChange(facIdStr, Number(e.target.value))}
+                                      className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-xs font-bold text-zinc-900 dark:text-zinc-50 disabled:opacity-40 focus:border-[#D4AF37]"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Payment Method *</label>
+                        <select
+                          value={resPaymentMethod}
+                          onChange={(e) => setResPaymentMethod(e.target.value as any)}
+                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
+                        >
+                          <option value="contract_invoice" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Organisation Contract-Invoice</option>
+                          <option value="cash" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Cash / Self Payment</option>
+                          <option value="bank_transfer" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Bank Transfer</option>
+                          <option value="card" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Card</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Payment Status *</label>
+                        <select
+                          value={resPaymentStatus}
+                          onChange={(e) => setResPaymentStatus(e.target.value as any)}
+                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold cursor-pointer"
+                        >
+                          <option value="Pending" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Pending Invoice</option>
+                          <option value="Paid" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Paid Full</option>
+                          <option value="PartiallyPaid" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Partially Paid</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              {/* LIVE PRICING CALCULATION SUMMARY CARD */}
+              {(() => {
+                const totals = calculateLiveReservationTotal();
+                return (
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 dark:bg-amber-955/20 text-amber-600 dark:text-amber-400 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Live Package Price Breakdown</span>
+                      <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Headcount: {resGuests} people</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 pt-1">
+                      <div>Hall Rental: <span className="font-bold text-foreground dark:text-zinc-100">UGX {totals.hallPrice.toLocaleString()}</span></div>
+                      {totals.teaLunchCost > 0 && (
+                        <div>Tea & Lunch: <span className="font-bold text-foreground dark:text-zinc-100">UGX {totals.teaLunchCost.toLocaleString()}</span></div>
+                      )}
+                      {totals.eveningTeaCost > 0 && (
+                        <div>Evening Tea: <span className="font-bold text-foreground dark:text-zinc-100">UGX {totals.eveningTeaCost.toLocaleString()}</span></div>
+                      )}
+                      {totals.paSystemCost > 0 && (
+                        <div>PA System: <span className="font-bold text-foreground dark:text-zinc-100">UGX {totals.paSystemCost.toLocaleString()}</span></div>
+                      )}
+                      {totals.projectorCost > 0 && (
+                        <div>Projector: <span className="font-bold text-foreground dark:text-zinc-100">UGX {totals.projectorCost.toLocaleString()}</span></div>
+                      )}
+                      {totals.selectedFacilityBreakdown.map(f => (
+                        <div key={f.id}>{f.name}: <span className="font-bold text-foreground dark:text-zinc-100">UGX {f.price.toLocaleString()}</span></div>
+                      ))}
+                    </div>
+
+                    <div className="pt-2 border-t border-amber-500/20 flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs">
+                        <span className="text-zinc-500 dark:text-zinc-400">Net Excl. VAT: </span>
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">UGX {totals.netAmount.toLocaleString()}</span>
+                        <span className="mx-2 text-zinc-400">•</span>
+                        <span className="text-zinc-500 dark:text-zinc-400">VAT (18%): </span>
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">UGX {totals.vatAmount.toLocaleString()}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 block">Total Base Price</span>
+                        <span className="text-lg font-extrabold text-[#D4AF37] dark:text-amber-400">
+                          UGX {totals.totalAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Special Notes & Drawer Footer */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Special Requests</label>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Special Seating / Contract Notes</label>
                 <textarea
-                  placeholder="Extra seating layout details, dietary restrictions, etc..."
-                  rows={3}
+                  placeholder="Extra seating layout details, contract references, dietary specifications..."
+                  rows={2}
                   value={resSpecialRequests}
                   onChange={(e) => setResSpecialRequests(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 leading-normal font-medium resize-none"
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-xs text-foreground dark:text-zinc-100 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 leading-normal font-medium resize-none"
                 />
               </div>
 
               {/* Drawer Footer Buttons */}
-              <div className="pt-6 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-3 bg-white dark:bg-zinc-900">
+              <div className="pt-4 border-t border-zinc-150 dark:border-zinc-800 flex items-center justify-end gap-3 bg-white dark:bg-zinc-900">
                 <ShadcnButton
                   type="button"
                   onClick={() => setIsResDrawerOpen(false)}
                   variant="outline"
-                  className="rounded-xl px-4.5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-350 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 cursor-pointer h-10"
+                  className="rounded-xl px-5 text-xs font-bold border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 h-11 cursor-pointer"
                 >
                   Cancel
                 </ShadcnButton>
                 <ShadcnButton
                   type="submit"
-                  className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+                  className="rounded-xl px-6 text-xs font-extrabold bg-[#C5A880] hover:bg-[#b3976f] text-[#0A192F] h-11 cursor-pointer shadow-md transition-all"
                 >
-                  Confirm Booking
+                  Book Venue & Submit Invoice
                 </ShadcnButton>
               </div>
             </form>
@@ -1915,11 +2308,11 @@ export const Conferences: React.FC<ConferencesProps> = ({
           {/* Backdrop */}
           <div
             onClick={() => setSelectedQuote(null)}
-            className="fixed inset-0 z-50 bg-zinc-950/25 dark:bg-zinc-950/50 backdrop-blur-xs transition-opacity duration-300"
+            className="fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-md transition-opacity duration-300"
           />
 
           {/* Slide-out Drawer */}
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-card text-card-foreground dark:bg-zinc-900 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-150 dark:border-zinc-800 animate-slide-in">
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl md:max-w-3xl lg:max-w-4xl bg-card text-card-foreground dark:bg-zinc-900 shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out border-l border-zinc-200 dark:border-zinc-800 animate-slide-in">
             {/* Header */}
             <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950/40">
               <div>
@@ -2334,6 +2727,20 @@ export const Conferences: React.FC<ConferencesProps> = ({
                   <option value="Connectivity" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">Connectivity</option>
                   <option value="General Services" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">General Services</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Preset / Standard Price (UGX)
+                </label>
+                <ShadcnInput
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 100000"
+                  value={facilityFormPriceUGX}
+                  onChange={(e) => setFacilityFormPriceUGX(e.target.value)}
+                  className="w-full rounded-xl border-zinc-200 dark:border-zinc-800 text-xs h-10 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                />
               </div>
 
               <div>

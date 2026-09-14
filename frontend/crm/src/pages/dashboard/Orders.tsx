@@ -12,7 +12,12 @@ import {
   CheckSquare,
   Plus,
   X,
-  DollarSign
+  DollarSign,
+  ArrowUpDown,
+  ArrowDown,
+  ArrowUp,
+  Search,
+  Filter
 } from 'lucide-react';
 
 const COLUMNS: RestaurantOrder['status'][] = ['Pending', 'Preparing', 'Ready'];
@@ -40,6 +45,19 @@ export const Orders: React.FC<OrdersProps> = ({
   // Dynamic age evaluation states
   const [now, setNow] = useState(new Date());
   const [archiveSearch, setArchiveSearch] = useState('');
+
+  // Active orders search & sort states (defaults to Most Recent First)
+  const [activeSearch, setActiveSearch] = useState('');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+
+  const getOrderTimestamp = (o: RestaurantOrder): number => {
+    if (o.createdAt) {
+      const time = new Date(o.createdAt).getTime();
+      if (!isNaN(time)) return time;
+    }
+    if (o.orderId) return o.orderId;
+    return 0;
+  };
 
   const [localActiveTab, localSetActiveTab] = useState<'active' | 'history'>('active');
   const activeTab = propActiveTab || localActiveTab;
@@ -92,7 +110,39 @@ export const Orders: React.FC<OrdersProps> = ({
   const [editStatus, setEditStatus] = useState<RestaurantOrder['status']>('Pending');
   const [editPaymentStatus, setEditPaymentStatus] = useState('Pending');
   const [editAmountPaid, setEditAmountPaid] = useState<number>(0);
+  const [addBalanceAmount, setAddBalanceAmount] = useState<number | string>('');
   const [editError, setEditError] = useState<string | null>(null);
+
+  const handleAddBalanceChange = (valStr: string) => {
+    setAddBalanceAmount(valStr);
+    if (!selectedOrder) return;
+    const total = selectedOrder.totalAmount ?? selectedOrder.value ?? 0;
+    const currentPaid = Number(selectedOrder.amountPaid || 0);
+    const added = Number(valStr) || 0;
+    const updatedPaid = currentPaid + added;
+
+    setEditAmountPaid(updatedPaid);
+
+    const balanceRemaining = total - updatedPaid;
+    if (balanceRemaining <= 0.01 && updatedPaid > 0) {
+      setEditPaymentStatus('Paid');
+    } else if (updatedPaid > 0 && balanceRemaining > 0.01) {
+      setEditPaymentStatus('Partially Paid');
+    } else {
+      setEditPaymentStatus('Pending');
+    }
+  };
+
+  const handleSettleFullBalance = () => {
+    if (!selectedOrder) return;
+    const total = selectedOrder.totalAmount ?? selectedOrder.value ?? 0;
+    const currentPaid = Number(selectedOrder.amountPaid || 0);
+    const remaining = Math.max(0, total - currentPaid);
+
+    setAddBalanceAmount(remaining.toFixed(2));
+    setEditAmountPaid(total);
+    setEditPaymentStatus('Paid');
+  };
 
   const getStatusColor = (status: RestaurantOrder['status']) => {
     switch (status) {
@@ -185,10 +235,21 @@ export const Orders: React.FC<OrdersProps> = ({
     setEditError(null);
 
     try {
+      const total = selectedOrder.totalAmount ?? selectedOrder.value ?? 0;
+      const finalPaid = Number(editAmountPaid);
+      const remaining = Math.max(0, total - finalPaid);
+
+      let finalStatus = editPaymentStatus;
+      if (remaining <= 0.01 && finalPaid > 0) {
+        finalStatus = 'Paid';
+      } else if (finalPaid > 0 && remaining > 0.01) {
+        finalStatus = 'Partially Paid';
+      }
+
       await updateRestaurantOrder(selectedOrder.id, {
         order_status: editStatus,
-        payment_status: editPaymentStatus,
-        amount_paid: Number(editAmountPaid)
+        payment_status: finalStatus,
+        amount_paid: finalPaid
       });
       setSelectedOrder(null);
     } catch (err: any) {
@@ -201,6 +262,7 @@ export const Orders: React.FC<OrdersProps> = ({
     setEditStatus(order.status);
     setEditPaymentStatus(order.paymentStatus);
     setEditAmountPaid(order.amountPaid);
+    setAddBalanceAmount('');
     setEditError(null);
   };
 
@@ -233,15 +295,87 @@ export const Orders: React.FC<OrdersProps> = ({
         </div>
       </div>
 
+      {/* Active Orders Toolbar (Filter & Sort Controls) */}
+      {activeTab === 'active' && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-50 dark:bg-zinc-900/40 p-3 rounded-2xl border border-zinc-150/40 dark:border-zinc-800">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Filter active tickets by table, order #, or item..."
+              value={activeSearch}
+              onChange={(e) => setActiveSearch(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 text-xs bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-foreground placeholder:text-zinc-400"
+            />
+            {activeSearch && (
+              <button
+                type="button"
+                onClick={() => setActiveSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-foreground cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+              <ArrowUpDown className="h-3.5 w-3.5 text-[#D4AF37]" />
+              Sort Active Orders:
+            </span>
+            <div className="flex items-center bg-white dark:bg-zinc-950 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setSortOrder('newest')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  sortOrder === 'newest'
+                    ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                }`}
+              >
+                <ArrowDown className="h-3 w-3" />
+                Most Recent First
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortOrder('oldest')}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  sortOrder === 'oldest'
+                    ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                }`}
+              >
+                <ArrowUp className="h-3 w-3" />
+                Oldest First
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Kanban Board columns */}
       {activeTab === 'active' && (
         <div className="flex-1 pb-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full h-full items-start">
           {COLUMNS.map((col) => {
-            const columnOrders = orders.filter(o => {
-              if (o.status !== col || !o.rawItems || o.rawItems.length === 0) return false;
-              return true;
-            });
+            const columnOrders = orders
+              .filter(o => {
+                if (o.status !== col || !o.rawItems || o.rawItems.length === 0) return false;
+                if (activeSearch) {
+                  const term = activeSearch.toLowerCase();
+                  return (
+                    o.orderNumber.toLowerCase().includes(term) ||
+                    o.table.toLowerCase().includes(term) ||
+                    o.items.toLowerCase().includes(term)
+                  );
+                }
+                return true;
+              })
+              .sort((a, b) => {
+                const timeA = getOrderTimestamp(a);
+                const timeB = getOrderTimestamp(b);
+                return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
+              });
             return (
               <div
                 key={col}
@@ -529,15 +663,15 @@ export const Orders: React.FC<OrdersProps> = ({
                  <div className="pt-4 border-t border-zinc-100/60 dark:border-zinc-800 flex items-center justify-between">
                   <div className="space-y-1">
                     {(() => {
-                      const cartSubTotal = cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
-                      const cartTax = Math.round(cartSubTotal * (vatRate / 100));
-                      const cartEstTotal = cartSubTotal + cartTax;
+                      const cartEstTotal = cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
+                      const cartTax = vatRate > 0 ? Math.round(cartEstTotal * (vatRate / (100 + vatRate))) : 0;
+                      const cartSubTotal = cartEstTotal - cartTax;
                       return (
                         <>
                           <div className="flex gap-4 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
-                            <div>Subtotal: <span className="text-zinc-600 dark:text-zinc-300">UGX {cartSubTotal.toLocaleString()}</span></div>
+                            <div>Subtotal (Net): <span className="text-zinc-600 dark:text-zinc-300">UGX {cartSubTotal.toLocaleString()}</span></div>
                             {vatRate > 0 && (
-                              <div>VAT ({vatRate}%): <span className="text-zinc-600 dark:text-zinc-300">UGX {cartTax.toLocaleString()}</span></div>
+                              <div>VAT ({vatRate}% incl.): <span className="text-zinc-600 dark:text-zinc-300">UGX {cartTax.toLocaleString()}</span></div>
                             )}
                           </div>
                           <p className="text-xs font-bold text-violet-550 dark:text-violet-400">
@@ -776,12 +910,14 @@ export const Orders: React.FC<OrdersProps> = ({
                   <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-2">Order Items ({selectedOrder.rawItems?.length || 0})</span>
                   <div className="border border-zinc-150/70 dark:border-zinc-800 rounded-2xl p-3.5 bg-zinc-50/20 dark:bg-zinc-955/10">
                     {(() => {
-                      const calculatedSubTotal = selectedOrder.subTotal ?? selectedOrder.rawItems.reduce((acc: number, it: any) => acc + Number(it.total_price || 0), 0);
-                      const calculatedTax = selectedOrder.taxAmount ?? Math.round(calculatedSubTotal * (vatRate / 100));
                       const deliveryFee = selectedOrder.deliveryCharge ?? 0;
-                      const calculatedTotal = selectedOrder.totalAmount ?? (calculatedSubTotal + deliveryFee + calculatedTax);
+                      const rawItemsTotal = selectedOrder.rawItems ? selectedOrder.rawItems.reduce((acc: number, it: any) => acc + Number(it.total_price || 0), 0) : 0;
+                      const calculatedTotal = rawItemsTotal + deliveryFee;
+                      const itemsTotal = rawItemsTotal;
+                      const calculatedTax = vatRate > 0 ? Math.round(itemsTotal * (vatRate / (100 + vatRate))) : 0;
+                      const calculatedSubTotal = Math.max(0, itemsTotal - calculatedTax);
                       const amountPaidVal = selectedOrder.amountPaid ?? 0;
-                      const balanceDueVal = selectedOrder.balanceDue ?? Math.max(0, calculatedTotal - amountPaidVal);
+                      const balanceDueVal = Math.max(0, calculatedTotal - amountPaidVal);
 
                       return (
                         <>
@@ -931,18 +1067,64 @@ export const Orders: React.FC<OrdersProps> = ({
                     </div>
                   </div>
 
+                  {/* Add Balance Payment / New Payment Extra Field */}
+                  {selectedOrder && (
+                    <div className="p-3 bg-zinc-50/90 dark:bg-zinc-950/60 rounded-xl border border-zinc-200/80 dark:border-zinc-800 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="block text-[10px] uppercase font-bold tracking-wider text-amber-600 dark:text-amber-400 font-sans">
+                          Add Balance Payment / New Payment (UGX)
+                        </label>
+                        {Math.max(0, (selectedOrder.totalAmount || selectedOrder.value) - selectedOrder.amountPaid) > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleSettleFullBalance}
+                            className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20"
+                          >
+                            Pay Full Balance (UGX {Math.max(0, (selectedOrder.totalAmount || selectedOrder.value) - selectedOrder.amountPaid).toLocaleString()})
+                          </button>
+                        )}
+                      </div>
+
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder={`Enter newly added balance payment (e.g. ${(Math.max(0, (selectedOrder.totalAmount || selectedOrder.value) - selectedOrder.amountPaid)).toFixed(2)})`}
+                        value={addBalanceAmount}
+                        onChange={(e) => handleAddBalanceChange(e.target.value)}
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-amber-500 dark:focus:border-amber-500 font-bold"
+                      />
+                    </div>
+                  )}
+
                   <div>
-                    <label className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Amount Paid (UGX)</label>
+                    <label className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">Total Amount Paid (UGX)</label>
                     <input
                       type="number"
-                      placeholder="e.g. 28528.72"
+                      step="0.01"
+                      placeholder="e.g. 110157.43"
                       value={editAmountPaid}
-                      onChange={(e) => setEditAmountPaid(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setEditAmountPaid(val);
+                        if (selectedOrder) {
+                          const total = selectedOrder.totalAmount ?? selectedOrder.value ?? 0;
+                          const remaining = Math.max(0, total - val);
+                          if (remaining <= 0.01 && val > 0) {
+                            setEditPaymentStatus('Paid');
+                          } else if (val > 0 && remaining > 0.01) {
+                            setEditPaymentStatus('Partially Paid');
+                          } else {
+                            setEditPaymentStatus('Pending');
+                          }
+                        }
+                      }}
                       className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-500 font-bold"
                     />
                     {selectedOrder && (
                       <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1 font-bold">
-                        Recalculated Balance Due: UGX {Math.max(0, (selectedOrder.totalAmount || selectedOrder.value) - editAmountPaid).toLocaleString()}
+                        Recalculated Balance Due: <span className={Math.max(0, (selectedOrder.totalAmount || selectedOrder.value) - editAmountPaid) <= 0.01 ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-amber-600 dark:text-amber-400"}>
+                          UGX {Math.max(0, (selectedOrder.totalAmount || selectedOrder.value) - editAmountPaid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
                       </p>
                     )}
                   </div>

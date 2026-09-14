@@ -62,6 +62,7 @@ export interface ConferenceFacilityItem {
   description: string;
   icon_name: string;
   is_active: boolean;
+  price?: number;
 }
 
 export const useConference = () => {
@@ -261,7 +262,8 @@ export const useConference = () => {
         category: fac.category || 'General Services',
         description: fac.description || '',
         icon_name: fac.icon_name || 'Sparkles',
-        is_active: fac.is_active !== false
+        is_active: fac.is_active !== false,
+        price: Number(fac.price || 0)
       }));
       setFacilities(mappedFacilities);
     } catch (e) {
@@ -305,6 +307,7 @@ export const useConference = () => {
     full_day_rate: number;
     description?: string;
     amenities?: string;
+    is_vat_inclusive?: boolean;
   }) => {
     setIsLoading(true);
     try {
@@ -315,7 +318,8 @@ export const useConference = () => {
         half_day_rate: Number(hallData.half_day_rate || 0),
         full_day_rate: Number(hallData.full_day_rate || 0),
         description: hallData.description || '',
-        amenities: hallData.amenities || ''
+        amenities: hallData.amenities || '',
+        is_vat_inclusive: hallData.is_vat_inclusive ?? true
       });
       await fetchConferenceData();
       addNotification('Conference Hall Added', `Hall ${hallData.hall_name} created successfully.`, 'event');
@@ -636,6 +640,7 @@ export const useConference = () => {
     description?: string;
     icon_name?: string;
     is_active?: boolean;
+    price?: number;
   }) => {
     setIsLoading(true);
     try {
@@ -644,7 +649,8 @@ export const useConference = () => {
         category: facilityData.category || 'General Services',
         description: facilityData.description || '',
         icon_name: facilityData.icon_name || 'Sparkles',
-        is_active: facilityData.is_active !== false
+        is_active: facilityData.is_active !== false,
+        price: Number(facilityData.price || 0)
       });
       await fetchConferenceData();
       addNotification('Facility Created', `Added new facility: ${facilityData.name}`, 'event');
@@ -662,6 +668,7 @@ export const useConference = () => {
     description?: string;
     icon_name?: string;
     is_active?: boolean;
+    price?: number;
   }) => {
     setIsLoading(true);
     const numericId = typeof id === 'number' ? id : (parseInt(String(id).replace(/\D/g, ''), 10) || id);
@@ -677,7 +684,8 @@ export const useConference = () => {
         category: facilityData.category ?? item.category,
         description: facilityData.description ?? item.description,
         icon_name: facilityData.icon_name ?? item.icon_name,
-        is_active: facilityData.is_active !== undefined ? facilityData.is_active : item.is_active
+        is_active: facilityData.is_active !== undefined ? facilityData.is_active : item.is_active,
+        price: facilityData.price !== undefined ? Number(facilityData.price) : item.price
       } : item));
       addNotification('Facility Updated', 'Updated facility details locally', 'event');
     } finally {
