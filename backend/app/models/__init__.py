@@ -705,6 +705,7 @@ class ConferenceHall(Base):
     full_day_rate = Column(DECIMAL(10, 2))
     half_day_rate = Column(DECIMAL(10, 2))
     description = Column(String(500))
+    image = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -861,13 +862,28 @@ class ConferenceEvent(Base):
     )
 
 
+class ConferenceFacilityCategory(Base):
+    """Category for conference facilities"""
+    __tablename__ = "conference_facility_categories"
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, unique=True)
+    description = Column(String(500), nullable=True)
+    icon_name = Column(String(50), default="Folder")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    facilities = relationship("ConferenceFacility", back_populates="category_relation")
+
+
 class ConferenceFacility(Base):
     """Conference / Event Facility model (e.g. Catering, PA System, Projector)"""
     __tablename__ = "conference_facilities"
     
     facility_id = Column(Integer, primary_key=True)
     name = Column(String(150), nullable=False, unique=True)
-    category = Column(String(100), default="General Services")
+    category_id = Column(Integer, ForeignKey("conference_facility_categories.id", ondelete="SET NULL"), nullable=True)
     description = Column(String(500), nullable=True)
     price = Column(DECIMAL(10, 2), nullable=False, default=0.00)
     pricing_type = Column(String(20), default="FIXED")
@@ -877,8 +893,15 @@ class ConferenceFacility(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
+    category_relation = relationship("ConferenceFacilityCategory", back_populates="facilities")
     hall_associations = relationship("ConferenceHallFacility", back_populates="facility", cascade="all, delete-orphan")
     booking_line_items = relationship("ConferenceBookingFacility", back_populates="facility", cascade="all, delete-orphan")
+    
+    @property
+    def category(self) -> str:
+        if self.category_relation:
+            return self.category_relation.name
+        return "General Services"
     
     __table_args__ = (
         Index('ix_conference_facilities_is_active', 'is_active'),

@@ -4,6 +4,7 @@ Conference module routes
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from typing import List
 from decimal import Decimal
 from app.db.database import get_db
@@ -12,7 +13,8 @@ from app.schemas import (
     ConferenceReservationCreate, ConferenceReservationResponse, ConferenceReservationUpdate,
     ConferenceHallResponse, ConferenceResourceResponse, ConferenceMealPackageResponse,
     ConferenceHallCreate, ConferenceEventCreate, ConferenceEventUpdate, ConferenceEventResponse,
-    ConferenceFacilityCreate, ConferenceFacilityUpdate, ConferenceFacilityResponse
+    ConferenceFacilityCreate, ConferenceFacilityUpdate, ConferenceFacilityResponse,
+    ConferenceFacilityCategoryCreate, ConferenceFacilityCategoryUpdate, ConferenceFacilityCategoryResponse
 )
 from app.repositories import ConferenceRepository
 from app.models import ConferenceHall, ConferenceResource, ConferenceMealPackage, ConferenceResourceBooking, ConferenceMealBooking, ConferenceFacility, ConferenceBookingFacility
@@ -391,6 +393,86 @@ async def delete_conference_event(
 
 
 # =====================================================================
+# CONFERENCE FACILITY CATEGORIES ENDPOINTS
+# =====================================================================
+
+@router.get("/facility-categories", response_model=List[ConferenceFacilityCategoryResponse])
+async def get_conference_facility_categories(
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all conference facility categories"""
+    from app.models import ConferenceFacilityCategory
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(ConferenceFacilityCategory)
+        .options(selectinload(ConferenceFacilityCategory.facilities))
+        .order_by(ConferenceFacilityCategory.name.asc())
+    )
+    return result.scalars().all()
+
+@router.post("/facility-categories", response_model=ConferenceFacilityCategoryResponse, status_code=status.HTTP_201_CREATED)
+async def create_conference_facility_category(
+    request: ConferenceFacilityCategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new facility category"""
+    from app.models import ConferenceFacilityCategory
+    
+    category = ConferenceFacilityCategory(**request.model_dump())
+    db.add(category)
+    
+    try:
+        await db.commit()
+        await db.refresh(category)
+        return category
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="A category with this name already exists")
+
+@router.put("/facility-categories/{category_id}", response_model=ConferenceFacilityCategoryResponse)
+async def update_conference_facility_category(
+    category_id: int,
+    request: ConferenceFacilityCategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a facility category"""
+    from app.models import ConferenceFacilityCategory
+    result = await db.execute(select(ConferenceFacilityCategory).where(ConferenceFacilityCategory.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    for key, value in request.model_dump(exclude_unset=True).items():
+        setattr(category, key, value)
+        
+    try:
+        await db.commit()
+        await db.refresh(category)
+        return category
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="A category with this name already exists")
+
+@router.delete("/facility-categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_conference_facility_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a facility category"""
+    from app.models import ConferenceFacilityCategory
+    result = await db.execute(select(ConferenceFacilityCategory).where(ConferenceFacilityCategory.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    await db.delete(category)
+    await db.commit()
+
+
+# =====================================================================
 # CONFERENCE FACILITIES ENDPOINTS
 # =====================================================================
 
@@ -399,24 +481,49 @@ async def get_conference_facilities(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all conference facilities. Seeds defaults if table is empty."""
-    from app.models import ConferenceFacility
-    result = await db.execute(select(ConferenceFacility).order_by(ConferenceFacility.facility_id.asc()))
+    from app.models import ConferenceFacility, ConferenceFacilityCategory
+    from sqlalchemy.orm import selectinload
+    
+    result = await db.execute(
+        select(ConferenceFacility)
+        .options(selectinload(ConferenceFacility.category_relation))
+        .order_by(ConferenceFacility.facility_id.asc())
+    )
     facilities = result.scalars().all()
     
     if not facilities:
+        categories = {
+            "Catering & Dining": {"icon_name": "Utensils", "description": "Food and beverage services."},
+            "Audio/Visual": {"icon_name": "Volume2", "description": "A/V equipment."},
+            "Connectivity": {"icon_name": "Wifi", "description": "Internet services."},
+            "Staging & Hall": {"icon_name": "Mic", "description": "Stage setup and podiums."}
+        }
+        
+        db_categories = {}
+        for cat_name, details in categories.items():
+            cat = ConferenceFacilityCategory(name=cat_name, description=details["description"], icon_name=details["icon_name"])
+            db.add(cat)
+            db_categories[cat_name] = cat
+        await db.commit()
+        
         defaults = [
-            {"name": "Catering Services", "category": "Catering & Dining", "description": "Full buffet, seated banquets, and coffee breaks.", "icon_name": "Utensils", "is_active": True},
-            {"name": "Public Address System", "category": "Audio/Visual", "description": "High-powered PA system, wireless mics, and mixers.", "icon_name": "Volume2", "is_active": True},
-            {"name": "HD Projector & Screen", "category": "Audio/Visual", "description": "4K Laser projection with motorized 150-inch screens.", "icon_name": "Projector", "is_active": True},
-            {"name": "High-Speed Wi-Fi", "category": "Connectivity", "description": "Dedicated 1Gbps fiber internet with guest portal.", "icon_name": "Wifi", "is_active": True},
-            {"name": "Stage & Podium", "category": "Staging & Hall", "description": "Modular executive stage with wooden lectern.", "icon_name": "Mic", "is_active": True},
-            {"name": "Executive Sound & Lighting", "category": "Audio/Visual", "description": "Ambient stage spotlights, RGB mood lights, and DJ rig.", "icon_name": "Zap", "is_active": True},
-            {"name": "Coffee & Refreshments Station", "category": "Catering & Dining", "description": "Espresso machine, herbal tea bar, and pastries.", "icon_name": "Coffee", "is_active": True}
+            {"name": "Catering Services", "category_id": db_categories["Catering & Dining"].id, "description": "Full buffet, seated banquets, and coffee breaks.", "icon_name": "Utensils", "is_active": True},
+            {"name": "Public Address System", "category_id": db_categories["Audio/Visual"].id, "description": "High-powered PA system, wireless mics, and mixers.", "icon_name": "Volume2", "is_active": True},
+            {"name": "HD Projector & Screen", "category_id": db_categories["Audio/Visual"].id, "description": "4K Laser projection with motorized 150-inch screens.", "icon_name": "Projector", "is_active": True},
+            {"name": "High-Speed Wi-Fi", "category_id": db_categories["Connectivity"].id, "description": "Dedicated 1Gbps fiber internet with guest portal.", "icon_name": "Wifi", "is_active": True},
+            {"name": "Stage & Podium", "category_id": db_categories["Staging & Hall"].id, "description": "Modular executive stage with wooden lectern.", "icon_name": "Mic", "is_active": True},
+            {"name": "Executive Sound & Lighting", "category_id": db_categories["Audio/Visual"].id, "description": "Ambient stage spotlights, RGB mood lights, and DJ rig.", "icon_name": "Zap", "is_active": True},
+            {"name": "Coffee & Refreshments Station", "category_id": db_categories["Catering & Dining"].id, "description": "Espresso machine, herbal tea bar, and pastries.", "icon_name": "Coffee", "is_active": True}
         ]
         for item in defaults:
             db.add(ConferenceFacility(**item))
         await db.commit()
-        result = await db.execute(select(ConferenceFacility).order_by(ConferenceFacility.facility_id.asc()))
+        
+        result = await db.execute(
+            select(ConferenceFacility)
+            .options(selectinload(ConferenceFacility.category_relation))
+            .order_by(ConferenceFacility.facility_id.asc())
+        )
         facilities = result.scalars().all()
         
     return facilities
@@ -430,9 +537,11 @@ async def create_conference_facility(
 ):
     """Create a new conference facility"""
     from app.models import ConferenceFacility
+    from sqlalchemy.orm import selectinload
+    
     facility = ConferenceFacility(
         name=request.name,
-        category=request.category or "General Services",
+        category_id=request.category_id,
         description=request.description,
         price=request.price,
         pricing_type=request.pricing_type,
@@ -442,7 +551,14 @@ async def create_conference_facility(
     db.add(facility)
     await db.commit()
     await db.refresh(facility)
-    return facility
+    
+    # Reload with category relation
+    result = await db.execute(
+        select(ConferenceFacility)
+        .options(selectinload(ConferenceFacility.category_relation))
+        .where(ConferenceFacility.facility_id == facility.facility_id)
+    )
+    return result.scalar_one()
 
 
 @router.put("/facilities/{facility_id}", response_model=ConferenceFacilityResponse)
@@ -461,8 +577,8 @@ async def update_conference_facility(
 
     if request.name is not None:
         facility.name = request.name
-    if request.category is not None:
-        facility.category = request.category
+    if request.category_id is not None:
+        facility.category_id = request.category_id
     if request.description is not None:
         facility.description = request.description
     if request.price is not None:
@@ -476,8 +592,14 @@ async def update_conference_facility(
 
     db.add(facility)
     await db.commit()
-    await db.refresh(facility)
-    return facility
+    
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(ConferenceFacility)
+        .options(selectinload(ConferenceFacility.category_relation))
+        .where(ConferenceFacility.facility_id == facility_id)
+    )
+    return result.scalar_one()
 
 
 @router.delete("/facilities/{facility_id}")

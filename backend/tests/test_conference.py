@@ -103,6 +103,17 @@ def test_create_conference_reservation_success(monkeypatch):
         updated_at=datetime.utcnow()
     )
     
+    mock_reservation.hall = mock_hall
+    mock_customer = MagicMock()
+    mock_customer.customer_id = 1
+    mock_customer.customer_name = "Test Customer"
+    mock_customer.customer_code = "C001"
+    mock_customer.email = "test@example.com"
+    mock_customer.phone = "1234567890"
+    mock_customer.total_spent = Decimal("0.00")
+    mock_reservation.customer = mock_customer
+    mock_reservation.facility_bookings = []
+    
     async def mock_get_hall_by_id(self, hall_id):
         assert hall_id == 2
         return mock_hall
@@ -148,7 +159,7 @@ def test_retrieve_reservations_with_hall_and_facilities(monkeypatch):
     mock_facility = ConferenceFacility(
         facility_id=1,
         name="Sound System",
-        category="Audio/Visual",
+        category_id=1,
         price=Decimal("1000.00"),
         pricing_type="FIXED",
         is_active=True
