@@ -180,6 +180,39 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   const PIE_COLORS = ['#D4AF37', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6'];
 
+  const getHeaderMeta = () => {
+    switch (subTab) {
+      case 'staff':
+        return {
+          title: 'Staff Performance & Revenue Audit',
+          description: 'Tracks orders processed by waiters/front desk personnel and total payment value collected per staff member.'
+        };
+      case 'guests':
+        return {
+          title: 'Guest 360 & Account Origins',
+          description: 'Comprehensive analysis of guest origins, registration channels, lifetime spending, and dossier history.'
+        };
+      case 'channels':
+        return {
+          title: 'Sales Channels Breakdown',
+          description: 'Revenue distribution across Lodge Accommodations, Nile Restaurant, and Events & Conferences.'
+        };
+      case 'vat':
+        return {
+          title: 'Financial & VAT Compliance Audit',
+          description: 'Detailed breakdown of taxable revenue, VAT collected (18%), and net revenues across operations.'
+        };
+      case 'executive':
+      default:
+        return {
+          title: 'Executive Reports & Analytics',
+          description: 'Comprehensive business intelligence across lodge bookings, restaurant sales, staff operations, guest origins, and VAT compliance.'
+        };
+    }
+  };
+
+  const headerMeta = getHeaderMeta();
+
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto min-h-screen">
       {/* Header Section */}
@@ -189,10 +222,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             <span className="p-2 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37]">
               <BarChart3 className="w-6 h-6" />
             </span>
-            <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
+            <h1 className="text-2xl font-bold text-foreground">{headerMeta.title}</h1>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Comprehensive business intelligence across lodge bookings, restaurant sales, staff operations, guest origins, and VAT compliance.
+            {headerMeta.description}
           </p>
         </div>
 
@@ -214,34 +247,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             Export CSV
           </Button>
         </div>
-      </div>
-
-      {/* Navigation Sub-Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
-        {[
-          { id: 'executive', label: 'Executive Overview', icon: TrendingUp },
-          { id: 'staff', label: 'Staff Performance', icon: ShieldCheck },
-          { id: 'guests', label: 'Guest 360 & Origins', icon: Users },
-          { id: 'channels', label: 'Sales Channels', icon: Utensils },
-          { id: 'vat', label: 'Financial & VAT', icon: Receipt },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = subTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setSubTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all ${
-                isActive
-                  ? 'bg-[#D4AF37] text-[#0A192F] font-bold shadow'
-                  : 'bg-card text-muted-foreground hover:bg-muted hover:text-foreground border border-border'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
       </div>
 
       {/* Date Range Filter Bar */}

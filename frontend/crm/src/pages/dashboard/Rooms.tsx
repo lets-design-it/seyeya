@@ -187,6 +187,7 @@ export const Rooms: React.FC<RoomsProps> = ({
   const [catName, setCatName] = useState('');
   const [catPriceUGX, setCatPriceUGX] = useState<number | string>('');
   const [catPriceUSD, setCatPriceUSD] = useState<number | string>('');
+  const [catIncludesVat, setCatIncludesVat] = useState<boolean>(true);
   const [catAdults, setCatAdults] = useState<number | string>('');
   const [catChildren, setCatChildren] = useState<number | string>('');
   const [catAmenities, setCatAmenities] = useState('');
@@ -323,10 +324,13 @@ export const Rooms: React.FC<RoomsProps> = ({
   };
 
   const openEditCategory = (item: RoomType) => {
+    const vatIncl = (item as any).is_vat_inclusive ?? true;
     setEditCategoryItem(item);
     setCatName(item.name);
-    setCatPriceUGX(item.priceUGX);
+    const basePrice = vatIncl ? Math.round(item.priceUGX / 1.18) : item.priceUGX;
+    setCatPriceUGX(basePrice);
     setCatPriceUSD(item.priceUSD);
+    setCatIncludesVat(vatIncl);
 
     // Parse existing capacity string
     const capStr = (item.capacity || "").toLowerCase();
@@ -399,10 +403,13 @@ export const Rooms: React.FC<RoomsProps> = ({
       .filter(am => selectedAmenityList.some(s => s === am.name.toLowerCase()))
       .map(am => am.id);
 
+    const finalCatPriceUGX = catIncludesVat ? Math.round(Number(catPriceUGX) * 1.18) : Number(catPriceUGX);
+
     const data = {
       name: catName.trim(),
-      priceUGX: Number(catPriceUGX),
+      priceUGX: finalCatPriceUGX,
       priceUSD: Number(catPriceUSD),
+      is_vat_inclusive: catIncludesVat,
       capacity: capacityString,
       amenities: catAmenities.split(',').map(s => s.trim()).filter(Boolean),
       description: catDescription.trim(),
@@ -1543,6 +1550,38 @@ export const Rooms: React.FC<RoomsProps> = ({
                 onChange={(e) => handleCatPriceUGXChange(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
               />
+              <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={catIncludesVat}
+                  onChange={(e) => setCatIncludesVat(e.target.checked)}
+                  className="rounded border-zinc-300 dark:border-zinc-700 accent-[#D4AF37] h-4 w-4 cursor-pointer"
+                />
+                <span>Add VAT (18%)</span>
+              </label>
+              {Number(catPriceUGX) > 0 && (
+                <div className="mt-1.5 text-xs font-semibold">
+                  {catIncludesVat ? (
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2 text-xs font-bold">
+                        <span>New Total Rate (incl. 18% VAT):</span>
+                        <span className="font-extrabold text-foreground dark:text-zinc-50 bg-white dark:bg-zinc-900 px-2.5 py-1 rounded-lg border border-amber-500/30 shadow-xs">
+                          UGX {Math.round(Number(catPriceUGX) * 1.18).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-2 pt-0.5 border-t border-amber-500/10 mt-0.5">
+                        <span>Base Rate: UGX {Number(catPriceUGX).toLocaleString()}</span>
+                        <span>•</span>
+                        <span>VAT (18%): UGX {Math.round(Number(catPriceUGX) * 0.18).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 dark:text-zinc-400 pl-1">
+                      New Total Rate: <span className="font-bold text-foreground dark:text-zinc-200">UGX {Number(catPriceUGX).toLocaleString()}</span> <span className="text-[11px] font-normal">(No VAT added)</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

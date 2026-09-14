@@ -293,7 +293,8 @@ export const useRestaurant = () => {
         allergen_info: item.allergen_info || '',
         preparation_time: item.preparation_time || 0,
         is_available: item.is_available ?? true,
-        is_active: item.is_active ?? true
+        is_active: item.is_active ?? true,
+        is_vat_inclusive: (item as any).is_vat_inclusive ?? true
       };
 
       const res = await api.post('/restaurant/menu/items', payload);
@@ -358,7 +359,8 @@ export const useRestaurant = () => {
         allergen_info: item.allergen_info || '',
         preparation_time: item.preparation_time || 0,
         is_available: item.is_available ?? true,
-        is_active: item.is_active ?? true
+        is_active: item.is_active ?? true,
+        is_vat_inclusive: (item as any).is_vat_inclusive ?? true
       };
 
       await api.put(`/restaurant/menu/items/${item.id}`, payload);

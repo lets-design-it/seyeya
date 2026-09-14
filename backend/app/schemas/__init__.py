@@ -378,6 +378,7 @@ class MenuItemResponse(BaseModel):
     image_url: Optional[str] = None
     allergen_info: Optional[str] = None
     preparation_time: Optional[int] = None
+    is_vat_inclusive: Optional[bool] = True
     is_available: bool
     is_active: bool
     extras: Optional[List[MenuExtraResponse]] = []
@@ -397,6 +398,7 @@ class MenuItemCreate(BaseModel):
     image_url: Optional[str] = None
     allergen_info: Optional[str] = None
     preparation_time: Optional[int] = None
+    is_vat_inclusive: Optional[bool] = True
     is_available: Optional[bool] = True
     is_active: Optional[bool] = True
 
@@ -410,6 +412,7 @@ class MenuItemUpdate(BaseModel):
     image_url: Optional[str] = None
     allergen_info: Optional[str] = None
     preparation_time: Optional[int] = None
+    is_vat_inclusive: Optional[bool] = None
     is_available: Optional[bool] = None
     is_active: Optional[bool] = None
 
@@ -1045,6 +1048,7 @@ class RoomCategoryCreate(BaseModel):
     room_size: Optional[float] = Field(None, gt=0)
     room_size_unit: Optional[str] = "m²"
     max_occupancy: int = Field(2, gt=0)
+    is_vat_inclusive: Optional[bool] = True
     is_active: bool = True
     photos: Optional[List[str]] = []
     beds: List[BedItem] = []
@@ -1068,6 +1072,7 @@ class RoomCategoryUpdate(BaseModel):
     room_size: Optional[float] = Field(None, gt=0)
     room_size_unit: Optional[str] = None
     max_occupancy: Optional[int] = Field(None, gt=0)
+    is_vat_inclusive: Optional[bool] = None
     is_active: Optional[bool] = None
     photos: Optional[List[str]] = None
     beds: Optional[List[BedItem]] = None
@@ -1363,6 +1368,7 @@ class ConferenceFacilityBase(BaseModel):
     pricing_type: Optional[str] = "FIXED"
     icon_name: Optional[str] = "Sparkles"
     is_active: Optional[bool] = True
+    price: Optional[float] = 0.0
 
 
 class ConferenceFacilityCreate(ConferenceFacilityBase):
@@ -1377,6 +1383,7 @@ class ConferenceFacilityUpdate(BaseModel):
     pricing_type: Optional[str] = None
     icon_name: Optional[str] = None
     is_active: Optional[bool] = None
+    price: Optional[float] = None
 
 
 class ConferenceFacilityResponse(ConferenceFacilityBase):

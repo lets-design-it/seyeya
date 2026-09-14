@@ -288,6 +288,7 @@ class MenuItem(Base):
     image_url = Column(String(500))
     allergen_info = Column(String(500))
     preparation_time = Column(Integer)  # minutes
+    is_vat_inclusive = Column(Boolean, default=True)
     is_available = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -496,6 +497,7 @@ class RoomCategory(Base):
     room_size = Column(Float, nullable=True)
     room_size_unit = Column(String(20), default="m²")
     max_occupancy = Column(Integer, default=2)
+    is_vat_inclusive = Column(Boolean, default=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -705,6 +707,11 @@ class ConferenceHall(Base):
     full_day_rate = Column(DECIMAL(10, 2))
     half_day_rate = Column(DECIMAL(10, 2))
     description = Column(String(500))
+<<<<<<< HEAD
+    amenities = Column(String(500))
+    is_vat_inclusive = Column(Boolean, default=True)
+=======
+>>>>>>> main
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -873,6 +880,7 @@ class ConferenceFacility(Base):
     pricing_type = Column(String(20), default="FIXED")
     icon_name = Column(String(50), default="Sparkles")
     is_active = Column(Boolean, default=True)
+    price = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
