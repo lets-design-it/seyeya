@@ -424,8 +424,14 @@ async def create_conference_facility_category(
     
     try:
         await db.commit()
-        await db.refresh(category)
-        return category
+        
+        from sqlalchemy.orm import selectinload
+        result = await db.execute(
+            select(ConferenceFacilityCategory)
+            .options(selectinload(ConferenceFacilityCategory.facilities))
+            .where(ConferenceFacilityCategory.id == category.id)
+        )
+        return result.scalar_one()
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=400, detail="A category with this name already exists")
@@ -449,8 +455,14 @@ async def update_conference_facility_category(
         
     try:
         await db.commit()
-        await db.refresh(category)
-        return category
+        
+        from sqlalchemy.orm import selectinload
+        result = await db.execute(
+            select(ConferenceFacilityCategory)
+            .options(selectinload(ConferenceFacilityCategory.facilities))
+            .where(ConferenceFacilityCategory.id == category.id)
+        )
+        return result.scalar_one()
     except IntegrityError:
         await db.rollback()
         raise HTTPException(status_code=400, detail="A category with this name already exists")
@@ -491,41 +503,6 @@ async def get_conference_facilities(
     )
     facilities = result.scalars().all()
     
-    if not facilities:
-        categories = {
-            "Catering & Dining": {"icon_name": "Utensils", "description": "Food and beverage services."},
-            "Audio/Visual": {"icon_name": "Volume2", "description": "A/V equipment."},
-            "Connectivity": {"icon_name": "Wifi", "description": "Internet services."},
-            "Staging & Hall": {"icon_name": "Mic", "description": "Stage setup and podiums."}
-        }
-        
-        db_categories = {}
-        for cat_name, details in categories.items():
-            cat = ConferenceFacilityCategory(name=cat_name, description=details["description"], icon_name=details["icon_name"])
-            db.add(cat)
-            db_categories[cat_name] = cat
-        await db.commit()
-        
-        defaults = [
-            {"name": "Catering Services", "category_id": db_categories["Catering & Dining"].id, "description": "Full buffet, seated banquets, and coffee breaks.", "icon_name": "Utensils", "is_active": True},
-            {"name": "Public Address System", "category_id": db_categories["Audio/Visual"].id, "description": "High-powered PA system, wireless mics, and mixers.", "icon_name": "Volume2", "is_active": True},
-            {"name": "HD Projector & Screen", "category_id": db_categories["Audio/Visual"].id, "description": "4K Laser projection with motorized 150-inch screens.", "icon_name": "Projector", "is_active": True},
-            {"name": "High-Speed Wi-Fi", "category_id": db_categories["Connectivity"].id, "description": "Dedicated 1Gbps fiber internet with guest portal.", "icon_name": "Wifi", "is_active": True},
-            {"name": "Stage & Podium", "category_id": db_categories["Staging & Hall"].id, "description": "Modular executive stage with wooden lectern.", "icon_name": "Mic", "is_active": True},
-            {"name": "Executive Sound & Lighting", "category_id": db_categories["Audio/Visual"].id, "description": "Ambient stage spotlights, RGB mood lights, and DJ rig.", "icon_name": "Zap", "is_active": True},
-            {"name": "Coffee & Refreshments Station", "category_id": db_categories["Catering & Dining"].id, "description": "Espresso machine, herbal tea bar, and pastries.", "icon_name": "Coffee", "is_active": True}
-        ]
-        for item in defaults:
-            db.add(ConferenceFacility(**item))
-        await db.commit()
-        
-        result = await db.execute(
-            select(ConferenceFacility)
-            .options(selectinload(ConferenceFacility.category_relation))
-            .order_by(ConferenceFacility.facility_id.asc())
-        )
-        facilities = result.scalars().all()
-        
     return facilities
 
 

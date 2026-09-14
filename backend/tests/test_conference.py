@@ -66,17 +66,28 @@ def test_create_conference_reservation_success(monkeypatch):
     mock_db = MagicMock()
     mock_db.commit = AsyncMock()
     mock_db.refresh = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.scalars.return_value.first.return_value = None
-    mock_db.execute = AsyncMock(return_value=mock_result)
-    app.dependency_overrides[get_db] = lambda: mock_db
-    app.dependency_overrides[get_current_user] = lambda: {"user_id": 1, "role": "admin"}
+    
+    from app.models import Customer
+    mock_customer = Customer(
+        customer_id=1,
+        full_name="Test Customer",
+        customer_code="C001",
+        email="test@example.com",
+        phone_number="1234567890",
+        total_spent=Decimal("0.00")
+    )
     
     mock_hall = ConferenceHall(
         hall_id=2,
         hall_name="Grand Ballroom",
         capacity=100,
-        full_day_rate=Decimal("500.00")
+        full_day_rate=Decimal("500.00"),
+        standard_price=Decimal("500.00"),
+        hourly_rate=Decimal("50.00"),
+        half_day_rate=Decimal("250.00"),
+        description="Grand Ballroom",
+        image="hall.jpg",
+        is_active=True
     )
     
     mock_reservation = ConferenceReservation(
@@ -102,26 +113,28 @@ def test_create_conference_reservation_success(monkeypatch):
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
-    
     mock_reservation.hall = mock_hall
-    mock_customer = MagicMock()
-    mock_customer.customer_id = 1
-    mock_customer.customer_name = "Test Customer"
-    mock_customer.customer_code = "C001"
-    mock_customer.email = "test@example.com"
-    mock_customer.phone = "1234567890"
-    mock_customer.total_spent = Decimal("0.00")
     mock_reservation.customer = mock_customer
     mock_reservation.facility_bookings = []
-    
-    async def mock_get_hall_by_id(self, hall_id):
-        assert hall_id == 2
-        return mock_hall
+    async def mock_execute(stmt):
+        stmt_str = str(stmt).lower()
+        mock_res = MagicMock()
+        if "customers" in stmt_str:
+            mock_res.scalar_one_or_none.return_value = mock_customer
+        elif "conference_halls" in stmt_str:
+            mock_res.scalar_one_or_none.return_value = mock_hall
+        else:
+            mock_res.scalar_one_or_none.return_value = None
+        return mock_res
         
+    mock_db.execute = AsyncMock(side_effect=mock_execute)
+    
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": 1, "role": "admin"}
+    
     async def mock_create_reservation(self, *args, **kwargs):
         return mock_reservation
 
-    monkeypatch.setattr(ConferenceRepository, "get_hall_by_id", mock_get_hall_by_id)
     monkeypatch.setattr(ConferenceRepository, "create_reservation", mock_create_reservation)
     
     payload = {
