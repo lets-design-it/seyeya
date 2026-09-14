@@ -1217,6 +1217,7 @@ class ConferenceHallCreate(BaseModel):
     half_day_rate: Optional[Decimal] = None
     full_day_rate: Optional[Decimal] = None
     description: Optional[str] = None
+    image: Optional[str] = None
     facility_ids: Optional[List[int]] = []
 
 
@@ -1229,6 +1230,7 @@ class ConferenceHallResponse(BaseModel):
     full_day_rate: Optional[Decimal] = None
     half_day_rate: Optional[Decimal] = None
     description: Optional[str] = None
+    image: Optional[str] = None
     facilities: List["ConferenceHallFacilityResponse"] = []
     
     class Config:
@@ -1360,8 +1362,36 @@ class ConferenceEventResponse(BaseModel):
         from_attributes = True
 
 
+class ConferenceFacilityCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    icon_name: Optional[str] = "Folder"
+    is_active: Optional[bool] = True
+
+
+class ConferenceFacilityCategoryCreate(ConferenceFacilityCategoryBase):
+    pass
+
+
+class ConferenceFacilityCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ConferenceFacilityCategoryResponse(ConferenceFacilityCategoryBase):
+    id: int
+    created_at: Optional[datetime] = None
+    facilities: List["ConferenceFacilityResponse"] = []
+
+    class Config:
+        from_attributes = True
+
+
 class ConferenceFacilityBase(BaseModel):
     name: str
+    category_id: Optional[int] = None
     category: Optional[str] = "General Services"
     description: Optional[str] = None
     price: Decimal = Decimal('0.00')
@@ -1377,6 +1407,7 @@ class ConferenceFacilityCreate(ConferenceFacilityBase):
 
 class ConferenceFacilityUpdate(BaseModel):
     name: Optional[str] = None
+    category_id: Optional[int] = None
     category: Optional[str] = None
     description: Optional[str] = None
     price: Optional[Decimal] = None
@@ -2182,3 +2213,5 @@ class FinancialVatResponse(BaseModel):
     payment_method_breakdown: List[dict]
 
 
+# Rebuild schemas with forward references
+ConferenceFacilityCategoryResponse.model_rebuild()

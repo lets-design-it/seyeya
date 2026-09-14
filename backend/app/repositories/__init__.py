@@ -10,7 +10,7 @@ from decimal import Decimal
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
     ConferenceReservation, MenuItem, MenuCategory, Room, RoomCategory, ConferenceHall,
-    ConferenceHallFacility, ConferenceBookingFacility,
+    ConferenceFacility, ConferenceHallFacility, ConferenceBookingFacility,
     Payment, CustomerReview, OrderItem, OrderItemExtra, MenuExtra, MenuChoice, MenuAccompaniment,
     Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken,
     RoomAmenity, Amenity, RoomRatePlan, RoomPolicy
@@ -914,7 +914,11 @@ class ConferenceRepository:
         """Get all conference halls"""
         result = await self.db.execute(
             select(ConferenceHall)
-            .options(selectinload(ConferenceHall.facilities).selectinload(ConferenceHallFacility.facility))
+            .options(
+                selectinload(ConferenceHall.facilities)
+                .selectinload(ConferenceHallFacility.facility)
+                .selectinload(ConferenceFacility.category_relation)
+            )
             .where(ConferenceHall.is_active == True)
         )
         return result.scalars().all()
@@ -954,8 +958,13 @@ class ConferenceRepository:
             select(ConferenceReservation)
             .options(
                 selectinload(ConferenceReservation.customer), 
-                selectinload(ConferenceReservation.hall).selectinload(ConferenceHall.facilities).selectinload(ConferenceHallFacility.facility),
-                selectinload(ConferenceReservation.facility_bookings).selectinload(ConferenceBookingFacility.facility)
+                selectinload(ConferenceReservation.hall)
+                .selectinload(ConferenceHall.facilities)
+                .selectinload(ConferenceHallFacility.facility)
+                .selectinload(ConferenceFacility.category_relation),
+                selectinload(ConferenceReservation.facility_bookings)
+                .selectinload(ConferenceBookingFacility.facility)
+                .selectinload(ConferenceFacility.category_relation)
             )
             .order_by(ConferenceReservation.created_at.desc())
         )
@@ -965,7 +974,11 @@ class ConferenceRepository:
         """Get hall by ID"""
         result = await self.db.execute(
             select(ConferenceHall)
-            .options(selectinload(ConferenceHall.facilities).selectinload(ConferenceHallFacility.facility))
+            .options(
+                selectinload(ConferenceHall.facilities)
+                .selectinload(ConferenceHallFacility.facility)
+                .selectinload(ConferenceFacility.category_relation)
+            )
             .where(ConferenceHall.hall_id == hall_id)
         )
         return result.scalar_one_or_none()
@@ -1003,8 +1016,13 @@ class ConferenceRepository:
             select(ConferenceReservation)
             .options(
                 selectinload(ConferenceReservation.customer), 
-                selectinload(ConferenceReservation.hall).selectinload(ConferenceHall.facilities).selectinload(ConferenceHallFacility.facility),
-                selectinload(ConferenceReservation.facility_bookings).selectinload(ConferenceBookingFacility.facility)
+                selectinload(ConferenceReservation.hall)
+                .selectinload(ConferenceHall.facilities)
+                .selectinload(ConferenceHallFacility.facility)
+                .selectinload(ConferenceFacility.category_relation),
+                selectinload(ConferenceReservation.facility_bookings)
+                .selectinload(ConferenceBookingFacility.facility)
+                .selectinload(ConferenceFacility.category_relation)
             )
             .where(ConferenceReservation.conference_res_id == conference_res_id)
         )
