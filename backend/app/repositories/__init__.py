@@ -10,6 +10,7 @@ from decimal import Decimal
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
     ConferenceReservation, MenuItem, MenuCategory, Room, RoomCategory, ConferenceHall,
+    ConferenceHallFacility, ConferenceBookingFacility,
     Payment, CustomerReview, OrderItem, OrderItemExtra, MenuExtra, MenuChoice, MenuAccompaniment,
     Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken,
     RoomAmenity, Amenity, RoomRatePlan, RoomPolicy
@@ -912,11 +913,13 @@ class ConferenceRepository:
     async def get_all_halls(self) -> List[ConferenceHall]:
         """Get all conference halls"""
         result = await self.db.execute(
-            select(ConferenceHall).where(ConferenceHall.is_active == True)
+            select(ConferenceHall)
+            .options(selectinload(ConferenceHall.facilities).selectinload(ConferenceHallFacility.facility))
+            .where(ConferenceHall.is_active == True)
         )
         return result.scalars().all()
     
-    async def create_hall(self, hall_name: str, capacity: int, hourly_rate, half_day_rate, full_day_rate, description: Optional[str] = None, amenities: Optional[str] = None) -> ConferenceHall:
+    async def create_hall(self, hall_name: str, capacity: int, hourly_rate, half_day_rate, full_day_rate, description: Optional[str] = None, facility_ids: Optional[List[int]] = None) -> ConferenceHall:
         """Create a new conference hall"""
         hall = ConferenceHall(
             hall_name=hall_name,
@@ -925,19 +928,35 @@ class ConferenceRepository:
             half_day_rate=half_day_rate,
             full_day_rate=full_day_rate,
             description=description,
-            amenities=amenities,
             is_active=True
         )
         self.db.add(hall)
+        await self.db.flush()
+        
+        if facility_ids:
+            for facility_id in facility_ids:
+                hall_facility = ConferenceHallFacility(
+                    hall_id=hall.hall_id,
+                    facility_id=facility_id,
+                    status="Available"
+                )
+                self.db.add(hall_facility)
+                
         await self.db.commit()
         await self.db.refresh(hall)
-        return hall
+        
+        # Load the newly created hall with its facilities
+        return await self.get_hall_by_id(hall.hall_id)
     
     async def get_all_reservations(self) -> List[ConferenceReservation]:
         """Get all conference reservations"""
         result = await self.db.execute(
             select(ConferenceReservation)
-            .options(selectinload(ConferenceReservation.customer), selectinload(ConferenceReservation.hall))
+            .options(
+                selectinload(ConferenceReservation.customer), 
+                selectinload(ConferenceReservation.hall).selectinload(ConferenceHall.facilities).selectinload(ConferenceHallFacility.facility),
+                selectinload(ConferenceReservation.facility_bookings).selectinload(ConferenceBookingFacility.facility)
+            )
             .order_by(ConferenceReservation.created_at.desc())
         )
         return result.scalars().all()
@@ -945,11 +964,13 @@ class ConferenceRepository:
     async def get_hall_by_id(self, hall_id: int) -> Optional[ConferenceHall]:
         """Get hall by ID"""
         result = await self.db.execute(
-            select(ConferenceHall).where(ConferenceHall.hall_id == hall_id)
+            select(ConferenceHall)
+            .options(selectinload(ConferenceHall.facilities).selectinload(ConferenceHallFacility.facility))
+            .where(ConferenceHall.hall_id == hall_id)
         )
         return result.scalar_one_or_none()
     
-    async def create_reservation(self, customer_id: int, hall_id: int, event_name: str, event_start_date, event_end_date, start_time, end_time, num_participants: int, booking_type: str, reservation_code: str, total_amount) -> ConferenceReservation:
+    async def create_reservation(self, customer_id: int, hall_id: int, event_name: str, event_start_date, event_end_date, start_time, end_time, num_participants: int, booking_type: str, reservation_code: str, total_amount, subtotal, hall_unit_price, payment_responsibility: str) -> ConferenceReservation:
         """Create a new conference reservation"""
         reservation = ConferenceReservation(
             customer_id=customer_id,
@@ -963,19 +984,28 @@ class ConferenceRepository:
             booking_type=booking_type,
             reservation_code=reservation_code,
             total_amount=total_amount,
+            subtotal=subtotal,
+            hall_unit_price=hall_unit_price,
+            payment_responsibility=payment_responsibility,
+            amount_paid=Decimal(0),
+            balance_due=total_amount,
             reservation_status="Pending",
             payment_status="Pending"
         )
         self.db.add(reservation)
         await self.db.commit()
         await self.db.refresh(reservation)
-        return reservation
+        return await self.get_reservation_by_id(reservation.conference_res_id)
     
     async def get_reservation_by_id(self, conference_res_id: int) -> Optional[ConferenceReservation]:
         """Get reservation by ID"""
         result = await self.db.execute(
             select(ConferenceReservation)
-            .options(selectinload(ConferenceReservation.customer), selectinload(ConferenceReservation.hall))
+            .options(
+                selectinload(ConferenceReservation.customer), 
+                selectinload(ConferenceReservation.hall).selectinload(ConferenceHall.facilities).selectinload(ConferenceHallFacility.facility),
+                selectinload(ConferenceReservation.facility_bookings).selectinload(ConferenceBookingFacility.facility)
+            )
             .where(ConferenceReservation.conference_res_id == conference_res_id)
         )
         return result.scalar_one_or_none()
