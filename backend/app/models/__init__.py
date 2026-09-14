@@ -707,6 +707,7 @@ class ConferenceHall(Base):
     full_day_rate = Column(DECIMAL(10, 2))
     half_day_rate = Column(DECIMAL(10, 2))
     description = Column(String(500))
+    image = Column(String(500), nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -801,6 +802,14 @@ class ConferenceReservation(Base):
     meal_bookings = relationship("ConferenceMealBooking", back_populates="conference_reservation", cascade="all, delete-orphan")
     facility_bookings = relationship("ConferenceBookingFacility", back_populates="conference_reservation", cascade="all, delete-orphan")
     
+    @property
+    def hall_standard_price(self) -> Decimal:
+        return self.hall_cost or Decimal('0.00')
+
+    @hall_standard_price.setter
+    def hall_standard_price(self, val):
+        self.hall_cost = val
+    
     __table_args__ = (
         Index('ix_conference_reservations_customer_id', 'customer_id'),
         Index('ix_conference_reservations_hall_id', 'hall_id'),
@@ -890,7 +899,6 @@ class ConferenceFacility(Base):
     pricing_type = Column(String(20), default="FIXED")
     icon_name = Column(String(50), default="Sparkles")
     is_active = Column(Boolean, default=True)
-    price = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -904,6 +912,10 @@ class ConferenceFacility(Base):
         if self.category_relation:
             return self.category_relation.name
         return "General Services"
+
+    @category.setter
+    def category(self, value):
+        pass
     
     __table_args__ = (
         Index('ix_conference_facilities_is_active', 'is_active'),

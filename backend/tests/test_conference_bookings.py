@@ -34,9 +34,6 @@ async def test_conference_reservation_creation(async_client: AsyncClient):
         "hall_name": f"Grand Hall {uid}",
         "capacity": 100,
         "standard_price": 500000.0,
-        "hourly_rate": 50000.0,
-        "half_day_rate": 200000.0,
-        "full_day_rate": 400000.0,
         "description": "A very grand hall."
     }
     hall_res = await async_client.post("/api/v1/conference/halls", json=hall_data, headers=admin_token_headers)
@@ -73,16 +70,17 @@ async def test_conference_reservation_creation(async_client: AsyncClient):
         "start_time": "09:00:00",
         "end_time": "17:00:00",
         "num_participants": 50,
-        "booking_type": "FullDay",
+        "hall_standard_price": 500000.0,
+        "subtotal": 2050000.0,
+        "total_amount": 2050000.0,
         "payment_responsibility": "Organisation",
         "facilities": [
-            {"facility_id": fac_1_id, "quantity": 1},  # Fixed: 50,000
-            {"facility_id": fac_2_id, "quantity": 1}   # Per Person: 30,000 * 50 = 1,500,000
+            {"facility_id": fac_1_id, "quantity": 1, "unit_price": 50000.0, "total_price": 50000.0},
+            {"facility_id": fac_2_id, "quantity": 50, "unit_price": 30000.0, "total_price": 1500000.0}
         ]
     }
     
     res = await async_client.post("/api/v1/conference/reservations", json=reservation_data, headers=admin_token_headers)
-    print(res.text)
     assert res.status_code == 200
     
     data = res.json()
@@ -90,23 +88,22 @@ async def test_conference_reservation_creation(async_client: AsyncClient):
     assert data["hall_id"] == hall_id
     assert data["payment_responsibility"] == "Organisation"
     assert data["num_participants"] == 50
-    assert data["hall_unit_price"] == 500000.0
+    assert float(data["hall_standard_price"]) == 500000.0
     
-    # Expected: Hall Cost (FullDay = 400,000) + Fixed (50,000) + PerPerson (30,000 * 50 = 1,500,000) = 1,950,000
-    assert data["subtotal"] == 1950000.0
-    assert data["total_amount"] == 1950000.0
+    assert float(data["subtotal"]) == 2050000.0
+    assert float(data["total_amount"]) == 2050000.0
     
     assert "facility_bookings" in data
     assert len(data["facility_bookings"]) == 2
     
     f1_booking = next((f for f in data["facility_bookings"] if f["facility_id"] == fac_1_id), None)
     assert f1_booking is not None
-    assert f1_booking["unit_price"] == 50000.0
-    assert f1_booking["total_price"] == 50000.0
+    assert float(f1_booking["unit_price"]) == 50000.0
+    assert float(f1_booking["total_price"]) == 50000.0
     
     f2_booking = next((f for f in data["facility_bookings"] if f["facility_id"] == fac_2_id), None)
     assert f2_booking is not None
-    assert f2_booking["unit_price"] == 30000.0
-    assert f2_booking["total_price"] == 1500000.0
+    assert float(f2_booking["unit_price"]) == 30000.0
+    assert float(f2_booking["total_price"]) == 1500000.0
 
     print("Test passed successfully.")

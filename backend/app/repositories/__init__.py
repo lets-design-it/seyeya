@@ -923,34 +923,140 @@ class ConferenceRepository:
         )
         return result.scalars().all()
     
-    async def create_hall(self, hall_name: str, capacity: int, hourly_rate, half_day_rate, full_day_rate, description: Optional[str] = None, facility_ids: Optional[List[int]] = None) -> ConferenceHall:
+    async def create_hall(
+        self,
+        hall_name: str,
+        capacity: int,
+        standard_price: Optional[Decimal] = None,
+        description: Optional[str] = None,
+        image: Optional[str] = None,
+        facility_ids: Optional[List[int]] = None
+    ) -> ConferenceHall:
         """Create a new conference hall"""
         hall = ConferenceHall(
             hall_name=hall_name,
             capacity=capacity,
-            hourly_rate=hourly_rate,
-            half_day_rate=half_day_rate,
-            full_day_rate=full_day_rate,
+            standard_price=standard_price,
             description=description,
+            image=image,
             is_active=True
         )
         self.db.add(hall)
         await self.db.flush()
         
         if facility_ids:
-            for facility_id in facility_ids:
+            for fid in facility_ids:
                 hall_facility = ConferenceHallFacility(
                     hall_id=hall.hall_id,
-                    facility_id=facility_id,
+                    facility_id=fid,
                     status="Available"
                 )
                 self.db.add(hall_facility)
                 
         await self.db.commit()
-        await self.db.refresh(hall)
+        self.db.expire_all()
         
         # Load the newly created hall with its facilities
         return await self.get_hall_by_id(hall.hall_id)
+
+    async def update_hall(
+        self,
+        hall_id: int,
+        hall_name: Optional[str] = None,
+        capacity: Optional[int] = None,
+        standard_price: Optional[Decimal] = None,
+        description: Optional[str] = None,
+        image: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        facility_ids: Optional[List[int]] = None
+    ) -> Optional[ConferenceHall]:
+        """Update a conference hall"""
+        result = await self.db.execute(
+            select(ConferenceHall).where(ConferenceHall.hall_id == hall_id)
+        )
+        hall = result.scalar_one_or_none()
+        if not hall:
+            return None
+
+        if hall_name is not None:
+            hall.hall_name = hall_name
+        if capacity is not None:
+            hall.capacity = capacity
+        if standard_price is not None:
+            hall.standard_price = standard_price
+        if description is not None:
+            hall.description = description
+        if image is not None:
+            hall.image = image
+        if is_active is not None:
+            hall.is_active = is_active
+
+        if facility_ids is not None:
+            from sqlalchemy import delete
+            # Delete existing facility associations
+            await self.db.execute(
+                delete(ConferenceHallFacility).where(ConferenceHallFacility.hall_id == hall_id)
+            )
+            # Re-add specified facilities
+            for fid in facility_ids:
+                hall_facility = ConferenceHallFacility(
+                    hall_id=hall_id,
+                    facility_id=fid,
+                    status="Available"
+                )
+                self.db.add(hall_facility)
+
+        self.db.add(hall)
+        await self.db.commit()
+        self.db.expire_all()
+        return await self.get_hall_by_id(hall_id)
+
+    async def assign_facilities_to_hall(self, hall_id: int, facility_ids: List[int]) -> Optional[ConferenceHall]:
+        """Assign facilities list (multiple) to a conference hall"""
+        return await self.update_hall(hall_id=hall_id, facility_ids=facility_ids)
+
+    async def add_facility_to_hall(self, hall_id: int, facility_id: int) -> Optional[ConferenceHall]:
+        """Add a single facility to a hall without removing existing ones"""
+        from sqlalchemy import select
+        existing = await self.db.execute(
+            select(ConferenceHallFacility).where(
+                ConferenceHallFacility.hall_id == hall_id,
+                ConferenceHallFacility.facility_id == facility_id
+            )
+        )
+        if not existing.scalar_one_or_none():
+            hall_fac = ConferenceHallFacility(
+                hall_id=hall_id,
+                facility_id=facility_id,
+                status="Available"
+            )
+            self.db.add(hall_fac)
+            await self.db.commit()
+        return await self.get_hall_by_id(hall_id)
+
+    async def remove_facility_from_hall(self, hall_id: int, facility_id: int) -> Optional[ConferenceHall]:
+        """Remove a single facility association from a hall"""
+        from sqlalchemy import delete
+        await self.db.execute(
+            delete(ConferenceHallFacility).where(
+                ConferenceHallFacility.hall_id == hall_id,
+                ConferenceHallFacility.facility_id == facility_id
+            )
+        )
+        await self.db.commit()
+        return await self.get_hall_by_id(hall_id)
+
+    async def delete_hall(self, hall_id: int) -> bool:
+        """Delete a conference hall"""
+        result = await self.db.execute(
+            select(ConferenceHall).where(ConferenceHall.hall_id == hall_id)
+        )
+        hall = result.scalar_one_or_none()
+        if not hall:
+            return False
+        await self.db.delete(hall)
+        await self.db.commit()
+        return True
     
     async def get_all_reservations(self) -> List[ConferenceReservation]:
         """Get all conference reservations"""
@@ -983,7 +1089,26 @@ class ConferenceRepository:
         )
         return result.scalar_one_or_none()
     
-    async def create_reservation(self, customer_id: int, hall_id: int, event_name: str, event_start_date, event_end_date, start_time, end_time, num_participants: int, booking_type: str, reservation_code: str, total_amount, subtotal, hall_unit_price, payment_responsibility: str) -> ConferenceReservation:
+    async def create_reservation(
+        self,
+        customer_id: int,
+        hall_id: int,
+        event_name: str,
+        event_start_date,
+        event_end_date,
+        start_time,
+        end_time,
+        num_participants: Optional[int] = 1,
+        reservation_code: str = "",
+        total_amount: Decimal = Decimal('0.00'),
+        subtotal: Decimal = Decimal('0.00'),
+        hall_standard_price: Optional[Decimal] = Decimal('0.00'),
+        amount_paid: Decimal = Decimal('0.00'),
+        balance_due: Optional[Decimal] = Decimal('0.00'),
+        payment_responsibility: str = "Individual",
+        booking_type: Optional[str] = "Standard",
+        special_requests: Optional[str] = None
+    ) -> ConferenceReservation:
         """Create a new conference reservation"""
         reservation = ConferenceReservation(
             customer_id=customer_id,
@@ -994,14 +1119,16 @@ class ConferenceRepository:
             start_time=start_time,
             end_time=end_time,
             num_participants=num_participants,
-            booking_type=booking_type,
+            booking_type=booking_type or "Standard",
             reservation_code=reservation_code,
             total_amount=total_amount,
             subtotal=subtotal,
-            hall_unit_price=hall_unit_price,
+            hall_cost=hall_standard_price or Decimal('0.00'),
+            hall_unit_price=hall_standard_price or Decimal('0.00'),
             payment_responsibility=payment_responsibility,
-            amount_paid=Decimal(0),
-            balance_due=total_amount,
+            amount_paid=amount_paid,
+            balance_due=balance_due,
+            special_requests=special_requests,
             reservation_status="Pending",
             payment_status="Pending"
         )
