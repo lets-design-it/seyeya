@@ -207,6 +207,7 @@ class Customer(Base):
     passport_number = Column(String(30))
     phone_number = Column(String(20))
     customer_type = Column(String(20), default="Registered")
+    company_name = Column(String(200), nullable=True)
     email = Column(String(150), unique=False)
     gender = Column(String(20))
     date_of_birth = Column(Date)
@@ -699,11 +700,11 @@ class ConferenceHall(Base):
     hall_id = Column(Integer, primary_key=True)
     hall_name = Column(String(150), nullable=False)
     capacity = Column(Integer, nullable=False)
+    standard_price = Column(DECIMAL(10, 2))
     hourly_rate = Column(DECIMAL(10, 2))
     full_day_rate = Column(DECIMAL(10, 2))
     half_day_rate = Column(DECIMAL(10, 2))
     description = Column(String(500))
-    amenities = Column(String(500))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -711,6 +712,7 @@ class ConferenceHall(Base):
     # Relationships
     photos = relationship("HallPhoto", back_populates="hall", cascade="all, delete-orphan")
     reservations = relationship("ConferenceReservation", back_populates="hall", cascade="all, delete-orphan")
+    facilities = relationship("ConferenceHallFacility", back_populates="hall", cascade="all, delete-orphan")
 
 
 class HallPhoto(Base):
@@ -773,9 +775,12 @@ class ConferenceReservation(Base):
     end_time = Column(Time, nullable=False)
     num_participants = Column(Integer)
     booking_type = Column(String(20))  # Hourly | HalfDay | FullDay
+    payment_responsibility = Column(String(50), default="Individual") # Individual | Organisation
+    hall_unit_price = Column(DECIMAL(10, 2), default=0)
     hall_cost = Column(DECIMAL(10, 2), default=0)
     resource_cost = Column(DECIMAL(10, 2), default=0)
     meal_cost = Column(DECIMAL(10, 2), default=0)
+    subtotal = Column(DECIMAL(10, 2), nullable=False, default=0)
     total_amount = Column(DECIMAL(10, 2), nullable=False, default=0)
     amount_paid = Column(DECIMAL(10, 2), default=0)
     balance_due = Column(DECIMAL(10, 2), default=0)
@@ -792,6 +797,7 @@ class ConferenceReservation(Base):
     hall = relationship("ConferenceHall", back_populates="reservations")
     resource_bookings = relationship("ConferenceResourceBooking", back_populates="conference_reservation", cascade="all, delete-orphan")
     meal_bookings = relationship("ConferenceMealBooking", back_populates="conference_reservation", cascade="all, delete-orphan")
+    facility_bookings = relationship("ConferenceBookingFacility", back_populates="conference_reservation", cascade="all, delete-orphan")
     
     __table_args__ = (
         Index('ix_conference_reservations_customer_id', 'customer_id'),
@@ -863,14 +869,54 @@ class ConferenceFacility(Base):
     name = Column(String(150), nullable=False, unique=True)
     category = Column(String(100), default="General Services")
     description = Column(String(500), nullable=True)
+    price = Column(DECIMAL(10, 2), nullable=False, default=0.00)
+    pricing_type = Column(String(20), default="FIXED")
     icon_name = Column(String(50), default="Sparkles")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Relationships
+    hall_associations = relationship("ConferenceHallFacility", back_populates="facility", cascade="all, delete-orphan")
+    booking_line_items = relationship("ConferenceBookingFacility", back_populates="facility", cascade="all, delete-orphan")
+    
     __table_args__ = (
         Index('ix_conference_facilities_is_active', 'is_active'),
     )
+
+
+class ConferenceHallFacility(Base):
+    """Junction table for Conference Halls and Facilities"""
+    __tablename__ = "conference_hall_facilities"
+    
+    id = Column(Integer, primary_key=True)
+    hall_id = Column(Integer, ForeignKey("conference_halls.hall_id", ondelete="CASCADE"), nullable=False)
+    facility_id = Column(Integer, ForeignKey("conference_facilities.facility_id", ondelete="CASCADE"), nullable=False)
+    status = Column(String(20), default="Available")
+    
+    # Relationships
+    hall = relationship("ConferenceHall", back_populates="facilities")
+    facility = relationship("ConferenceFacility", back_populates="hall_associations")
+    
+    __table_args__ = (
+        UniqueConstraint('hall_id', 'facility_id', name='uq_hall_facility'),
+    )
+
+
+class ConferenceBookingFacility(Base):
+    """Line items for facilities booked in a conference reservation"""
+    __tablename__ = "conference_booking_facilities"
+    
+    id = Column(Integer, primary_key=True)
+    booking_id = Column(Integer, ForeignKey("conference_reservations.conference_res_id", ondelete="CASCADE"), nullable=False)
+    facility_id = Column(Integer, ForeignKey("conference_facilities.facility_id"), nullable=False)
+    quantity = Column(Integer, default=1)
+    unit_price = Column(DECIMAL(10, 2), nullable=False)
+    total_price = Column(DECIMAL(10, 2), nullable=False)
+    
+    # Relationships
+    conference_reservation = relationship("ConferenceReservation", back_populates="facility_bookings")
+    facility = relationship("ConferenceFacility", back_populates="booking_line_items")
 
 
 # =====================================================================
