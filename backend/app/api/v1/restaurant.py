@@ -321,6 +321,8 @@ async def create_order(
         
         # Set additional fields
         order.seating_location = request.seating_location
+        order.allergy_info = request.allergy_info
+        order.assigned_waiter = request.assigned_waiter
         
         db.add(order)
         await db.commit()
@@ -396,6 +398,17 @@ async def update_order(
         if request.amount_paid is not None:
             order.amount_paid = request.amount_paid
             order.balance_due = order.total_amount - request.amount_paid
+            
+        update_fields = [
+            "seating_location", "delivery_option", "delivery_address",
+            "delivery_lat", "delivery_lng", "delivery_charge",
+            "preferred_time", "special_instr", "allergy_info",
+            "assigned_waiter", "tracking_number"
+        ]
+        for field in update_fields:
+            val = getattr(request, field, None)
+            if val is not None:
+                setattr(order, field, val)
         
         db.add(order)
         await db.commit()

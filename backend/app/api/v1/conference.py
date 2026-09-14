@@ -15,7 +15,7 @@ from app.schemas import (
     ConferenceFacilityCreate, ConferenceFacilityUpdate, ConferenceFacilityResponse
 )
 from app.repositories import ConferenceRepository
-from app.models import ConferenceHall, ConferenceResource, ConferenceMealPackage, ConferenceResourceBooking, ConferenceMealBooking
+from app.models import ConferenceHall, ConferenceResource, ConferenceMealPackage, ConferenceResourceBooking, ConferenceMealBooking, ConferenceFacility, ConferenceBookingFacility
 
 router = APIRouter(prefix="/api/v1/conference", tags=["conference"])
 
@@ -35,7 +35,7 @@ async def create_hall(
         half_day_rate=request.half_day_rate,
         full_day_rate=request.full_day_rate,
         description=request.description,
-        amenities=request.amenities
+        facility_ids=request.facility_ids
     )
     return hall
 
@@ -115,42 +115,63 @@ async def create_reservation(
             raise ValueError("Hall not found")
         
         # Calculate hall cost based on booking type
+        hall_unit_price = Decimal(0)
         hall_cost = Decimal(0)
-        if request.booking_type == "Hourly":
-            if hall.hourly_rate:
-                hall_cost = hall.hourly_rate
-        elif request.booking_type == "HalfDay":
-            if hall.half_day_rate:
-                hall_cost = hall.half_day_rate
-        elif request.booking_type == "FullDay":
-            if hall.full_day_rate:
-                hall_cost = hall.full_day_rate
+        if request.booking_type == "Hourly" and hall.hourly_rate:
+            hall_unit_price = hall.hourly_rate
+            # Calculate hours difference
+            from datetime import datetime, date
+            start_dt = datetime.combine(date.today(), request.start_time)
+            end_dt = datetime.combine(date.today(), request.end_time)
+            duration_hours = (end_dt - start_dt).total_seconds() / 3600.0
+            if duration_hours < 0:
+                # Handle overnight bookings if start_time > end_time
+                duration_hours += 24.0
+            hall_cost = hall_unit_price * Decimal(str(duration_hours))
+        elif request.booking_type == "HalfDay" and hall.half_day_rate:
+            hall_unit_price = hall.half_day_rate
+            hall_cost = hall_unit_price
+        elif request.booking_type == "FullDay" and hall.full_day_rate:
+            hall_unit_price = hall.full_day_rate
+            hall_cost = hall_unit_price
         
-        # Calculate resource cost
-        resource_cost = Decimal(0)
-        if request.resources:
-            for res_data in request.resources:
+        # Calculate facility cost
+        facility_cost = Decimal(0)
+        facility_line_items = []
+        if request.facilities:
+            for fac_req in request.facilities:
                 result = await db.execute(
-                    select(ConferenceResource).where(ConferenceResource.resource_id == res_data.resource_id)
+                    select(ConferenceFacility).where(ConferenceFacility.facility_id == fac_req.facility_id)
                 )
-                resource = result.scalar_one_or_none()
-                if resource:
-                    resource_cost += resource.daily_rate * Decimal(res_data.quantity)
+                facility = result.scalar_one_or_none()
+                if facility:
+                    unit_price = facility.price
+                    # Total is simply quantity x unit_price as requested
+                    total_price = unit_price * Decimal(fac_req.quantity)
+                    facility_cost += total_price
+                    facility_line_items.append((facility, fac_req.quantity, unit_price, total_price))
         
-        # Calculate meal cost
-        meal_cost = Decimal(0)
-        if request.meals:
-            for meal_data in request.meals:
-                result = await db.execute(
-                    select(ConferenceMealPackage).where(ConferenceMealPackage.package_id == meal_data.package_id)
-                )
-                package = result.scalar_one_or_none()
-                if package:
-                    meal_cost += package.price_per_person * Decimal(meal_data.num_participants)
-        
-        total_amount = hall_cost + resource_cost + meal_cost
+        subtotal = hall_cost + facility_cost
+        total_amount = subtotal  # can be updated if tax applies
         reservation_code = f"CON-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
         
+        # Check for overlapping availability
+        # We find any reservation for this hall that overlaps with the requested date and times
+        from sqlalchemy import and_, or_
+        from app.models import ConferenceReservation
+        overlap_check = await db.execute(
+            select(ConferenceReservation).where(
+                ConferenceReservation.hall_id == request.hall_id,
+                ConferenceReservation.event_start_date <= request.event_end_date,
+                ConferenceReservation.event_end_date >= request.event_start_date,
+                ConferenceReservation.start_time < request.end_time,
+                ConferenceReservation.end_time > request.start_time,
+                ConferenceReservation.reservation_status.notin_(["Cancelled", "Rejected"])
+            )
+        )
+        if overlap_check.scalars().first():
+            raise ValueError("The hall is already booked for the selected date and time.")
+
         reservation = await repo.create_reservation(
             customer_id=request.customer_id,
             hall_id=request.hall_id,
@@ -162,47 +183,26 @@ async def create_reservation(
             num_participants=request.num_participants,
             booking_type=request.booking_type,
             reservation_code=reservation_code,
-            total_amount=total_amount
+            total_amount=total_amount,
+            subtotal=subtotal,
+            hall_unit_price=hall_unit_price,
+            payment_responsibility=request.payment_responsibility or "Individual"
         )
         
         reservation.special_requests = request.special_requests
         reservation.hall_cost = hall_cost
-        reservation.resource_cost = resource_cost
-        reservation.meal_cost = meal_cost
         
-        # Add resource bookings
-        if request.resources:
-            for res_data in request.resources:
-                result = await db.execute(
-                    select(ConferenceResource).where(ConferenceResource.resource_id == res_data.resource_id)
+        # Add facility bookings
+        if facility_line_items:
+            for fac, qty, u_price, t_price in facility_line_items:
+                booking = ConferenceBookingFacility(
+                    booking_id=reservation.conference_res_id,
+                    facility_id=fac.facility_id,
+                    quantity=qty,
+                    unit_price=u_price,
+                    total_price=t_price
                 )
-                resource = result.scalar_one_or_none()
-                if resource:
-                    booking = ConferenceResourceBooking(
-                        conference_res_id=reservation.conference_res_id,
-                        resource_id=resource.resource_id,
-                        quantity=res_data.quantity,
-                        rate=resource.daily_rate,
-                        total_cost=resource.daily_rate * Decimal(res_data.quantity)
-                    )
-                    db.add(booking)
-        
-        # Add meal bookings
-        if request.meals:
-            for meal_data in request.meals:
-                result = await db.execute(
-                    select(ConferenceMealPackage).where(ConferenceMealPackage.package_id == meal_data.package_id)
-                )
-                package = result.scalar_one_or_none()
-                if package:
-                    booking = ConferenceMealBooking(
-                        conference_res_id=reservation.conference_res_id,
-                        package_id=package.package_id,
-                        num_participants=meal_data.num_participants,
-                        price_per_person=package.price_per_person,
-                        total_cost=package.price_per_person * Decimal(meal_data.num_participants)
-                    )
-                    db.add(booking)
+                db.add(booking)
         
         db.add(reservation)
         await db.commit()
@@ -221,7 +221,7 @@ async def create_reservation(
             # Prevent notification issues from failing the reservation endpoint
             pass
             
-        return reservation
+        return await repo.get_reservation_by_id(reservation.conference_res_id)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -434,6 +434,8 @@ async def create_conference_facility(
         name=request.name,
         category=request.category or "General Services",
         description=request.description,
+        price=request.price,
+        pricing_type=request.pricing_type,
         icon_name=request.icon_name or "Sparkles",
         is_active=request.is_active if request.is_active is not None else True
     )
@@ -463,6 +465,10 @@ async def update_conference_facility(
         facility.category = request.category
     if request.description is not None:
         facility.description = request.description
+    if request.price is not None:
+        facility.price = request.price
+    if request.pricing_type is not None:
+        facility.pricing_type = request.pricing_type
     if request.icon_name is not None:
         facility.icon_name = request.icon_name
     if request.is_active is not None:

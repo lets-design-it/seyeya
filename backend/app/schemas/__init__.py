@@ -455,6 +455,8 @@ class RestaurantOrderCreate(BaseModel):
     delivery_charge: Optional[Decimal] = None
     preferred_time: Optional[datetime] = None
     special_instr: Optional[str] = None
+    allergy_info: Optional[str] = None
+    assigned_waiter: Optional[int] = None
     items: List[OrderItemCreate]
 
 
@@ -462,6 +464,17 @@ class RestaurantOrderUpdate(BaseModel):
     order_status: Optional[str] = None
     payment_status: Optional[str] = None
     amount_paid: Optional[Decimal] = None
+    seating_location: Optional[str] = None
+    delivery_option: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_lat: Optional[Decimal] = None
+    delivery_lng: Optional[Decimal] = None
+    delivery_charge: Optional[Decimal] = None
+    preferred_time: Optional[datetime] = None
+    special_instr: Optional[str] = None
+    allergy_info: Optional[str] = None
+    assigned_waiter: Optional[int] = None
+    tracking_number: Optional[str] = None
 
 
 class OrderItemExtraResponse(BaseModel):
@@ -528,16 +541,24 @@ class RestaurantOrderResponse(BaseModel):
     order_number: str
     seating_location: Optional[str] = None
     delivery_option: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_lat: Optional[Decimal] = None
+    delivery_lng: Optional[Decimal] = None
     delivery_distance_km: Optional[Decimal] = Decimal(0)
     price_per_km_used: Optional[Decimal] = Decimal(0)
     delivery_charge: Optional[Decimal] = Decimal(0)
     tax_amount: Optional[Decimal] = Decimal(0)
+    preferred_time: Optional[datetime] = None
+    special_instr: Optional[str] = None
+    allergy_info: Optional[str] = None
     sub_total: Optional[Decimal] = Decimal(0)
     total_amount: Optional[Decimal] = Decimal(0)
     amount_paid: Optional[Decimal] = Decimal(0)
     balance_due: Optional[Decimal] = Decimal(0)
     order_status: Optional[str] = "Pending"
     payment_status: Optional[str] = "Pending"
+    assigned_waiter: Optional[int] = None
+    tracking_number: Optional[str] = None
     items: List[OrderItemResponse]
     created_at: datetime
     updated_at: datetime
@@ -1186,22 +1207,24 @@ class AccommodationReservationResponse(BaseModel):
 class ConferenceHallCreate(BaseModel):
     hall_name: str
     capacity: int
+    standard_price: Optional[Decimal] = None
     hourly_rate: Optional[Decimal] = None
     half_day_rate: Optional[Decimal] = None
     full_day_rate: Optional[Decimal] = None
     description: Optional[str] = None
-    amenities: Optional[str] = None
+    facility_ids: Optional[List[int]] = []
 
 
 class ConferenceHallResponse(BaseModel):
     hall_id: int
     hall_name: str
     capacity: int
+    standard_price: Optional[Decimal] = None
     hourly_rate: Optional[Decimal] = None
     full_day_rate: Optional[Decimal] = None
     half_day_rate: Optional[Decimal] = None
     description: Optional[str] = None
-    amenities: Optional[str] = None
+    facilities: List["ConferenceHallFacilityResponse"] = []
     
     class Config:
         from_attributes = True
@@ -1249,9 +1272,9 @@ class ConferenceReservationCreate(BaseModel):
     end_time: time
     num_participants: int
     booking_type: str
+    payment_responsibility: Optional[str] = "Individual"
     special_requests: Optional[str] = None
-    resources: Optional[List[ConferenceResourceBookingCreate]] = None
-    meals: Optional[List[ConferenceMealBookingCreate]] = None
+    facilities: Optional[List['ConferenceBookingFacilityCreate']] = None
 
 
 class ConferenceReservationUpdate(BaseModel):
@@ -1271,7 +1294,10 @@ class ConferenceReservationResponse(BaseModel):
     start_time: time
     end_time: time
     booking_type: str
+    payment_responsibility: str
     num_participants: int
+    hall_unit_price: Decimal
+    subtotal: Decimal
     total_amount: Decimal
     amount_paid: Decimal
     balance_due: Decimal
@@ -1281,6 +1307,7 @@ class ConferenceReservationResponse(BaseModel):
     updated_at: datetime
     customer: Optional[CustomerResponse] = None
     hall: Optional[ConferenceHallResponse] = None
+    facilities: Optional[List['ConferenceBookingFacilityResponse']] = Field(None, alias="facility_bookings")
     
     class Config:
         from_attributes = True
@@ -1332,6 +1359,8 @@ class ConferenceFacilityBase(BaseModel):
     name: str
     category: Optional[str] = "General Services"
     description: Optional[str] = None
+    price: Decimal = Decimal('0.00')
+    pricing_type: Optional[str] = "FIXED"
     icon_name: Optional[str] = "Sparkles"
     is_active: Optional[bool] = True
 
@@ -1344,6 +1373,8 @@ class ConferenceFacilityUpdate(BaseModel):
     name: Optional[str] = None
     category: Optional[str] = None
     description: Optional[str] = None
+    price: Optional[Decimal] = None
+    pricing_type: Optional[str] = None
     icon_name: Optional[str] = None
     is_active: Optional[bool] = None
 
@@ -1355,6 +1386,40 @@ class ConferenceFacilityResponse(ConferenceFacilityBase):
 
     class Config:
         from_attributes = True
+
+
+class ConferenceHallFacilityResponse(BaseModel):
+    id: int
+    hall_id: int
+    facility_id: int
+    status: str
+    facility: Optional[ConferenceFacilityResponse] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class ConferenceBookingFacilityCreate(BaseModel):
+    facility_id: int
+    quantity: int = 1
+
+
+class ConferenceBookingFacilityResponse(BaseModel):
+    id: int
+    booking_id: int
+    facility_id: int
+    quantity: int
+    unit_price: Decimal
+    total_price: Decimal
+    facility: Optional[ConferenceFacilityResponse] = None
+
+    class Config:
+        from_attributes = True
+
+ConferenceReservationCreate.model_rebuild()
+ConferenceReservationResponse.model_rebuild()
+ConferenceHallFacilityResponse.model_rebuild()
+ConferenceHallResponse.model_rebuild()
 
 
 # =====================================================================

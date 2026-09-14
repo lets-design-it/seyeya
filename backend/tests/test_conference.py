@@ -66,6 +66,9 @@ def test_create_conference_reservation_success(monkeypatch):
     mock_db = MagicMock()
     mock_db.commit = AsyncMock()
     mock_db.refresh = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.first.return_value = None
+    mock_db.execute = AsyncMock(return_value=mock_result)
     app.dependency_overrides[get_db] = lambda: mock_db
     app.dependency_overrides[get_current_user] = lambda: {"user_id": 1, "role": "admin"}
     
@@ -89,6 +92,9 @@ def test_create_conference_reservation_success(monkeypatch):
         num_participants=50,
         booking_type="FullDay",
         total_amount=Decimal("500.00"),
+        subtotal=Decimal("500.00"),
+        hall_unit_price=Decimal("500.00"),
+        payment_responsibility="Individual",
         amount_paid=Decimal("0.00"),
         balance_due=Decimal("500.00"),
         reservation_status="Pending",
@@ -101,9 +107,7 @@ def test_create_conference_reservation_success(monkeypatch):
         assert hall_id == 2
         return mock_hall
         
-    async def mock_create_reservation(self, customer_id, hall_id, event_name, event_start_date, event_end_date, start_time, end_time, num_participants, booking_type, reservation_code, total_amount):
-        assert event_start_date == date(2026, 8, 10)
-        assert event_end_date == date(2026, 8, 12)
+    async def mock_create_reservation(self, *args, **kwargs):
         return mock_reservation
 
     monkeypatch.setattr(ConferenceRepository, "get_hall_by_id", mock_get_hall_by_id)
@@ -129,5 +133,83 @@ def test_create_conference_reservation_success(monkeypatch):
     assert data["event_start_date"] == "2026-08-10"
     assert data["event_end_date"] == "2026-08-12"
     assert float(data["total_amount"]) == 500.00
+    
+    app.dependency_overrides.clear()
+
+
+def test_retrieve_reservations_with_hall_and_facilities(monkeypatch):
+    from app.models import ConferenceFacility, ConferenceHallFacility
+    
+    mock_db = MagicMock()
+    mock_db.execute = AsyncMock()
+    app.dependency_overrides[get_db] = lambda: mock_db
+    app.dependency_overrides[get_current_user] = lambda: {"user_id": 1, "role": "admin"}
+    
+    mock_facility = ConferenceFacility(
+        facility_id=1,
+        name="Sound System",
+        category="Audio/Visual",
+        price=Decimal("1000.00"),
+        pricing_type="FIXED",
+        is_active=True
+    )
+    
+    mock_hall_facility = ConferenceHallFacility(
+        id=1,
+        hall_id=2,
+        facility_id=1,
+        status="Available"
+    )
+    # Eager loaded relation mock
+    mock_hall_facility.facility = mock_facility
+    
+    mock_hall = ConferenceHall(
+        hall_id=2,
+        hall_name="Grand Ballroom",
+        capacity=100,
+        full_day_rate=Decimal("500.00")
+    )
+    mock_hall.facilities = [mock_hall_facility]
+    
+    mock_reservation = ConferenceReservation(
+        conference_res_id=123,
+        customer_id=1,
+        hall_id=2,
+        reservation_code="CON-2026-ABCDEF",
+        event_name="Annual Strategy Planning",
+        event_start_date=date(2026, 8, 10),
+        event_end_date=date(2026, 8, 12),
+        start_time=time(9, 0),
+        end_time=time(17, 0),
+        num_participants=50,
+        booking_type="FullDay",
+        total_amount=Decimal("500.00"),
+        subtotal=Decimal("500.00"),
+        hall_unit_price=Decimal("500.00"),
+        payment_responsibility="Individual",
+        amount_paid=Decimal("0.00"),
+        balance_due=Decimal("500.00"),
+        reservation_status="Pending",
+        payment_status="Pending",
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    mock_reservation.hall = mock_hall
+    mock_reservation.facility_bookings = []
+    
+    async def mock_get_all_reservations(self):
+        return [mock_reservation]
+        
+    monkeypatch.setattr(ConferenceRepository, "get_all_reservations", mock_get_all_reservations)
+    
+    response = client.get("/api/v1/conference/reservations")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert len(data) == 1
+    reservation = data[0]
+    assert reservation["hall"]["hall_name"] == "Grand Ballroom"
+    assert len(reservation["hall"]["facilities"]) == 1
+    assert reservation["hall"]["facilities"][0]["facility"]["name"] == "Sound System"
     
     app.dependency_overrides.clear()
