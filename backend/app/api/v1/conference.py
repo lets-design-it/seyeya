@@ -503,6 +503,22 @@ async def get_conference_facilities(
     )
     facilities = result.scalars().all()
     
+    if not facilities:
+        defaults = [
+            {"name": "Catering Services", "category": "Catering & Dining", "description": "Full buffet, seated banquets, and coffee breaks.", "icon_name": "Utensils", "is_active": True, "price": 30000.0},
+            {"name": "Public Address System", "category": "Audio/Visual", "description": "High-powered PA system, wireless mics, and mixers.", "icon_name": "Volume2", "is_active": True, "price": 100000.0},
+            {"name": "HD Projector & Screen", "category": "Audio/Visual", "description": "4K Laser projection with motorized 150-inch screens.", "icon_name": "Projector", "is_active": True, "price": 150000.0},
+            {"name": "High-Speed Wi-Fi", "category": "Connectivity", "description": "Dedicated 1Gbps fiber internet with guest portal.", "icon_name": "Wifi", "is_active": True, "price": 50000.0},
+            {"name": "Stage & Podium", "category": "Staging & Hall", "description": "Modular executive stage with wooden lectern.", "icon_name": "Mic", "is_active": True, "price": 200000.0},
+            {"name": "Executive Sound & Lighting", "category": "Audio/Visual", "description": "Ambient stage spotlights, RGB mood lights, and DJ rig.", "icon_name": "Zap", "is_active": True, "price": 300000.0},
+            {"name": "Coffee & Refreshments Station", "category": "Catering & Dining", "description": "Espresso machine, herbal tea bar, and pastries.", "icon_name": "Coffee", "is_active": True, "price": 80000.0}
+        ]
+        for item in defaults:
+            db.add(ConferenceFacility(**item))
+        await db.commit()
+        result = await db.execute(select(ConferenceFacility).order_by(ConferenceFacility.facility_id.asc()))
+        facilities = result.scalars().all()
+        
     return facilities
 
 
@@ -523,7 +539,8 @@ async def create_conference_facility(
         price=request.price,
         pricing_type=request.pricing_type,
         icon_name=request.icon_name or "Sparkles",
-        is_active=request.is_active if request.is_active is not None else True
+        is_active=request.is_active if request.is_active is not None else True,
+        price=request.price if request.price is not None else 0.0
     )
     db.add(facility)
     await db.commit()
@@ -566,6 +583,8 @@ async def update_conference_facility(
         facility.icon_name = request.icon_name
     if request.is_active is not None:
         facility.is_active = request.is_active
+    if request.price is not None:
+        facility.price = request.price
 
     db.add(facility)
     await db.commit()

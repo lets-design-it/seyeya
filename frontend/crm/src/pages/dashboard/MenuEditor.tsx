@@ -93,6 +93,7 @@ export const MenuEditor: React.FC = () => {
   const [category, setCategory] = useState<string>('Local Food');
   const [priceUGX, setPriceUGX] = useState<number>(10000);
   const [priceUSD, setPriceUSD] = useState<number>(3);
+  const [includesVat, setIncludesVat] = useState<boolean>(true);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
   const [quantity, setQuantity] = useState<number>(100);
@@ -140,6 +141,7 @@ export const MenuEditor: React.FC = () => {
     setCategory(categories[0]?.category_name || 'Local Food');
     setPriceUGX(15000);
     setPriceUSD(4);
+    setIncludesVat(true);
     setDescription('');
     setImage('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200'); // generic food placeholder
     setQuantity(100);
@@ -154,11 +156,14 @@ export const MenuEditor: React.FC = () => {
   };
 
   const openEditModal = (item: MenuItem) => {
+    const vatIncl = (item as any).is_vat_inclusive ?? true;
     setEditItem(item);
     setName(item.name);
     setCategory(item.category);
-    setPriceUGX(item.priceUGX);
+    const basePrice = vatIncl ? Math.round(item.priceUGX / 1.18) : item.priceUGX;
+    setPriceUGX(basePrice);
     setPriceUSD(item.priceUSD);
+    setIncludesVat(vatIncl);
     setDescription(item.description);
     setImage(item.image);
     setQuantity(item.quantity ?? 100);
@@ -218,11 +223,14 @@ export const MenuEditor: React.FC = () => {
     e.preventDefault();
     if (!name.trim()) return;
 
+    const finalPriceUGX = includesVat ? Math.round(Number(priceUGX) * 1.18) : Number(priceUGX);
+
     const itemData = {
       name: name.trim(),
       category,
-      priceUGX: Number(priceUGX),
+      priceUGX: finalPriceUGX,
       priceUSD: Number(priceUSD),
+      is_vat_inclusive: includesVat,
       description: description.trim(),
       image: image.trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200',
       quantity: Number(quantity),
@@ -707,26 +715,45 @@ export const MenuEditor: React.FC = () => {
                 type="number"
                 min={0}
                 required
-                placeholder="e.g. 15000"
+                placeholder="e.g. 60000"
                 value={priceUGX}
                 onChange={(e) => setPriceUGX(Number(e.target.value))}
                 className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
               />
+              <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={includesVat}
+                  onChange={(e) => setIncludesVat(e.target.checked)}
+                  className="rounded border-zinc-300 dark:border-zinc-700 accent-[#D4AF37] h-4 w-4 cursor-pointer"
+                />
+                <span>Add VAT (18%)</span>
+              </label>
+              {priceUGX > 0 && (
+                <div className="mt-1.5 text-xs font-semibold">
+                  {includesVat ? (
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2 text-xs font-bold">
+                        <span>New Total Price (incl. 18% VAT):</span>
+                        <span className="font-extrabold text-foreground dark:text-zinc-50 bg-white dark:bg-zinc-900 px-2.5 py-1 rounded-lg border border-amber-500/30 shadow-xs">
+                          UGX {Math.round(priceUGX * 1.18).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-2 pt-0.5 border-t border-amber-500/10 mt-0.5">
+                        <span>Base: UGX {priceUGX.toLocaleString()}</span>
+                        <span>•</span>
+                        <span>VAT (18%): UGX {Math.round(priceUGX * 0.18).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 dark:text-zinc-400 pl-1">
+                      New Total Price: <span className="font-bold text-foreground dark:text-zinc-200">UGX {priceUGX.toLocaleString()}</span> <span className="text-[11px] font-normal">(No VAT added)</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Price (USD) *</label>
-              <input
-                type="number"
-                min={0}
-                step="0.1"
-                required
-                placeholder="e.g. 4"
-                value={priceUSD}
-                onChange={(e) => setPriceUSD(Number(e.target.value))}
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
-              />
-            </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Stock Quantity *</label>
