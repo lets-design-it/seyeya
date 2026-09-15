@@ -1212,27 +1212,41 @@ class AccommodationReservationResponse(BaseModel):
 class ConferenceHallCreate(BaseModel):
     hall_name: str
     capacity: int
-    standard_price: Optional[Decimal] = None
-    hourly_rate: Optional[Decimal] = None
-    half_day_rate: Optional[Decimal] = None
-    full_day_rate: Optional[Decimal] = None
+    standard_price: Optional[Decimal] = Decimal('0.00')
     description: Optional[str] = None
-    facility_ids: Optional[List[int]] = []
+    image: Optional[str] = None
+    facility_ids: Optional[List[int]] = None
+    facilities: Optional[Any] = None
+
+
+class ConferenceHallUpdate(BaseModel):
+    hall_name: Optional[str] = None
+    capacity: Optional[int] = None
+    standard_price: Optional[Decimal] = None
+    description: Optional[str] = None
+    image: Optional[str] = None
+    is_active: Optional[bool] = None
+    facility_ids: Optional[List[int]] = None
+    facilities: Optional[Any] = None
 
 
 class ConferenceHallResponse(BaseModel):
     hall_id: int
     hall_name: str
     capacity: int
-    standard_price: Optional[Decimal] = None
-    hourly_rate: Optional[Decimal] = None
-    full_day_rate: Optional[Decimal] = None
-    half_day_rate: Optional[Decimal] = None
+    standard_price: Optional[Decimal] = Decimal('0.00')
     description: Optional[str] = None
+    image: Optional[str] = None
+    is_active: Optional[bool] = True
     facilities: List["ConferenceHallFacilityResponse"] = []
     
     class Config:
         from_attributes = True
+
+
+class ConferenceHallFacilitiesAssign(BaseModel):
+    facility_ids: Optional[List[int]] = None
+    facilities: Optional[Any] = None
 
 
 class ConferenceResourceResponse(BaseModel):
@@ -1275,8 +1289,13 @@ class ConferenceReservationCreate(BaseModel):
     event_end_date: date
     start_time: time
     end_time: time
-    num_participants: int
-    booking_type: str
+    num_participants: Optional[int] = 1
+    hall_standard_price: Optional[Decimal] = None
+    subtotal: Optional[Decimal] = None
+    total_amount: Optional[Decimal] = None
+    amount_paid: Optional[Decimal] = Decimal('0.00')
+    balance_due: Optional[Decimal] = None
+    booking_type: Optional[str] = "Standard"
     payment_responsibility: Optional[str] = "Individual"
     special_requests: Optional[str] = None
     facilities: Optional[List['ConferenceBookingFacilityCreate']] = None
@@ -1298,16 +1317,17 @@ class ConferenceReservationResponse(BaseModel):
     event_end_date: date
     start_time: time
     end_time: time
-    booking_type: str
-    payment_responsibility: str
     num_participants: int
-    hall_unit_price: Decimal
+    hall_standard_price: Optional[Decimal] = None
     subtotal: Decimal
     total_amount: Decimal
     amount_paid: Decimal
     balance_due: Decimal
+    booking_type: Optional[str] = None
+    payment_responsibility: str
     reservation_status: str
     payment_status: str
+    special_requests: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     customer: Optional[CustomerResponse] = None
@@ -1360,8 +1380,40 @@ class ConferenceEventResponse(BaseModel):
         from_attributes = True
 
 
+class ConferenceFacilityCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    icon_name: Optional[str] = "Folder"
+    is_active: Optional[bool] = True
+
+
+class ConferenceFacilityCategoryCreate(ConferenceFacilityCategoryBase):
+    pass
+
+
+class ConferenceFacilityCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ConferenceCategoryFacilitiesAssign(BaseModel):
+    facility_ids: List[int]
+
+
+class ConferenceFacilityCategoryResponse(ConferenceFacilityCategoryBase):
+    id: int
+    created_at: Optional[datetime] = None
+    facilities: List["ConferenceFacilityResponse"] = []
+
+    class Config:
+        from_attributes = True
+
+
 class ConferenceFacilityBase(BaseModel):
     name: str
+    category_id: Optional[int] = None
     category: Optional[str] = "General Services"
     description: Optional[str] = None
     price: Decimal = Decimal('0.00')
@@ -1376,6 +1428,7 @@ class ConferenceFacilityCreate(ConferenceFacilityBase):
 
 class ConferenceFacilityUpdate(BaseModel):
     name: Optional[str] = None
+    category_id: Optional[int] = None
     category: Optional[str] = None
     description: Optional[str] = None
     price: Optional[Decimal] = None
@@ -1407,6 +1460,8 @@ class ConferenceHallFacilityResponse(BaseModel):
 class ConferenceBookingFacilityCreate(BaseModel):
     facility_id: int
     quantity: int = 1
+    unit_price: Optional[Decimal] = None
+    total_price: Optional[Decimal] = None
 
 
 class ConferenceBookingFacilityResponse(BaseModel):
@@ -2180,3 +2235,5 @@ class FinancialVatResponse(BaseModel):
     payment_method_breakdown: List[dict]
 
 
+# Rebuild schemas with forward references
+ConferenceFacilityCategoryResponse.model_rebuild()

@@ -4,20 +4,48 @@ Conference module routes
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from sqlalchemy.exc import IntegrityError
+from typing import List, Optional, Any, Union, Dict
 from decimal import Decimal
 from app.db.database import get_db
 from app.core.security import get_current_user
 from app.schemas import (
     ConferenceReservationCreate, ConferenceReservationResponse, ConferenceReservationUpdate,
     ConferenceHallResponse, ConferenceResourceResponse, ConferenceMealPackageResponse,
-    ConferenceHallCreate, ConferenceEventCreate, ConferenceEventUpdate, ConferenceEventResponse,
-    ConferenceFacilityCreate, ConferenceFacilityUpdate, ConferenceFacilityResponse
+    ConferenceHallCreate, ConferenceHallUpdate, ConferenceHallFacilitiesAssign,
+    ConferenceEventCreate, ConferenceEventUpdate, ConferenceEventResponse,
+    ConferenceFacilityCreate, ConferenceFacilityUpdate, ConferenceFacilityResponse,
+    ConferenceFacilityCategoryCreate, ConferenceFacilityCategoryUpdate, ConferenceFacilityCategoryResponse,
+    ConferenceCategoryFacilitiesAssign
 )
 from app.repositories import ConferenceRepository
 from app.models import ConferenceHall, ConferenceResource, ConferenceMealPackage, ConferenceResourceBooking, ConferenceMealBooking, ConferenceFacility, ConferenceBookingFacility
 
 router = APIRouter(prefix="/api/v1/conference", tags=["conference"])
+
+
+def extract_facility_ids(facility_ids=None, facilities=None) -> Optional[List[int]]:
+    """Extract list of integer facility IDs from various request formats"""
+    collected = []
+    source = facility_ids if facility_ids is not None else facilities
+    if source is None:
+        return None
+    if isinstance(source, (int, str)):
+        source = [source]
+    if isinstance(source, list):
+        for item in source:
+            if isinstance(item, int):
+                collected.append(item)
+            elif isinstance(item, str) and item.strip().isdigit():
+                collected.append(int(item.strip()))
+            elif isinstance(item, dict):
+                fid = item.get("facility_id") or item.get("id")
+                if fid is not None:
+                    try:
+                        collected.append(int(fid))
+                    except (ValueError, TypeError):
+                        pass
+    return collected
 
 
 @router.post("/halls", response_model=ConferenceHallResponse, status_code=status.HTTP_201_CREATED)
@@ -27,17 +55,120 @@ async def create_hall(
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new conference hall"""
+    f_ids = extract_facility_ids(request.facility_ids, request.facilities)
     repo = ConferenceRepository(db)
     hall = await repo.create_hall(
         hall_name=request.hall_name,
         capacity=request.capacity,
-        hourly_rate=request.hourly_rate,
-        half_day_rate=request.half_day_rate,
-        full_day_rate=request.full_day_rate,
+        standard_price=request.standard_price,
         description=request.description,
-        facility_ids=request.facility_ids
+        image=request.image,
+        facility_ids=f_ids
     )
     return hall
+
+
+@router.put("/halls/{hall_id}", response_model=ConferenceHallResponse)
+@router.patch("/halls/{hall_id}", response_model=ConferenceHallResponse)
+async def update_hall(
+    hall_id: int,
+    request: ConferenceHallUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update conference hall details"""
+    f_ids = extract_facility_ids(request.facility_ids, request.facilities)
+    repo = ConferenceRepository(db)
+    hall = await repo.update_hall(
+        hall_id=hall_id,
+        hall_name=request.hall_name,
+        capacity=request.capacity,
+        standard_price=request.standard_price,
+        description=request.description,
+        image=request.image,
+        is_active=request.is_active,
+        facility_ids=f_ids
+    )
+    if not hall:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hall not found"
+        )
+    return hall
+
+
+@router.post("/halls/{hall_id}/facilities", response_model=ConferenceHallResponse)
+@router.put("/halls/{hall_id}/facilities", response_model=ConferenceHallResponse)
+@router.patch("/halls/{hall_id}/facilities", response_model=ConferenceHallResponse)
+async def assign_hall_facilities(
+    hall_id: int,
+    request: ConferenceHallFacilitiesAssign,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Assign or update multiple facilities for a conference hall"""
+    f_ids = extract_facility_ids(request.facility_ids, request.facilities) or []
+    repo = ConferenceRepository(db)
+    hall = await repo.assign_facilities_to_hall(hall_id, f_ids)
+    if not hall:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hall not found"
+        )
+    return hall
+
+
+@router.post("/halls/{hall_id}/facilities/{facility_id}", response_model=ConferenceHallResponse)
+async def add_single_facility_to_hall(
+    hall_id: int,
+    facility_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Add a single facility to a conference hall"""
+    repo = ConferenceRepository(db)
+    hall = await repo.add_facility_to_hall(hall_id, facility_id)
+    if not hall:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hall not found"
+        )
+    return hall
+
+
+@router.delete("/halls/{hall_id}/facilities/{facility_id}", response_model=ConferenceHallResponse)
+async def remove_single_facility_from_hall(
+    hall_id: int,
+    facility_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove a single facility from a conference hall"""
+    repo = ConferenceRepository(db)
+    hall = await repo.remove_facility_from_hall(hall_id, facility_id)
+    if not hall:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hall not found"
+        )
+    return hall
+
+
+@router.delete("/halls/{hall_id}")
+async def delete_hall(
+    hall_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a conference hall"""
+    repo = ConferenceRepository(db)
+    success = await repo.delete_hall(hall_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Hall not found"
+        )
+    return {"message": "Conference hall deleted successfully"}
 
 
 @router.get("/reservations", response_model=List[ConferenceReservationResponse])
@@ -103,61 +234,21 @@ async def create_reservation(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Create a conference reservation"""
+    """Create a conference reservation with neutral financial fields from frontend"""
     from datetime import datetime
     import uuid
     try:
         repo = ConferenceRepository(db)
         
-        # Get hall to calculate cost
-        hall = await repo.get_hall_by_id(request.hall_id)
-        if not hall:
-            raise ValueError("Hall not found")
-        
-        # Calculate hall cost based on booking type
-        hall_unit_price = Decimal(0)
-        hall_cost = Decimal(0)
-        if request.booking_type == "Hourly" and hall.hourly_rate:
-            hall_unit_price = hall.hourly_rate
-            # Calculate hours difference
-            from datetime import datetime, date
-            start_dt = datetime.combine(date.today(), request.start_time)
-            end_dt = datetime.combine(date.today(), request.end_time)
-            duration_hours = (end_dt - start_dt).total_seconds() / 3600.0
-            if duration_hours < 0:
-                # Handle overnight bookings if start_time > end_time
-                duration_hours += 24.0
-            hall_cost = hall_unit_price * Decimal(str(duration_hours))
-        elif request.booking_type == "HalfDay" and hall.half_day_rate:
-            hall_unit_price = hall.half_day_rate
-            hall_cost = hall_unit_price
-        elif request.booking_type == "FullDay" and hall.full_day_rate:
-            hall_unit_price = hall.full_day_rate
-            hall_cost = hall_unit_price
-        
-        # Calculate facility cost
-        facility_cost = Decimal(0)
-        facility_line_items = []
-        if request.facilities:
-            for fac_req in request.facilities:
-                result = await db.execute(
-                    select(ConferenceFacility).where(ConferenceFacility.facility_id == fac_req.facility_id)
-                )
-                facility = result.scalar_one_or_none()
-                if facility:
-                    unit_price = facility.price
-                    # Total is simply quantity x unit_price as requested
-                    total_price = unit_price * Decimal(fac_req.quantity)
-                    facility_cost += total_price
-                    facility_line_items.append((facility, fac_req.quantity, unit_price, total_price))
-        
-        subtotal = hall_cost + facility_cost
-        total_amount = subtotal  # can be updated if tax applies
+        # Neutral financial summary fields directly from frontend without backend math
+        hall_standard_price = request.hall_standard_price or Decimal('0.00')
+        subtotal = request.subtotal or Decimal('0.00')
+        total_amount = request.total_amount or Decimal('0.00')
+        amount_paid = request.amount_paid or Decimal('0.00')
+        balance_due = request.balance_due or Decimal('0.00')
         reservation_code = f"CON-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
         
         # Check for overlapping availability
-        # We find any reservation for this hall that overlaps with the requested date and times
-        from sqlalchemy import and_, or_
         from app.models import ConferenceReservation
         overlap_check = await db.execute(
             select(ConferenceReservation).where(
@@ -180,33 +271,31 @@ async def create_reservation(
             event_end_date=request.event_end_date,
             start_time=request.start_time,
             end_time=request.end_time,
-            num_participants=request.num_participants,
-            booking_type=request.booking_type,
+            num_participants=request.num_participants or 1,
+            booking_type=request.booking_type or "Standard",
             reservation_code=reservation_code,
             total_amount=total_amount,
             subtotal=subtotal,
-            hall_unit_price=hall_unit_price,
-            payment_responsibility=request.payment_responsibility or "Individual"
+            hall_standard_price=hall_standard_price,
+            amount_paid=amount_paid,
+            balance_due=balance_due,
+            payment_responsibility=request.payment_responsibility or "Individual",
+            special_requests=request.special_requests
         )
         
-        reservation.special_requests = request.special_requests
-        reservation.hall_cost = hall_cost
-        
-        # Add facility bookings
-        if facility_line_items:
-            for fac, qty, u_price, t_price in facility_line_items:
+        # Add facility line items directly as passed from frontend
+        if request.facilities:
+            for fac_req in request.facilities:
                 booking = ConferenceBookingFacility(
                     booking_id=reservation.conference_res_id,
-                    facility_id=fac.facility_id,
-                    quantity=qty,
-                    unit_price=u_price,
-                    total_price=t_price
+                    facility_id=fac_req.facility_id,
+                    quantity=fac_req.quantity or 1,
+                    unit_price=fac_req.unit_price or Decimal('0.00'),
+                    total_price=fac_req.total_price or Decimal('0.00')
                 )
                 db.add(booking)
         
-        db.add(reservation)
         await db.commit()
-        await db.refresh(reservation)
         
         # Trigger notification event
         try:
@@ -217,8 +306,7 @@ async def create_reservation(
                 reference_type="ConferenceReservation",
                 reference_id=str(reservation.conference_res_id)
             )
-        except Exception as e:
-            # Prevent notification issues from failing the reservation endpoint
+        except Exception:
             pass
             
         return await repo.get_reservation_by_id(reservation.conference_res_id)
@@ -391,6 +479,204 @@ async def delete_conference_event(
 
 
 # =====================================================================
+# CONFERENCE FACILITY CATEGORIES ENDPOINTS
+# =====================================================================
+
+@router.get("/facility-categories", response_model=List[ConferenceFacilityCategoryResponse])
+async def get_conference_facility_categories(
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all conference facility categories"""
+    from app.models import ConferenceFacilityCategory
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(ConferenceFacilityCategory)
+        .options(selectinload(ConferenceFacilityCategory.facilities))
+        .order_by(ConferenceFacilityCategory.name.asc())
+    )
+    return result.scalars().all()
+
+@router.post("/facility-categories", response_model=ConferenceFacilityCategoryResponse, status_code=status.HTTP_201_CREATED)
+async def create_conference_facility_category(
+    request: ConferenceFacilityCategoryCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new facility category"""
+    from app.models import ConferenceFacilityCategory
+    
+    category = ConferenceFacilityCategory(**request.model_dump())
+    db.add(category)
+    
+    try:
+        await db.commit()
+        
+        from sqlalchemy.orm import selectinload
+        result = await db.execute(
+            select(ConferenceFacilityCategory)
+            .options(selectinload(ConferenceFacilityCategory.facilities))
+            .where(ConferenceFacilityCategory.id == category.id)
+        )
+        return result.scalar_one()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="A category with this name already exists")
+
+@router.put("/facility-categories/{category_id}", response_model=ConferenceFacilityCategoryResponse)
+async def update_conference_facility_category(
+    category_id: int,
+    request: ConferenceFacilityCategoryUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a facility category"""
+    from app.models import ConferenceFacilityCategory
+    result = await db.execute(select(ConferenceFacilityCategory).where(ConferenceFacilityCategory.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    for key, value in request.model_dump(exclude_unset=True).items():
+        setattr(category, key, value)
+        
+    try:
+        await db.commit()
+        
+        from sqlalchemy.orm import selectinload
+        result = await db.execute(
+            select(ConferenceFacilityCategory)
+            .options(selectinload(ConferenceFacilityCategory.facilities))
+            .where(ConferenceFacilityCategory.id == category.id)
+        )
+        return result.scalar_one()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="A category with this name already exists")
+
+@router.delete("/facility-categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_conference_facility_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a facility category"""
+    from app.models import ConferenceFacilityCategory
+    result = await db.execute(select(ConferenceFacilityCategory).where(ConferenceFacilityCategory.id == category_id))
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    await db.delete(category)
+    await db.commit()
+
+
+@router.post("/facility-categories/{category_id}/facilities", response_model=ConferenceFacilityCategoryResponse)
+async def assign_facilities_to_category(
+    category_id: int,
+    request: ConferenceCategoryFacilitiesAssign,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Assign multiple facilities to a facility category"""
+    from app.models import ConferenceFacilityCategory, ConferenceFacility
+    from sqlalchemy.orm import selectinload
+    
+    result = await db.execute(
+        select(ConferenceFacilityCategory)
+        .options(selectinload(ConferenceFacilityCategory.facilities))
+        .where(ConferenceFacilityCategory.id == category_id)
+    )
+    category = result.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+        
+    if request.facility_ids:
+        # Update category_id on the requested facilities
+        res_facs = await db.execute(
+            select(ConferenceFacility).where(ConferenceFacility.facility_id.in_(request.facility_ids))
+        )
+        found_facilities = res_facs.scalars().all()
+        for fac in found_facilities:
+            fac.category_id = category_id
+            db.add(fac)
+        await db.commit()
+        
+    result_updated = await db.execute(
+        select(ConferenceFacilityCategory)
+        .options(selectinload(ConferenceFacilityCategory.facilities))
+        .where(ConferenceFacilityCategory.id == category_id)
+    )
+    return result_updated.scalar_one()
+
+
+@router.post("/facility-categories/{category_id}/facilities/{facility_id}", response_model=ConferenceFacilityCategoryResponse)
+async def assign_single_facility_to_category(
+    category_id: int,
+    facility_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Assign a single facility to a facility category"""
+    from app.models import ConferenceFacilityCategory, ConferenceFacility
+    from sqlalchemy.orm import selectinload
+
+    category_res = await db.execute(select(ConferenceFacilityCategory).where(ConferenceFacilityCategory.id == category_id))
+    category = category_res.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    fac_res = await db.execute(select(ConferenceFacility).where(ConferenceFacility.facility_id == facility_id))
+    facility = fac_res.scalar_one_or_none()
+    if not facility:
+        raise HTTPException(status_code=404, detail="Facility not found")
+
+    facility.category_id = category_id
+    db.add(facility)
+    await db.commit()
+
+    result = await db.execute(
+        select(ConferenceFacilityCategory)
+        .options(selectinload(ConferenceFacilityCategory.facilities))
+        .where(ConferenceFacilityCategory.id == category_id)
+    )
+    return result.scalar_one()
+
+
+@router.delete("/facility-categories/{category_id}/facilities/{facility_id}", response_model=ConferenceFacilityCategoryResponse)
+async def remove_facility_from_category(
+    category_id: int,
+    facility_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove a facility from a facility category (sets category_id to NULL)"""
+    from app.models import ConferenceFacilityCategory, ConferenceFacility
+    from sqlalchemy.orm import selectinload
+
+    category_res = await db.execute(select(ConferenceFacilityCategory).where(ConferenceFacilityCategory.id == category_id))
+    category = category_res.scalar_one_or_none()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    fac_res = await db.execute(select(ConferenceFacility).where(ConferenceFacility.facility_id == facility_id))
+    facility = fac_res.scalar_one_or_none()
+    if not facility:
+        raise HTTPException(status_code=404, detail="Facility not found")
+
+    if facility.category_id == category_id:
+        facility.category_id = None
+        db.add(facility)
+        await db.commit()
+
+    result = await db.execute(
+        select(ConferenceFacilityCategory)
+        .options(selectinload(ConferenceFacilityCategory.facilities))
+        .where(ConferenceFacilityCategory.id == category_id)
+    )
+    return result.scalar_one()
+
+
+# =====================================================================
 # CONFERENCE FACILITIES ENDPOINTS
 # =====================================================================
 
@@ -398,28 +684,16 @@ async def delete_conference_event(
 async def get_conference_facilities(
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all conference facilities. Seeds defaults if table is empty."""
+    """Get all conference facilities"""
     from app.models import ConferenceFacility
-    result = await db.execute(select(ConferenceFacility).order_by(ConferenceFacility.facility_id.asc()))
-    facilities = result.scalars().all()
+    from sqlalchemy.orm import selectinload
     
-    if not facilities:
-        defaults = [
-            {"name": "Catering Services", "category": "Catering & Dining", "description": "Full buffet, seated banquets, and coffee breaks.", "icon_name": "Utensils", "is_active": True, "price": 30000.0},
-            {"name": "Public Address System", "category": "Audio/Visual", "description": "High-powered PA system, wireless mics, and mixers.", "icon_name": "Volume2", "is_active": True, "price": 100000.0},
-            {"name": "HD Projector & Screen", "category": "Audio/Visual", "description": "4K Laser projection with motorized 150-inch screens.", "icon_name": "Projector", "is_active": True, "price": 150000.0},
-            {"name": "High-Speed Wi-Fi", "category": "Connectivity", "description": "Dedicated 1Gbps fiber internet with guest portal.", "icon_name": "Wifi", "is_active": True, "price": 50000.0},
-            {"name": "Stage & Podium", "category": "Staging & Hall", "description": "Modular executive stage with wooden lectern.", "icon_name": "Mic", "is_active": True, "price": 200000.0},
-            {"name": "Executive Sound & Lighting", "category": "Audio/Visual", "description": "Ambient stage spotlights, RGB mood lights, and DJ rig.", "icon_name": "Zap", "is_active": True, "price": 300000.0},
-            {"name": "Coffee & Refreshments Station", "category": "Catering & Dining", "description": "Espresso machine, herbal tea bar, and pastries.", "icon_name": "Coffee", "is_active": True, "price": 80000.0}
-        ]
-        for item in defaults:
-            db.add(ConferenceFacility(**item))
-        await db.commit()
-        result = await db.execute(select(ConferenceFacility).order_by(ConferenceFacility.facility_id.asc()))
-        facilities = result.scalars().all()
-        
-    return facilities
+    result = await db.execute(
+        select(ConferenceFacility)
+        .options(selectinload(ConferenceFacility.category_relation))
+        .order_by(ConferenceFacility.facility_id.asc())
+    )
+    return result.scalars().all()
 
 
 @router.post("/facilities", response_model=ConferenceFacilityResponse, status_code=status.HTTP_201_CREATED)
@@ -430,9 +704,11 @@ async def create_conference_facility(
 ):
     """Create a new conference facility"""
     from app.models import ConferenceFacility
+    from sqlalchemy.orm import selectinload
+    
     facility = ConferenceFacility(
         name=request.name,
-        category=request.category or "General Services",
+        category_id=request.category_id,
         description=request.description,
         price=request.price if request.price is not None else 0.0,
         pricing_type=request.pricing_type,
@@ -442,7 +718,14 @@ async def create_conference_facility(
     db.add(facility)
     await db.commit()
     await db.refresh(facility)
-    return facility
+    
+    # Reload with category relation
+    result = await db.execute(
+        select(ConferenceFacility)
+        .options(selectinload(ConferenceFacility.category_relation))
+        .where(ConferenceFacility.facility_id == facility.facility_id)
+    )
+    return result.scalar_one()
 
 
 @router.put("/facilities/{facility_id}", response_model=ConferenceFacilityResponse)
@@ -461,8 +744,8 @@ async def update_conference_facility(
 
     if request.name is not None:
         facility.name = request.name
-    if request.category is not None:
-        facility.category = request.category
+    if request.category_id is not None:
+        facility.category_id = request.category_id
     if request.description is not None:
         facility.description = request.description
     if request.price is not None:
@@ -473,13 +756,17 @@ async def update_conference_facility(
         facility.icon_name = request.icon_name
     if request.is_active is not None:
         facility.is_active = request.is_active
-    if request.price is not None:
-        facility.price = request.price
 
     db.add(facility)
     await db.commit()
-    await db.refresh(facility)
-    return facility
+    
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(ConferenceFacility)
+        .options(selectinload(ConferenceFacility.category_relation))
+        .where(ConferenceFacility.facility_id == facility_id)
+    )
+    return result.scalar_one()
 
 
 @router.delete("/facilities/{facility_id}")
