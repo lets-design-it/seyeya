@@ -186,6 +186,43 @@ class ReportService:
 
     async def get_guest_analytics(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[str, Any]:
         """Aggregate guest registrations (online vs on-site) and top spending guests"""
+        # Sync any Users with role 'Guest', 'Customer' or non-staff into Customer table if missing
+        guest_users_res = await self.db.execute(
+            select(User)
+            .options(selectinload(User.roles).selectinload(UserRole.role))
+            .where(User.is_active == True)
+        )
+        all_users = guest_users_res.scalars().all()
+
+        created_or_updated = False
+        for u in all_users:
+            user_roles = [ur.role.role_name.lower() for ur in u.roles if ur.role]
+            is_guest_account = any(r in ["guest", "customer"] for r in user_roles) or (not u.is_staff and len(user_roles) == 0)
+            if is_guest_account:
+                c_check = await self.db.execute(
+                    select(Customer).where(or_(Customer.user_id == u.user_id, Customer.email == u.email))
+                )
+                existing_cust = c_check.scalars().first()
+                if not existing_cust:
+                    new_cust = Customer(
+                        user_id=u.user_id,
+                        customer_code=f"CUST-{u.user_id}",
+                        full_name=u.full_name or "Guest",
+                        email=u.email,
+                        phone_number=u.phone_number,
+                        customer_type="Registered",
+                        total_spent=Decimal("0"),
+                        visit_count=1
+                    )
+                    self.db.add(new_cust)
+                    created_or_updated = True
+                elif existing_cust.user_id is None:
+                    existing_cust.user_id = u.user_id
+                    created_or_updated = True
+
+        if created_or_updated:
+            await self.db.commit()
+
         total_res = await self.db.execute(select(func.count(Customer.customer_id)))
         total_guests = total_res.scalar_one()
 
@@ -211,8 +248,8 @@ class ReportService:
         spend_res = await self.db.execute(select(func.coalesce(func.sum(Customer.total_spent), 0)))
         total_spend = Decimal(str(spend_res.scalar_one()))
 
-        # Top 10 spending guests
-        top_guests_q = select(Customer).order_by(desc(Customer.total_spent)).limit(10)
+        # Top spending & directory guests (order by total_spent desc, customer_id desc)
+        top_guests_q = select(Customer).order_by(desc(Customer.total_spent), desc(Customer.customer_id)).limit(500)
         top_guests_res = await self.db.execute(top_guests_q)
         top_guests = top_guests_res.scalars().all()
 

@@ -434,11 +434,10 @@ async def create_conference_facility(
         name=request.name,
         category=request.category or "General Services",
         description=request.description,
-        price=request.price,
+        price=request.price if request.price is not None else 0.0,
         pricing_type=request.pricing_type,
         icon_name=request.icon_name or "Sparkles",
-        is_active=request.is_active if request.is_active is not None else True,
-        price=request.price if request.price is not None else 0.0
+        is_active=request.is_active if request.is_active is not None else True
     )
     db.add(facility)
     await db.commit()

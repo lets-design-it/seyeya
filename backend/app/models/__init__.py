@@ -707,11 +707,8 @@ class ConferenceHall(Base):
     full_day_rate = Column(DECIMAL(10, 2))
     half_day_rate = Column(DECIMAL(10, 2))
     description = Column(String(500))
-<<<<<<< HEAD
     amenities = Column(String(500))
     is_vat_inclusive = Column(Boolean, default=True)
-=======
->>>>>>> main
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -880,7 +877,6 @@ class ConferenceFacility(Base):
     pricing_type = Column(String(20), default="FIXED")
     icon_name = Column(String(50), default="Sparkles")
     is_active = Column(Boolean, default=True)
-    price = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     

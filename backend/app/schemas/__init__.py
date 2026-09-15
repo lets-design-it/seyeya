@@ -1368,7 +1368,6 @@ class ConferenceFacilityBase(BaseModel):
     pricing_type: Optional[str] = "FIXED"
     icon_name: Optional[str] = "Sparkles"
     is_active: Optional[bool] = True
-    price: Optional[float] = 0.0
 
 
 class ConferenceFacilityCreate(ConferenceFacilityBase):
@@ -1383,7 +1382,6 @@ class ConferenceFacilityUpdate(BaseModel):
     pricing_type: Optional[str] = None
     icon_name: Optional[str] = None
     is_active: Optional[bool] = None
-    price: Optional[float] = None
 
 
 class ConferenceFacilityResponse(ConferenceFacilityBase):

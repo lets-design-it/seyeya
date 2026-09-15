@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Truck,
   CreditCard,
+  ChevronLeft,
   ChevronRight,
   Eye,
   FileSpreadsheet,
@@ -98,8 +99,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
   const [loadingGuest360, setLoadingGuest360] = useState<boolean>(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
 
-  // Guest search term for table
+  // Guest search and pagination state for table
   const [guestSearch, setGuestSearch] = useState<string>('');
+  const [guestPage, setGuestPage] = useState<number>(1);
+  const [guestPageSize, setGuestPageSize] = useState<number>(10);
 
   // Handle Preset Changes
   const handlePresetChange = (preset: string) => {
@@ -626,88 +629,201 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
                 <Input
                   placeholder="Search guest name or email..."
                   value={guestSearch}
-                  onChange={(e) => setGuestSearch(e.target.value)}
+                  onChange={(e) => {
+                    setGuestSearch(e.target.value);
+                    setGuestPage(1);
+                  }}
                   className="pl-9 text-sm"
                 />
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold border-b border-border">
-                  <tr>
-                    <th className="p-3">Guest ID</th>
-                    <th className="p-3">Guest Profile</th>
-                    <th className="p-3">Contact</th>
-                    <th className="p-3">Account Origin</th>
-                    <th className="p-3 text-center">Visits / Stays</th>
-                    <th className="p-3 text-right">Total Lifetime Spend</th>
-                    <th className="p-3 text-center">360 History</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {(guestData?.top_spending_guests || [])
-                    .filter((g) => {
-                      const guestName = g.name || (g as any).full_name || '';
-                      const guestEmail = g.email || '';
-                      const search = (guestSearch || '').toLowerCase();
-                      return (
-                        !search ||
-                        guestName.toLowerCase().includes(search) ||
-                        guestEmail.toLowerCase().includes(search)
-                      );
-                    })
-                    .map((guest) => {
-                      const nameDisplay = guest.name || (guest as any).full_name || 'Guest';
-                      const originDisplay = guest.origin || (guest as any).account_origin || 'Front Desk Staff';
-                      return (
-                        <tr key={guest.customer_id} className="hover:bg-muted/30 transition-colors">
-                          <td className="p-3 font-mono text-xs text-muted-foreground">#CUST-{guest.customer_id}</td>
-                          <td className="p-3 font-bold text-foreground">
-                            {nameDisplay}
-                          </td>
-                          <td className="p-3 text-xs text-muted-foreground">
-                            <div>{guest.email || 'No email registered'}</div>
-                            <div>{guest.phone_number || ''}</div>
-                          </td>
-                          <td className="p-3">
-                            <span
-                              className={`px-2.5 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 ${
-                                originDisplay === 'Online Portal'
-                                  ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                                  : 'bg-purple-500/10 text-purple-600 border-purple-500/20'
-                              }`}
-                            >
-                              {originDisplay === 'Online Portal' ? (
-                                <Globe className="w-3 h-3" />
-                              ) : (
-                                <UserCheck className="w-3 h-3" />
-                              )}
-                              {originDisplay}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center font-bold text-foreground">
-                            {guest.visit_count}
-                          </td>
-                        <td className="p-3 text-right font-extrabold text-[#D4AF37]">
-                          {formatPrice(guest.total_spent)}
-                        </td>
-                        <td className="p-3 text-center">
-                          <Button
-                            size="sm"
-                            onClick={() => openGuest360(guest.customer_id)}
-                            className="bg-[#D4AF37] text-[#0A192F] hover:bg-[#B89320] font-semibold text-xs h-8 px-3 shadow-xs"
-                          >
-                            <Eye className="w-3.5 h-3.5 mr-1" />
-                            View 360
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {(() => {
+              const filteredGuests = (guestData?.top_spending_guests || []).filter((g) => {
+                const guestName = g.name || (g as any).full_name || '';
+                const guestEmail = g.email || '';
+                const search = (guestSearch || '').toLowerCase();
+                return (
+                  !search ||
+                  guestName.toLowerCase().includes(search) ||
+                  guestEmail.toLowerCase().includes(search)
+                );
+              });
+
+              const totalGuestPages = Math.ceil(filteredGuests.length / guestPageSize) || 1;
+              const paginatedGuests = filteredGuests.slice((guestPage - 1) * guestPageSize, guestPage * guestPageSize);
+              const startItem = filteredGuests.length === 0 ? 0 : (guestPage - 1) * guestPageSize + 1;
+              const endItem = Math.min(guestPage * guestPageSize, filteredGuests.length);
+
+              return (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-muted/50 text-muted-foreground text-xs uppercase font-semibold border-b border-border">
+                        <tr>
+                          <th className="p-3">Guest ID</th>
+                          <th className="p-3">Guest Profile</th>
+                          <th className="p-3">Contact</th>
+                          <th className="p-3">Account Origin</th>
+                          <th className="p-3 text-center">Visits / Stays</th>
+                          <th className="p-3 text-right">Total Lifetime Spend</th>
+                          <th className="p-3 text-center">360 History</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {paginatedGuests.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-8 text-center text-muted-foreground text-sm">
+                              No guest profiles found matching your search.
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedGuests.map((guest) => {
+                            const nameDisplay = guest.name || (guest as any).full_name || 'Guest';
+                            const originDisplay = guest.origin || (guest as any).account_origin || 'Front Desk Staff';
+                            return (
+                              <tr key={guest.customer_id} className="hover:bg-muted/30 transition-colors">
+                                <td className="p-3 font-mono text-xs text-muted-foreground">#CUST-{guest.customer_id}</td>
+                                <td className="p-3 font-bold text-foreground">
+                                  {nameDisplay}
+                                </td>
+                                <td className="p-3 text-xs text-muted-foreground">
+                                  <div>{guest.email || 'No email registered'}</div>
+                                  <div>{guest.phone_number || ''}</div>
+                                </td>
+                                <td className="p-3">
+                                  <span
+                                    className={`px-2.5 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 ${
+                                      originDisplay === 'Online Portal'
+                                        ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                                        : 'bg-purple-500/10 text-purple-600 border-purple-500/20'
+                                    }`}
+                                  >
+                                    {originDisplay === 'Online Portal' ? (
+                                      <Globe className="w-3 h-3" />
+                                    ) : (
+                                      <UserCheck className="w-3 h-3" />
+                                    )}
+                                    {originDisplay}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-center font-bold text-foreground">
+                                  {guest.visit_count}
+                                </td>
+                                <td className="p-3 text-right font-extrabold text-[#D4AF37]">
+                                  {formatPrice(guest.total_spent)}
+                                </td>
+                                <td className="p-3 text-center">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => openGuest360(guest.customer_id)}
+                                    className="bg-[#D4AF37] text-[#0A192F] hover:bg-[#B89320] font-semibold text-xs h-8 px-3 shadow-xs"
+                                  >
+                                    <Eye className="w-3.5 h-3.5 mr-1" />
+                                    View 360
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Footer */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t border-border">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span>
+                        Showing <strong className="text-foreground">{startItem}</strong> to <strong className="text-foreground">{endItem}</strong> of <strong className="text-foreground">{filteredGuests.length}</strong> guests
+                      </span>
+                      <div className="flex items-center gap-1.5 ml-2">
+                        <span>Per page:</span>
+                        <select
+                          value={guestPageSize}
+                          onChange={(e) => {
+                            setGuestPageSize(Number(e.target.value));
+                            setGuestPage(1);
+                          }}
+                          className="bg-background border border-border text-foreground rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[#D4AF37]"
+                        >
+                          <option value={10}>10</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setGuestPage((p) => Math.max(p - 1, 1))}
+                        disabled={guestPage <= 1}
+                        className="h-8 px-2.5 text-xs font-semibold gap-1 border-border bg-background hover:bg-muted text-foreground disabled:opacity-40"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        Previous
+                      </Button>
+
+                      <div className="flex items-center gap-1 px-1">
+                        {Array.from({ length: totalGuestPages }, (_, i) => i + 1)
+                          .filter((page) => {
+                            return (
+                              page === 1 ||
+                              page === totalGuestPages ||
+                              Math.abs(page - guestPage) <= 1
+                            );
+                          })
+                          .reduce<(number | string)[]>((acc, page, index, arr) => {
+                            if (index > 0 && page - (arr[index - 1] as number) > 1) {
+                              acc.push('...');
+                            }
+                            acc.push(page);
+                            return acc;
+                          }, [])
+                          .map((item, idx) => {
+                            if (item === '...') {
+                              return (
+                                <span key={`ellipsis-${idx}`} className="px-1 text-xs text-muted-foreground">
+                                  ...
+                                </span>
+                              );
+                            }
+                            const pageNum = item as number;
+                            const isCurrent = pageNum === guestPage;
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setGuestPage(pageNum)}
+                                className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
+                                  isCurrent
+                                    ? 'bg-[#D4AF37] text-[#0A192F] shadow-xs'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+                      </div>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setGuestPage((p) => Math.min(p + 1, totalGuestPages))}
+                        disabled={guestPage >= totalGuestPages}
+                        className="h-8 px-2.5 text-xs font-semibold gap-1 border-border bg-background hover:bg-muted text-foreground disabled:opacity-40"
+                      >
+                        Next
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
