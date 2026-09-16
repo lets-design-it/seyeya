@@ -85,6 +85,26 @@ class AuthService:
             is_active=True
         )
         self.db.add(session)
+        
+        # Auto-create Customer profile for Guest/Customer users
+        if not is_staff:
+            c_check = await self.db.execute(select(Customer).where(Customer.email == email))
+            existing_cust = c_check.scalars().first()
+            if not existing_cust:
+                new_cust = Customer(
+                    user_id=user.user_id,
+                    customer_code=f"CUST-{user.user_id}",
+                    full_name=full_name,
+                    email=email,
+                    phone_number=phone_number,
+                    customer_type="Registered",
+                    total_spent=Decimal("0"),
+                    visit_count=1
+                )
+                self.db.add(new_cust)
+            elif existing_cust.user_id is None:
+                existing_cust.user_id = user.user_id
+
         await self.db.commit()
         
         # Trigger notification event
