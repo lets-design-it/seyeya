@@ -69,12 +69,16 @@ import {
   Mic,
   Zap,
   CheckSquare,
-  Layers
+  Layers,
+  Folder,
+  FolderPlus,
+  Box
 } from 'lucide-react';
+import { ConferenceFacilityCategoryItem } from '../../hooks/useConference';
 
 interface ConferencesProps {
-  activeTab?: 'quotes' | 'halls' | 'events' | 'facilities';
-  setActiveTab?: (tab: 'quotes' | 'halls' | 'events' | 'facilities') => void;
+  activeTab?: 'quotes' | 'halls' | 'events' | 'facilities' | 'categories';
+  setActiveTab?: (tab: 'quotes' | 'halls' | 'events' | 'facilities' | 'categories') => void;
 }
 
 export const Conferences: React.FC<ConferencesProps> = ({
@@ -87,6 +91,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
     halls,
     events,
     facilities,
+    facilityCategories,
     isLoading,
     updateQuoteStatus,
     addConferenceHall,
@@ -96,11 +101,16 @@ export const Conferences: React.FC<ConferencesProps> = ({
     addFacility,
     updateFacility,
     deleteFacility,
+    addFacilityCategory,
+    updateFacilityCategory,
+    deleteFacilityCategory,
+    assignSingleFacilityToCategory,
+    removeFacilityFromCategory,
     customers,
     createReservation
   } = useConference();
 
-  const [localActiveTab, localSetActiveTab] = useState<'quotes' | 'halls' | 'events' | 'facilities'>('quotes');
+  const [localActiveTab, localSetActiveTab] = useState<'quotes' | 'halls' | 'events' | 'facilities' | 'categories'>('quotes');
   const activeTab = propActiveTab || localActiveTab;
   const setActiveTab = propSetActiveTab || localSetActiveTab;
 
@@ -113,11 +123,23 @@ export const Conferences: React.FC<ConferencesProps> = ({
   const [isFacilityDrawerOpen, setIsFacilityDrawerOpen] = useState(false);
   const [editingFacilityId, setEditingFacilityId] = useState<string | null>(null);
   const [facilityFormName, setFacilityFormName] = useState('');
+  const [facilityFormCategoryId, setFacilityFormCategoryId] = useState<number | null>(null);
   const [facilityFormCategory, setFacilityFormCategory] = useState('General Services');
   const [facilityFormDescription, setFacilityFormDescription] = useState('');
   const [facilityFormIcon, setFacilityFormIcon] = useState('Sparkles');
   const [facilityFormPriceUGX, setFacilityFormPriceUGX] = useState<number | string>('');
+  const [facilityFormPricingType, setFacilityFormPricingType] = useState('FIXED');
   const [facilityFormIsActive, setFacilityFormIsActive] = useState(true);
+
+  // Facility Category Drawer State & Search
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const [isCategoryDrawerOpen, setIsCategoryDrawerOpen] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
+  const [categoryFormName, setCategoryFormName] = useState('');
+  const [categoryFormDescription, setCategoryFormDescription] = useState('');
+  const [categoryFormIcon, setCategoryFormIcon] = useState('Folder');
+  const [categoryFormIsActive, setCategoryFormIsActive] = useState(true);
+  const [categoryFormFacilityIds, setCategoryFormFacilityIds] = useState<number[]>([]);
 
   // Events Drawer & State
   const [eventSearchTerm, setEventSearchTerm] = useState('');
@@ -769,13 +791,66 @@ export const Conferences: React.FC<ConferencesProps> = ({
     return matchesSearch && matchesFilter;
   });
 
+  const openCreateCategoryDrawer = () => {
+    setEditingCategoryId(null);
+    setCategoryFormName('');
+    setCategoryFormDescription('');
+    setCategoryFormIcon('Folder');
+    setCategoryFormIsActive(true);
+    setCategoryFormFacilityIds([]);
+    setIsCategoryDrawerOpen(true);
+  };
+
+  const openEditCategoryDrawer = (cat: ConferenceFacilityCategoryItem) => {
+    setEditingCategoryId(cat.id);
+    setCategoryFormName(cat.name);
+    setCategoryFormDescription(cat.description || '');
+    setCategoryFormIcon(cat.icon_name || 'Folder');
+    setCategoryFormIsActive(cat.is_active !== false);
+
+    const assignedIds = facilities
+      .filter(f => f.category_id === cat.id || (cat.facilities && cat.facilities.some(cf => cf.facility_id === f.facility_id)))
+      .map(f => f.facility_id);
+    setCategoryFormFacilityIds(assignedIds);
+    setIsCategoryDrawerOpen(true);
+  };
+
+  const toggleCategoryFormFacilityId = (facilityId: number) => {
+    setCategoryFormFacilityIds(prev =>
+      prev.includes(facilityId) ? prev.filter(id => id !== facilityId) : [...prev, facilityId]
+    );
+  };
+
+  const handleCategoryFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryFormName.trim()) return;
+
+    const payload = {
+      name: categoryFormName.trim(),
+      description: categoryFormDescription.trim(),
+      icon_name: categoryFormIcon,
+      is_active: categoryFormIsActive,
+      facility_ids: categoryFormFacilityIds
+    };
+
+    if (editingCategoryId) {
+      await updateFacilityCategory(editingCategoryId, payload);
+    } else {
+      await addFacilityCategory(payload);
+    }
+    setIsCategoryDrawerOpen(false);
+  };
+
   const openCreateFacilityDrawer = () => {
     setEditingFacilityId(null);
     setFacilityFormName('');
-    setFacilityFormCategory('General Services');
+    const defaultCatId = facilityCategories[0]?.id || null;
+    setFacilityFormCategoryId(defaultCatId);
+    setFacilityFormCategory(facilityCategories[0]?.name || 'General Services');
     setFacilityFormDescription('');
     setFacilityFormIcon('Sparkles');
     setFacilityFormPriceUGX('');
+    setFacilityFormPricingType('FIXED');
     setFacilityFormIsActive(true);
     setIsFacilityDrawerOpen(true);
   };
@@ -783,10 +858,12 @@ export const Conferences: React.FC<ConferencesProps> = ({
   const openEditFacilityDrawer = (fac: ConferenceFacilityItem) => {
     setEditingFacilityId(fac.id);
     setFacilityFormName(fac.name);
-    setFacilityFormCategory(fac.category);
+    setFacilityFormCategoryId(fac.category_id || null);
+    setFacilityFormCategory(fac.category || 'General Services');
     setFacilityFormDescription(fac.description || '');
     setFacilityFormIcon(fac.icon_name || 'Sparkles');
     setFacilityFormPriceUGX(fac.price || '');
+    setFacilityFormPricingType(fac.pricing_type || 'FIXED');
     setFacilityFormIsActive(fac.is_active);
     setIsFacilityDrawerOpen(true);
   };
@@ -795,12 +872,17 @@ export const Conferences: React.FC<ConferencesProps> = ({
     e.preventDefault();
     if (!facilityFormName.trim()) return;
 
+    const selectedCat = facilityCategories.find(c => c.id === facilityFormCategoryId);
+    const catName = selectedCat ? selectedCat.name : facilityFormCategory;
+
     const payload = {
       name: facilityFormName.trim(),
-      category: facilityFormCategory,
+      category_id: facilityFormCategoryId || undefined,
+      category: catName,
       description: facilityFormDescription.trim(),
       icon_name: facilityFormIcon,
       price: Number(facilityFormPriceUGX || 0),
+      pricing_type: facilityFormPricingType,
       is_active: facilityFormIsActive
     };
 
@@ -815,9 +897,38 @@ export const Conferences: React.FC<ConferencesProps> = ({
   const filteredFacilities = facilities.filter((fac) => {
     const matchesSearch = fac.name.toLowerCase().includes(facilitySearchTerm.toLowerCase()) ||
       (fac.description && fac.description.toLowerCase().includes(facilitySearchTerm.toLowerCase()));
-    const matchesCategory = facilityCategoryFilter === 'All' || fac.category === facilityCategoryFilter;
+    
+    let matchesCategory = true;
+    if (facilityCategoryFilter !== 'All') {
+      const targetCat = facilityCategories.find(c => String(c.id) === facilityCategoryFilter || c.name === facilityCategoryFilter);
+      if (targetCat) {
+        matchesCategory = fac.category_id === targetCat.id || fac.category === targetCat.name;
+      } else {
+        matchesCategory = fac.category === facilityCategoryFilter;
+      }
+    }
     return matchesSearch && matchesCategory;
   });
+
+  const filteredCategories = facilityCategories.filter((cat) => {
+    return cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
+      (cat.description && cat.description.toLowerCase().includes(categorySearchTerm.toLowerCase()));
+  });
+
+  const getCategoryIconComponent = (iconName?: string) => {
+    const key = (iconName || '').toLowerCase();
+    if (key === 'utensils') return Utensils;
+    if (key === 'volume2' || key === 'volume') return Volume2;
+    if (key === 'video' || key === 'projector') return Video;
+    if (key === 'wifi') return Wifi;
+    if (key === 'mic') return Mic;
+    if (key === 'zap') return Zap;
+    if (key === 'coffee') return Coffee;
+    if (key === 'layers') return Layers;
+    if (key === 'tag') return Tag;
+    if (key === 'box') return Box;
+    return Folder;
+  };
 
   const getFacilityIconComponent = (iconName?: string, nameStr?: string, catStr?: string) => {
     const key = (iconName || '').toLowerCase();
@@ -846,20 +957,24 @@ export const Conferences: React.FC<ConferencesProps> = ({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
-            {activeTab === 'facilities'
-              ? 'Conference Facilities & Inclusions'
-              : activeTab === 'events'
-                ? 'Events & Gala Packages'
-                : activeTab === 'halls'
-                  ? 'Event Halls Catalog'
-                  : 'Conferences & Reservations'}
+            {activeTab === 'categories'
+              ? 'Facility Categories Catalog'
+              : activeTab === 'facilities'
+                ? 'Conference Facilities & Inclusions'
+                : activeTab === 'events'
+                  ? 'Events & Gala Packages'
+                  : activeTab === 'halls'
+                    ? 'Event Halls Catalog'
+                    : 'Conferences & Reservations'}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {activeTab === 'facilities'
-              ? 'Manage equipment, PA sound systems, catering, A/V setups, and inclusions for event bookings.'
-              : activeTab === 'events'
-                ? 'Manage special events, gala packages, pricing options, discounts, and event schedules.'
-                : 'Review quotes, configure seating specifications, manage venue halls, and approve facility bookings.'
+            {activeTab === 'categories'
+              ? 'Organize and group conference equipment, catering, and inclusions into manageable categories.'
+              : activeTab === 'facilities'
+                ? 'Manage equipment, PA sound systems, catering, A/V setups, and inclusions for event bookings.'
+                : activeTab === 'events'
+                  ? 'Manage special events, gala packages, pricing options, discounts, and event schedules.'
+                  : 'Review quotes, configure seating specifications, manage venue halls, and approve facility bookings.'
             }
           </p>
         </div>
@@ -890,6 +1005,14 @@ export const Conferences: React.FC<ConferencesProps> = ({
               <Plus className="h-4 w-4" />
               Create Event
             </ShadcnButton>
+          ) : activeTab === 'categories' ? (
+            <ShadcnButton
+              onClick={openCreateCategoryDrawer}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-xs border-none select-none shrink-0 dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
+            >
+              <FolderPlus className="h-4 w-4" />
+              Add Category
+            </ShadcnButton>
           ) : (
             <ShadcnButton
               onClick={openCreateFacilityDrawer}
@@ -902,7 +1025,176 @@ export const Conferences: React.FC<ConferencesProps> = ({
         </div>
       </div>
 
-      {activeTab === 'facilities' ? (
+      {activeTab === 'categories' ? (
+        /* Dedicated Categories Page Layout */
+        <div className="space-y-6">
+          {/* Top Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="p-4 bg-card border border-border dark:border-zinc-800 rounded-2xl shadow-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Total Categories</p>
+                  <h4 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 mt-1">{facilityCategories.length}</h4>
+                </div>
+                <div className="p-2.5 bg-primary/10 dark:bg-primary/20 text-primary rounded-xl">
+                  <Folder className="h-5 w-5" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-4 bg-card border border-border dark:border-zinc-800 rounded-2xl shadow-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Assigned Facilities</p>
+                  <h4 className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+                    {facilities.filter(f => f.category_id).length}
+                  </h4>
+                </div>
+                <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                  <CheckSquare className="h-5 w-5" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-4 bg-card border border-border dark:border-zinc-800 rounded-2xl shadow-xs">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Active Categories</p>
+                  <h4 className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">
+                    {facilityCategories.filter(c => c.is_active !== false).length}
+                  </h4>
+                </div>
+                <div className="p-2.5 bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl">
+                  <Layers className="h-5 w-5" />
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Search Bar */}
+          <Card className="p-4 bg-card border border-border dark:border-zinc-800 rounded-2xl shadow-xs">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="relative flex-1 max-w-md w-full">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-400">
+                  <Search className="h-4 w-4" />
+                </span>
+                <ShadcnInput
+                  type="text"
+                  placeholder="Search categories by name or description..."
+                  value={categorySearchTerm}
+                  onChange={(e) => setCategorySearchTerm(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 h-10 pl-10 pr-4 text-xs text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                />
+              </div>
+
+              <ShadcnButton
+                onClick={openCreateCategoryDrawer}
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-xs border-none select-none dark:bg-zinc-800! dark:text-white!"
+              >
+                <FolderPlus className="h-4 w-4" />
+                Add Category
+              </ShadcnButton>
+            </div>
+          </Card>
+
+          {/* Categories Grid Cards */}
+          {filteredCategories.length === 0 ? (
+            <div className="text-center py-20 bg-card border border-border dark:border-zinc-800 rounded-2xl">
+              <Folder className="h-9 w-9 mx-auto text-zinc-400 mb-3 animate-pulse" />
+              <h5 className="text-sm font-bold text-zinc-700 dark:text-zinc-350 uppercase tracking-wider">No facility categories found</h5>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs mx-auto">
+                Click "+ Add Category" to create your first facility category.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredCategories.map((cat) => {
+                const CatIcon = getCategoryIconComponent(cat.icon_name);
+                const assignedFacs = facilities.filter(f => f.category_id === cat.id || (cat.facilities && cat.facilities.some(cf => cf.facility_id === f.facility_id)));
+                
+                return (
+                  <Card key={cat.id} className="p-5 bg-card border border-border dark:border-zinc-800 rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between group">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-primary/10 text-primary dark:bg-primary/20 rounded-xl group-hover:scale-105 transition-transform">
+                            <CatIcon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-zinc-50 tracking-tight leading-snug">
+                              {cat.name}
+                            </h4>
+                            <span className="text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
+                              {assignedFacs.length} assigned facility{assignedFacs.length !== 1 ? 'ies' : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        <Badge className={`font-bold text-[10px] px-2 py-0.5 rounded-lg border-none ${cat.is_active !== false ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-zinc-500/10 text-zinc-500'}`}>
+                          {cat.is_active !== false ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+
+                      {cat.description && (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                          {cat.description}
+                        </p>
+                      )}
+
+                      {/* Assigned Facilities List */}
+                      <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1.5">
+                          Assigned Facilities
+                        </span>
+                        {assignedFacs.length === 0 ? (
+                          <span className="text-xs text-zinc-400 italic">No facilities assigned to this category.</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                            {assignedFacs.map(f => (
+                              <Badge key={f.id} variant="secondary" className="text-[10px] font-semibold flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 py-1 px-2.5 rounded-lg">
+                                <span>{f.name}</span>
+                                <button
+                                  onClick={() => removeFacilityFromCategory(cat.id, f.facility_id)}
+                                  title="Unassign facility"
+                                  className="hover:text-red-500 cursor-pointer ml-0.5"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Actions */}
+                    <div className="pt-4 mt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-end gap-2">
+                      <ShadcnButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditCategoryDrawer(cat)}
+                        className="h-8 rounded-xl px-3 text-xs font-semibold border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
+                      >
+                        <Edit3 className="h-3.5 w-3.5 mr-1" />
+                        Edit
+                      </ShadcnButton>
+                      <ShadcnButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteFacilityCategory(cat.id)}
+                        className="h-8 rounded-xl px-3 text-xs font-semibold border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Delete
+                      </ShadcnButton>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : activeTab === 'facilities' ? (
         /* Dedicated Facilities Dashboard Layout */
         <div className="space-y-6">
           {/* Top Metric Cards */}
@@ -938,7 +1230,7 @@ export const Conferences: React.FC<ConferencesProps> = ({
                 <div>
                   <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Categories</p>
                   <h4 className="text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-1">
-                    {Array.from(new Set(facilities.map(f => f.category))).length}
+                    {facilityCategories.length > 0 ? facilityCategories.length : Array.from(new Set(facilities.map(f => f.category))).length}
                   </h4>
                 </div>
                 <div className="p-2.5 bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl">
@@ -966,16 +1258,23 @@ export const Conferences: React.FC<ConferencesProps> = ({
 
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 <Select value={facilityCategoryFilter} onValueChange={(val: any) => setFacilityCategoryFilter(val)}>
-                  <SelectTrigger className="!flex !items-center !justify-between !h-10 !px-4 !rounded-xl !border-zinc-200 dark:!border-zinc-800 !bg-white dark:!bg-zinc-900 !text-xs !font-bold !w-44">
+                  <SelectTrigger className="!flex !items-center !justify-between !h-10 !px-4 !rounded-xl !border-zinc-200 dark:!border-zinc-800 !bg-white dark:!bg-zinc-900 !text-xs !font-bold !w-48">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 z-50">
                     <SelectItem value="All" className="text-xs">All Categories</SelectItem>
-                    <SelectItem value="Audio/Visual" className="text-xs">Audio/Visual</SelectItem>
-                    <SelectItem value="Catering & Dining" className="text-xs">Catering & Dining</SelectItem>
-                    <SelectItem value="Staging & Hall" className="text-xs">Staging & Hall</SelectItem>
-                    <SelectItem value="Connectivity" className="text-xs">Connectivity</SelectItem>
-                    <SelectItem value="General Services" className="text-xs">General Services</SelectItem>
+                    {facilityCategories.map(cat => (
+                      <SelectItem key={cat.id} value={String(cat.id)} className="text-xs">{cat.name}</SelectItem>
+                    ))}
+                    {facilityCategories.length === 0 && (
+                      <>
+                        <SelectItem value="Audio/Visual" className="text-xs">Audio/Visual</SelectItem>
+                        <SelectItem value="Catering & Dining" className="text-xs">Catering & Dining</SelectItem>
+                        <SelectItem value="Staging & Hall" className="text-xs">Staging & Hall</SelectItem>
+                        <SelectItem value="Connectivity" className="text-xs">Connectivity</SelectItem>
+                        <SelectItem value="General Services" className="text-xs">General Services</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
 
@@ -2716,31 +3015,69 @@ export const Conferences: React.FC<ConferencesProps> = ({
                 <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
                   Category *
                 </label>
-                <select
-                  value={facilityFormCategory}
-                  onChange={(e) => setFacilityFormCategory(e.target.value)}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-xs text-zinc-900 dark:text-zinc-50 outline-hidden focus:border-zinc-955 cursor-pointer font-medium"
-                >
-                  <option value="Audio/Visual" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">Audio/Visual</option>
-                  <option value="Catering & Dining" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">Catering & Dining</option>
-                  <option value="Staging & Hall" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">Staging & Hall</option>
-                  <option value="Connectivity" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">Connectivity</option>
-                  <option value="General Services" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">General Services</option>
-                </select>
+                {facilityCategories.length > 0 ? (
+                  <select
+                    value={facilityFormCategoryId || ''}
+                    onChange={(e) => {
+                      const val = e.target.value ? Number(e.target.value) : null;
+                      setFacilityFormCategoryId(val);
+                      const found = facilityCategories.find(c => c.id === val);
+                      if (found) setFacilityFormCategory(found.name);
+                    }}
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-xs text-zinc-900 dark:text-zinc-50 outline-hidden focus:border-zinc-955 cursor-pointer font-medium"
+                  >
+                    <option value="">No Category / General</option>
+                    {facilityCategories.map(cat => (
+                      <option key={cat.id} value={cat.id} className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    value={facilityFormCategory}
+                    onChange={(e) => setFacilityFormCategory(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-xs text-zinc-900 dark:text-zinc-50 outline-hidden focus:border-zinc-955 cursor-pointer font-medium"
+                  >
+                    <option value="Audio/Visual" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">Audio/Visual</option>
+                    <option value="Catering & Dining" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">Catering & Dining</option>
+                    <option value="Staging & Hall" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">Staging & Hall</option>
+                    <option value="Connectivity" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">Connectivity</option>
+                    <option value="General Services" className="bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50">General Services</option>
+                  </select>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                  Preset / Standard Price (UGX)
-                </label>
-                <ShadcnInput
-                  type="number"
-                  min={0}
-                  placeholder="e.g. 100000"
-                  value={facilityFormPriceUGX}
-                  onChange={(e) => setFacilityFormPriceUGX(e.target.value)}
-                  className="w-full rounded-xl border-zinc-200 dark:border-zinc-800 text-xs h-10 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
-                />
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                    Preset / Standard Price (UGX)
+                  </label>
+                  <ShadcnInput
+                    type="number"
+                    min={0}
+                    placeholder="e.g. 100000"
+                    value={facilityFormPriceUGX}
+                    onChange={(e) => setFacilityFormPriceUGX(e.target.value)}
+                    className="w-full rounded-xl border-zinc-200 dark:border-zinc-800 text-xs h-10 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                    Pricing Type
+                  </label>
+                  <select
+                    value={facilityFormPricingType}
+                    onChange={(e) => setFacilityFormPricingType(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-xs text-zinc-900 dark:text-zinc-50 outline-hidden focus:border-zinc-955 cursor-pointer font-medium"
+                  >
+                    <option value="FIXED">FIXED (Flat Rate)</option>
+                    <option value="PER_PERSON">PER_PERSON (Per Head)</option>
+                    <option value="PER_HOUR">PER_HOUR (Hourly Rate)</option>
+                    <option value="PER_DAY">PER_DAY (Daily Rate)</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -2753,13 +3090,16 @@ export const Conferences: React.FC<ConferencesProps> = ({
                   className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-xs text-zinc-900 dark:text-zinc-50 outline-hidden focus:border-zinc-955 cursor-pointer font-medium"
                 >
                   <option value="Sparkles">Sparkles (General)</option>
+                  <option value="Folder">Folder (Category Default)</option>
                   <option value="Utensils">Utensils (Food / Dining)</option>
                   <option value="Volume2">Volume2 (PA Sound System)</option>
-                  <option value="Projector">Projector (Screen & Video)</option>
+                  <option value="Video">Video (Projector / Screen)</option>
                   <option value="Wifi">Wifi (Internet)</option>
                   <option value="Mic">Mic (Podium / Stage)</option>
                   <option value="Zap">Zap (Lighting / Power)</option>
                   <option value="Coffee">Coffee (Refreshments)</option>
+                  <option value="Layers">Layers (General Services)</option>
+                  <option value="Box">Box (Equipment Package)</option>
                 </select>
               </div>
 
@@ -2804,6 +3144,147 @@ export const Conferences: React.FC<ConferencesProps> = ({
                   className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground h-10 shadow-xs cursor-pointer dark:bg-zinc-800! dark:text-white!"
                 >
                   {editingFacilityId ? 'Save Changes' : 'Create Facility'}
+                </ShadcnButton>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      {/* Create / Edit Facility Category Drawer */}
+      {isCategoryDrawerOpen && (
+        <>
+          <div
+            onClick={() => setIsCategoryDrawerOpen(false)}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs transition-opacity animate-fade-in"
+          />
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-card border-l border-zinc-200 dark:border-zinc-800 shadow-2xl flex flex-col animate-slide-in">
+            {/* Drawer Header */}
+            <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                  {editingCategoryId ? 'Edit Facility Category' : 'Create Facility Category'}
+                </h3>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  Set up a category group for conference inclusions and equipment.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCategoryDrawerOpen(false)}
+                className="p-2 rounded-xl text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Drawer Form */}
+            <form onSubmit={handleCategoryFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Category Name *
+                </label>
+                <ShadcnInput
+                  type="text"
+                  required
+                  placeholder="e.g. Audio/Visual Equipment or Catering Services"
+                  value={categoryFormName}
+                  onChange={(e) => setCategoryFormName(e.target.value)}
+                  className="w-full rounded-xl border-zinc-200 dark:border-zinc-800 text-xs h-10 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Icon Visual
+                </label>
+                <select
+                  value={categoryFormIcon}
+                  onChange={(e) => setCategoryFormIcon(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 text-xs text-zinc-900 dark:text-zinc-50 outline-hidden focus:border-zinc-955 cursor-pointer font-medium"
+                >
+                  <option value="Folder">Folder (Default Category)</option>
+                  <option value="Volume2">Volume2 (PA & Sound System)</option>
+                  <option value="Video">Video (Projectors & Screens)</option>
+                  <option value="Utensils">Utensils (Catering & Meals)</option>
+                  <option value="Wifi">Wifi (Internet & Connectivity)</option>
+                  <option value="Mic">Mic (Staging & Podium)</option>
+                  <option value="Zap">Zap (Lighting & Power)</option>
+                  <option value="Coffee">Coffee (Beverages & Snacks)</option>
+                  <option value="Layers">Layers (General Services)</option>
+                  <option value="Box">Box (Equipment Package)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Describe what facilities or equipment belong in this category..."
+                  value={categoryFormDescription}
+                  onChange={(e) => setCategoryFormDescription(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 text-xs text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-hidden focus:border-zinc-955"
+                />
+              </div>
+
+              {/* Assign Facilities Checkboxes */}
+              {facilities.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                    Assign Facilities to this Category
+                  </label>
+                  <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-3 space-y-2 max-h-44 overflow-y-auto bg-zinc-50/50 dark:bg-zinc-950/20">
+                    {facilities.map((fac) => {
+                      const isSelected = categoryFormFacilityIds.includes(fac.facility_id);
+                      return (
+                        <label key={fac.id} className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-zinc-800 dark:text-zinc-200 hover:text-primary">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleCategoryFormFacilityId(fac.facility_id)}
+                            className="rounded border-zinc-300 dark:border-zinc-700 accent-primary h-4 w-4 cursor-pointer"
+                          />
+                          <span className="truncate">{fac.name}</span>
+                          {fac.category && (
+                            <span className="text-[10px] text-zinc-400 ml-auto shrink-0">({fac.category})</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="categoryFormIsActive"
+                  checked={categoryFormIsActive}
+                  onChange={(e) => setCategoryFormIsActive(e.target.checked)}
+                  className="rounded text-primary focus:ring-primary h-4 w-4 cursor-pointer"
+                />
+                <label htmlFor="categoryFormIsActive" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                  Category is Active & Visible
+                </label>
+              </div>
+
+              {/* Drawer Footer Actions */}
+              <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-end gap-3">
+                <ShadcnButton
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCategoryDrawerOpen(false)}
+                  className="rounded-xl px-4 text-xs font-bold h-10 cursor-pointer"
+                >
+                  Cancel
+                </ShadcnButton>
+                <ShadcnButton
+                  type="submit"
+                  className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground h-10 shadow-xs cursor-pointer dark:bg-zinc-800! dark:text-white!"
+                >
+                  {editingCategoryId ? 'Save Changes' : 'Create Category'}
                 </ShadcnButton>
               </div>
             </form>

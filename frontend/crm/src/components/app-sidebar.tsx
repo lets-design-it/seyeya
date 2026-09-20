@@ -83,7 +83,8 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
         { id: 'conferences-quotes', title: 'Reservations' },
         { id: 'conferences-halls', title: 'Event Halls' },
         { id: 'conferences-events', title: 'Events' },
-        { id: 'conferences-facilities', title: 'Facilities' }
+        { id: 'conferences-facilities', title: 'Facilities' },
+        { id: 'conferences-categories', title: 'Categories' }
       ]
     },
     {
