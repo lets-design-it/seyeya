@@ -54,15 +54,27 @@ export interface ConferenceEventItem {
   created_at?: string;
 }
 
+export interface ConferenceFacilityCategoryItem {
+  id: number;
+  name: string;
+  description?: string;
+  icon_name?: string;
+  is_active?: boolean;
+  created_at?: string;
+  facilities?: ConferenceFacilityItem[];
+}
+
 export interface ConferenceFacilityItem {
   id: string;
   facility_id: number;
   name: string;
+  category_id?: number;
   category: string;
   description: string;
   icon_name: string;
   is_active: boolean;
   price?: number;
+  pricing_type?: string;
 }
 
 export const useConference = () => {
@@ -71,6 +83,7 @@ export const useConference = () => {
   const [quotes, setQuotes] = useState<ConferenceQuote[]>([]);
   const [events, setEvents] = useState<ConferenceEventItem[]>([]);
   const [facilities, setFacilities] = useState<ConferenceFacilityItem[]>([]);
+  const [facilityCategories, setFacilityCategories] = useState<ConferenceFacilityCategoryItem[]>([]);
   const [resources, setResources] = useState<any[]>([]);
   const [mealPackages, setMealPackages] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -253,17 +266,26 @@ export const useConference = () => {
       }));
       setEvents(mappedEvents);
 
-      // 5. Fetch facilities
+      // 5. Fetch facility categories & facilities
+      try {
+        const catRes = await api.get('/conference/facility-categories');
+        setFacilityCategories(catRes.data || []);
+      } catch (catErr) {
+        console.error("Failed to fetch facility categories", catErr);
+      }
+
       let facilitiesRes = await api.get('/conference/facilities');
       const mappedFacilities = facilitiesRes.data.map((fac: any) => ({
         id: String(fac.facility_id),
         facility_id: fac.facility_id,
         name: fac.name,
-        category: fac.category || 'General Services',
+        category_id: fac.category_id,
+        category: fac.category_relation?.name || fac.category || 'General Services',
         description: fac.description || '',
         icon_name: fac.icon_name || 'Sparkles',
         is_active: fac.is_active !== false,
-        price: Number(fac.price || 0)
+        price: Number(fac.price || 0),
+        pricing_type: fac.pricing_type || 'FIXED'
       }));
       setFacilities(mappedFacilities);
     } catch (e) {
@@ -636,21 +658,25 @@ export const useConference = () => {
 
   const addFacility = async (facilityData: {
     name: string;
+    category_id?: number;
     category?: string;
     description?: string;
     icon_name?: string;
     is_active?: boolean;
     price?: number;
+    pricing_type?: string;
   }) => {
     setIsLoading(true);
     try {
       await api.post('/conference/facilities', {
         name: facilityData.name,
+        category_id: facilityData.category_id,
         category: facilityData.category || 'General Services',
         description: facilityData.description || '',
         icon_name: facilityData.icon_name || 'Sparkles',
         is_active: facilityData.is_active !== false,
-        price: Number(facilityData.price || 0)
+        price: Number(facilityData.price || 0),
+        pricing_type: facilityData.pricing_type || 'FIXED'
       });
       await fetchConferenceData();
       addNotification('Facility Created', `Added new facility: ${facilityData.name}`, 'event');
@@ -664,11 +690,13 @@ export const useConference = () => {
 
   const updateFacility = async (id: string | number, facilityData: {
     name?: string;
+    category_id?: number;
     category?: string;
     description?: string;
     icon_name?: string;
     is_active?: boolean;
     price?: number;
+    pricing_type?: string;
   }) => {
     setIsLoading(true);
     const numericId = typeof id === 'number' ? id : (parseInt(String(id).replace(/\D/g, ''), 10) || id);
@@ -681,11 +709,13 @@ export const useConference = () => {
       setFacilities(prev => prev.map(item => (item.id === String(id) || item.facility_id === numericId) ? {
         ...item,
         name: facilityData.name ?? item.name,
+        category_id: facilityData.category_id !== undefined ? facilityData.category_id : item.category_id,
         category: facilityData.category ?? item.category,
         description: facilityData.description ?? item.description,
         icon_name: facilityData.icon_name ?? item.icon_name,
         is_active: facilityData.is_active !== undefined ? facilityData.is_active : item.is_active,
-        price: facilityData.price !== undefined ? Number(facilityData.price) : item.price
+        price: facilityData.price !== undefined ? Number(facilityData.price) : item.price,
+        pricing_type: facilityData.pricing_type ?? item.pricing_type
       } : item));
       addNotification('Facility Updated', 'Updated facility details locally', 'event');
     } finally {
@@ -709,11 +739,122 @@ export const useConference = () => {
     }
   };
 
+  // Facility Categories API functions
+  const addFacilityCategory = async (categoryData: {
+    name: string;
+    description?: string;
+    icon_name?: string;
+    is_active?: boolean;
+    facility_ids?: number[];
+  }) => {
+    setIsLoading(true);
+    try {
+      const createdRes = await api.post('/conference/facility-categories', {
+        name: categoryData.name,
+        description: categoryData.description || '',
+        icon_name: categoryData.icon_name || 'Folder',
+        is_active: categoryData.is_active !== false
+      });
+
+      const newCategoryId = createdRes.data?.id;
+      if (newCategoryId && categoryData.facility_ids && categoryData.facility_ids.length > 0) {
+        await api.post(`/conference/facility-categories/${newCategoryId}/facilities`, {
+          facility_ids: categoryData.facility_ids
+        });
+      }
+
+      await fetchConferenceData();
+      addNotification('Category Created', `Created facility category: ${categoryData.name}`, 'event');
+    } catch (e: any) {
+      console.error("Failed to add facility category", e);
+      const errMsg = e.response?.data?.detail || 'Failed to create facility category';
+      addNotification('Error', errMsg, 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateFacilityCategory = async (id: number, categoryData: {
+    name?: string;
+    description?: string;
+    icon_name?: string;
+    is_active?: boolean;
+    facility_ids?: number[];
+  }) => {
+    setIsLoading(true);
+    try {
+      await api.put(`/conference/facility-categories/${id}`, {
+        name: categoryData.name,
+        description: categoryData.description,
+        icon_name: categoryData.icon_name,
+        is_active: categoryData.is_active
+      });
+
+      if (categoryData.facility_ids !== undefined) {
+        await api.post(`/conference/facility-categories/${id}/facilities`, {
+          facility_ids: categoryData.facility_ids
+        });
+      }
+
+      await fetchConferenceData();
+      addNotification('Category Updated', 'Successfully updated category details', 'event');
+    } catch (e: any) {
+      console.error("Failed to update facility category", e);
+      const errMsg = e.response?.data?.detail || 'Failed to update category';
+      addNotification('Error', errMsg, 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteFacilityCategory = async (id: number) => {
+    setIsLoading(true);
+    try {
+      await api.delete(`/conference/facility-categories/${id}`);
+      await fetchConferenceData();
+      addNotification('Category Deleted', 'Facility category removed successfully', 'event');
+    } catch (e: any) {
+      console.error("Failed to delete facility category", e);
+      addNotification('Error', 'Failed to delete category', 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const assignSingleFacilityToCategory = async (categoryId: number, facilityId: number) => {
+    setIsLoading(true);
+    try {
+      await api.post(`/conference/facility-categories/${categoryId}/facilities/${facilityId}`);
+      await fetchConferenceData();
+      addNotification('Facility Assigned', 'Assigned facility to category', 'event');
+    } catch (e: any) {
+      console.error("Failed to assign facility to category", e);
+      addNotification('Error', 'Failed to assign facility to category', 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const removeFacilityFromCategory = async (categoryId: number, facilityId: number) => {
+    setIsLoading(true);
+    try {
+      await api.delete(`/conference/facility-categories/${categoryId}/facilities/${facilityId}`);
+      await fetchConferenceData();
+      addNotification('Facility Unassigned', 'Removed facility from category', 'event');
+    } catch (e: any) {
+      console.error("Failed to remove facility from category", e);
+      addNotification('Error', 'Failed to remove facility from category', 'event');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     halls,
     quotes,
     events,
     facilities,
+    facilityCategories,
     isLoading,
     calculateQuoteCost,
     requestQuote,
@@ -725,6 +866,11 @@ export const useConference = () => {
     addFacility,
     updateFacility,
     deleteFacility,
+    addFacilityCategory,
+    updateFacilityCategory,
+    deleteFacilityCategory,
+    assignSingleFacilityToCategory,
+    removeFacilityFromCategory,
     fetchConferenceData,
     customers,
     createReservation

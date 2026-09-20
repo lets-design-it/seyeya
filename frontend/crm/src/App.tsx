@@ -134,10 +134,11 @@ const CRMApp: React.FC = () => {
       case 'conferences-quotes':
       case 'conferences-halls':
       case 'conferences-events':
-      case 'conferences-facilities': {
+      case 'conferences-facilities':
+      case 'conferences-categories': {
         const subTab = activeStaffTab === 'conferences'
           ? 'quotes'
-          : (activeStaffTab.split('-')[1] as 'quotes' | 'halls' | 'events' | 'facilities');
+          : (activeStaffTab.split('-')[1] as 'quotes' | 'halls' | 'events' | 'facilities' | 'categories');
         return (
           <ProtectedRoute allowedRoles={['admin', 'manager', 'agent']}>
             <Conferences 
