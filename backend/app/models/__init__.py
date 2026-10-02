@@ -11,6 +11,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime, date, time
+from decimal import Decimal
 import uuid
 
 Base = declarative_base()
@@ -708,14 +709,30 @@ class ConferenceHall(Base):
     half_day_rate = Column(DECIMAL(10, 2))
     description = Column(String(500))
     image = Column(String(500), nullable=True)
+    main_photo_index = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    photos = relationship("HallPhoto", back_populates="hall", cascade="all, delete-orphan")
+    photos_rel = relationship("HallPhoto", back_populates="hall", cascade="all, delete-orphan")
     reservations = relationship("ConferenceReservation", back_populates="hall", cascade="all, delete-orphan")
     facilities = relationship("ConferenceHallFacility", back_populates="hall", cascade="all, delete-orphan")
+
+    @property
+    def photos(self) -> List[str]:
+        try:
+            from sqlalchemy.inspect import inspect
+            insp = inspect(self)
+            if 'photos_rel' in insp.unloaded:
+                return [self.image] if self.image else []
+            if self.photos_rel:
+                return [p.photo_url for p in sorted(self.photos_rel, key=lambda x: x.sort_order)]
+        except Exception:
+            pass
+        if self.image:
+            return [self.image]
+        return []
 
 
 class HallPhoto(Base):
@@ -728,8 +745,7 @@ class HallPhoto(Base):
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Relationships
-    hall = relationship("ConferenceHall", back_populates="photos")
+    hall = relationship("ConferenceHall", back_populates="photos_rel")
 
 
 class ConferenceResource(Base):

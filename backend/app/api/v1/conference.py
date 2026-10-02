@@ -61,8 +61,13 @@ async def create_hall(
         hall_name=request.hall_name,
         capacity=request.capacity,
         standard_price=request.standard_price,
+        hourly_rate=request.hourly_rate,
+        half_day_rate=request.half_day_rate,
+        full_day_rate=request.full_day_rate,
         description=request.description,
         image=request.image,
+        photos=request.photos,
+        main_photo_index=request.main_photo_index,
         facility_ids=f_ids
     )
     return hall
@@ -84,8 +89,13 @@ async def update_hall(
         hall_name=request.hall_name,
         capacity=request.capacity,
         standard_price=request.standard_price,
+        hourly_rate=request.hourly_rate,
+        half_day_rate=request.half_day_rate,
+        full_day_rate=request.full_day_rate,
         description=request.description,
         image=request.image,
+        photos=request.photos,
+        main_photo_index=request.main_photo_index,
         is_active=request.is_active,
         facility_ids=f_ids
     )
@@ -240,12 +250,30 @@ async def create_reservation(
     try:
         repo = ConferenceRepository(db)
         
-        # Neutral financial summary fields directly from frontend without backend math
-        hall_standard_price = request.hall_standard_price or Decimal('0.00')
-        subtotal = request.subtotal or Decimal('0.00')
-        total_amount = request.total_amount or Decimal('0.00')
-        amount_paid = request.amount_paid or Decimal('0.00')
-        balance_due = request.balance_due or Decimal('0.00')
+        # Financial summary fields (with smart fallback calculation if omitted)
+        hall_standard_price = request.hall_standard_price
+        if hall_standard_price is None:
+            hall_obj = await repo.get_hall_by_id(request.hall_id)
+            if hall_obj:
+                hall_standard_price = Decimal(str(hall_obj.full_day_rate or hall_obj.standard_price or '0.00'))
+            else:
+                hall_standard_price = Decimal('0.00')
+        else:
+            hall_standard_price = Decimal(str(hall_standard_price))
+
+        facility_total_cost = Decimal('0.00')
+        if request.facilities:
+            for fac in request.facilities:
+                if fac.total_price:
+                    facility_total_cost += Decimal(str(fac.total_price))
+                elif fac.unit_price:
+                    facility_total_cost += Decimal(str(fac.unit_price)) * Decimal(str(fac.quantity or 1))
+
+        total_amount = Decimal(str(request.total_amount)) if request.total_amount and request.total_amount > Decimal('0.00') else (hall_standard_price + facility_total_cost)
+        subtotal = Decimal(str(request.subtotal)) if request.subtotal and request.subtotal > Decimal('0.00') else total_amount
+        amount_paid = Decimal(str(request.amount_paid)) if request.amount_paid is not None else Decimal('0.00')
+        balance_due = Decimal(str(request.balance_due)) if (request.balance_due is not None and request.total_amount and request.total_amount > 0) else max(Decimal('0.00'), total_amount - amount_paid)
+        
         reservation_code = f"CON-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
         
         # Check for overlapping availability
@@ -257,7 +285,7 @@ async def create_reservation(
                 ConferenceReservation.event_end_date >= request.event_start_date,
                 ConferenceReservation.start_time < request.end_time,
                 ConferenceReservation.end_time > request.start_time,
-                ConferenceReservation.reservation_status.notin_(["Cancelled", "Rejected"])
+                ConferenceReservation.reservation_status.notin_(["Cancelled", "Rejected", "Declined"])
             )
         )
         if overlap_check.scalars().first():
@@ -286,12 +314,14 @@ async def create_reservation(
         # Add facility line items directly as passed from frontend
         if request.facilities:
             for fac_req in request.facilities:
+                unit_p = Decimal(str(fac_req.unit_price)) if fac_req.unit_price else Decimal('0.00')
+                total_p = Decimal(str(fac_req.total_price)) if fac_req.total_price else (unit_p * Decimal(str(fac_req.quantity or 1)))
                 booking = ConferenceBookingFacility(
                     booking_id=reservation.conference_res_id,
                     facility_id=fac_req.facility_id,
                     quantity=fac_req.quantity or 1,
-                    unit_price=fac_req.unit_price or Decimal('0.00'),
-                    total_price=fac_req.total_price or Decimal('0.00')
+                    unit_price=unit_p,
+                    total_price=total_p
                 )
                 db.add(booking)
         
@@ -310,7 +340,11 @@ async def create_reservation(
             pass
             
         return await repo.get_reservation_by_id(reservation.conference_res_id)
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
@@ -359,10 +393,17 @@ async def update_reservation(
     
     if request.payment_status:
         reservation.payment_status = request.payment_status
-    
+        
+    if request.total_amount is not None:
+        reservation.total_amount = request.total_amount
+        reservation.subtotal = request.total_amount
+
     if request.amount_paid is not None:
         reservation.amount_paid = request.amount_paid
-        reservation.balance_due = reservation.total_amount - request.amount_paid
+        reservation.balance_due = max(Decimal('0.00'), reservation.total_amount - request.amount_paid)
+
+    if request.balance_due is not None:
+        reservation.balance_due = request.balance_due
     
     db.add(reservation)
     await db.commit()
