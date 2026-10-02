@@ -1213,8 +1213,13 @@ class ConferenceHallCreate(BaseModel):
     hall_name: str
     capacity: int
     standard_price: Optional[Decimal] = Decimal('0.00')
+    hourly_rate: Optional[Decimal] = Decimal('0.00')
+    half_day_rate: Optional[Decimal] = Decimal('0.00')
+    full_day_rate: Optional[Decimal] = Decimal('0.00')
     description: Optional[str] = None
     image: Optional[str] = None
+    photos: Optional[List[str]] = None
+    main_photo_index: Optional[int] = 0
     facility_ids: Optional[List[int]] = None
     facilities: Optional[Any] = None
 
@@ -1223,8 +1228,13 @@ class ConferenceHallUpdate(BaseModel):
     hall_name: Optional[str] = None
     capacity: Optional[int] = None
     standard_price: Optional[Decimal] = None
+    hourly_rate: Optional[Decimal] = None
+    half_day_rate: Optional[Decimal] = None
+    full_day_rate: Optional[Decimal] = None
     description: Optional[str] = None
     image: Optional[str] = None
+    photos: Optional[List[str]] = None
+    main_photo_index: Optional[int] = None
     is_active: Optional[bool] = None
     facility_ids: Optional[List[int]] = None
     facilities: Optional[Any] = None
@@ -1235,8 +1245,13 @@ class ConferenceHallResponse(BaseModel):
     hall_name: str
     capacity: int
     standard_price: Optional[Decimal] = Decimal('0.00')
+    hourly_rate: Optional[Decimal] = Decimal('0.00')
+    half_day_rate: Optional[Decimal] = Decimal('0.00')
+    full_day_rate: Optional[Decimal] = Decimal('0.00')
     description: Optional[str] = None
     image: Optional[str] = None
+    photos: Optional[List[str]] = None
+    main_photo_index: Optional[int] = 0
     is_active: Optional[bool] = True
     facilities: List["ConferenceHallFacilityResponse"] = []
     
@@ -1305,6 +1320,8 @@ class ConferenceReservationUpdate(BaseModel):
     reservation_status: Optional[str] = None
     payment_status: Optional[str] = None
     amount_paid: Optional[Decimal] = None
+    total_amount: Optional[Decimal] = None
+    balance_due: Optional[Decimal] = None
 
 
 class ConferenceReservationResponse(BaseModel):

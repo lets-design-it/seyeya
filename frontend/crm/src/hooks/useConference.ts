@@ -11,6 +11,8 @@ export interface EventHall {
   capacity: number;
   description: string;
   image: string;
+  photos?: string[];
+  main_photo_index?: number;
   amenities: string;
   hourly_rate: number;
   half_day_rate: number;
@@ -138,11 +140,25 @@ export const useConference = () => {
       }
 
       const mappedHalls = hallsRes.data.map((h: any, idx: number) => {
-        const images = [
-          'https://images.unsplash.com/photo-1511578314322-379afb476865?w=300',
-          'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=300',
-          'https://images.unsplash.com/photo-1431540015161-0bf868a2d407?w=300'
+        const defaultImages = [
+          'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1200',
+          'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200',
+          'https://images.unsplash.com/photo-1431540015161-0bf868a2d407?w=1200'
         ];
+        let photosList: string[] = [];
+        if (Array.isArray(h.photos)) {
+          photosList = h.photos;
+        } else if (typeof h.photos === 'string' && h.photos.trim()) {
+          try { photosList = JSON.parse(h.photos); } catch (e) { photosList = [h.photos]; }
+        } else if (h.image) {
+          photosList = [h.image];
+        } else {
+          photosList = [defaultImages[idx % defaultImages.length]];
+        }
+
+        const mainIndex = typeof h.main_photo_index === 'number' ? h.main_photo_index : 0;
+        const mainImage = photosList[mainIndex] || photosList[0] || defaultImages[idx % defaultImages.length];
+
         return {
           id: String(h.hall_id),
           hall_id: h.hall_id,
@@ -152,7 +168,9 @@ export const useConference = () => {
           capacity: h.capacity,
           description: h.description || '',
           amenities: h.amenities || '',
-          image: images[idx % images.length],
+          image: mainImage,
+          photos: photosList,
+          main_photo_index: mainIndex,
           hourly_rate: Number(h.hourly_rate || 0),
           half_day_rate: Number(h.half_day_rate || 0),
           full_day_rate: Number(h.full_day_rate || 0)
@@ -170,6 +188,41 @@ export const useConference = () => {
           catering = 'Executive Full Day';
         }
         
+        let statusMapped: 'Pending' | 'Approved' | 'Declined' = 'Pending';
+        if (r.reservation_status === 'Approved' || r.reservation_status === 'Confirmed') {
+          statusMapped = 'Approved';
+        } else if (r.reservation_status === 'Declined' || r.reservation_status === 'Cancelled' || r.reservation_status === 'Rejected') {
+          statusMapped = 'Declined';
+        }
+        
+        let totalCost = Number(r.total_amount || 0);
+        if (totalCost === 0 && r.special_requests) {
+          const matches = r.special_requests.match(/UGX\s*([\d,]+|\d+k(?:\/head)?)/gi);
+          if (matches) {
+            let parsedSum = 0;
+            for (const m of matches) {
+              const valStr = m.replace(/UGX\s*/i, '').trim();
+              if (valStr.includes('k')) {
+                const num = parseFloat(valStr.replace(/k.*$/i, '')) * 1000;
+                if (valStr.includes('/head')) {
+                  parsedSum += num * (r.num_participants || 1);
+                } else {
+                  parsedSum += num;
+                }
+              } else {
+                parsedSum += parseFloat(valStr.replace(/,/g, '')) || 0;
+              }
+            }
+            if (parsedSum > 0) totalCost = parsedSum;
+          }
+        }
+        if (totalCost === 0 && r.hall?.standard_price) {
+          totalCost = Number(r.hall.standard_price);
+        }
+
+        const amtPaid = Number(r.amount_paid || 0);
+        const balDue = r.balance_due !== undefined && Number(r.balance_due) > 0 ? Number(r.balance_due) : Math.max(0, totalCost - amtPaid);
+
         return {
           id: String(r.conference_res_id),
           clientName: r.customer?.full_name || `Client #${r.customer_id}`,
@@ -181,12 +234,12 @@ export const useConference = () => {
           cateringOption: catering,
           soundSystem: r.special_requests?.includes('Sound System') || false,
           projector: r.special_requests?.includes('Projector') || false,
-          totalCostUGX: Number(r.total_amount),
-          status: r.reservation_status || 'Pending',
-          date: r.event_date,
-          paymentStatus: r.payment_status,
-          amountPaid: Number(r.amount_paid || 0),
-          balanceDue: Number(r.balance_due || 0),
+          totalCostUGX: totalCost,
+          status: statusMapped,
+          date: r.event_start_date || r.event_date || 'N/A',
+          paymentStatus: r.payment_status || (amtPaid >= totalCost && totalCost > 0 ? 'Paid' : (amtPaid > 0 ? 'PartiallyPaid' : 'Pending')),
+          amountPaid: amtPaid,
+          balanceDue: balDue,
           startTime: r.start_time,
           endTime: r.end_time,
           specialRequests: r.special_requests
@@ -268,13 +321,50 @@ export const useConference = () => {
 
       // 5. Fetch facility categories & facilities
       try {
-        const catRes = await api.get('/conference/facility-categories');
+        let catRes = await api.get('/conference/facility-categories');
+        if (!catRes.data || catRes.data.length === 0) {
+          const defaultCategories = [
+            { name: 'Audio & Visual', description: 'Sound systems, wireless mics, HD projectors, and digital displays', icon_name: 'Volume2' },
+            { name: 'Catering & Refreshments', description: 'Break tea, executive lunch buffets, coffee stations, and dining options', icon_name: 'Coffee' },
+            { name: 'Seating & Setup', description: 'Banquet tables, executive speaker podiums, stage platforms, and seating', icon_name: 'Users' },
+            { name: 'Connectivity & Utilities', description: 'High-speed fiber WiFi, AC cooling, and standby generator power', icon_name: 'Zap' },
+            { name: 'General Services', description: 'Event coordination, stationery, decor accents, and security', icon_name: 'Sparkles' }
+          ];
+          for (const dc of defaultCategories) {
+            try {
+              await api.post('/conference/facility-categories', dc);
+            } catch (err) {
+              console.error("Failed to seed facility category", dc.name, err);
+            }
+          }
+          catRes = await api.get('/conference/facility-categories');
+        }
         setFacilityCategories(catRes.data || []);
       } catch (catErr) {
         console.error("Failed to fetch facility categories", catErr);
       }
 
       let facilitiesRes = await api.get('/conference/facilities');
+      if (!facilitiesRes.data || facilitiesRes.data.length === 0) {
+        // Auto-seed default facilities
+        const defaultFacs = [
+          { name: 'PA Sound System & Wireless Mics', category: 'Audio & Visual', description: 'High-definition 4-channel sound system with wireless lapel and handheld mics', icon_name: 'Volume2', price: 300000, pricing_type: 'FIXED' },
+          { name: 'HD Laser Projector & 4K Screen', category: 'Audio & Visual', description: 'Ultra-bright 5000 lumen laser projector with motor-driven retractable screen', icon_name: 'Video', price: 150000, pricing_type: 'FIXED' },
+          { name: 'Executive Break Tea & Pastries', category: 'Catering & Refreshments', description: 'Freshly brewed Ugandan coffee, herbal teas, gourmet pastries & fruit platters', icon_name: 'Coffee', price: 25000, pricing_type: 'PER_PERSON' },
+          { name: 'Nile View Grand Buffet Lunch', category: 'Catering & Refreshments', description: '3-course buffet lunch with soft drink / mineral water for conference delegates', icon_name: 'Utensils', price: 55000, pricing_type: 'PER_PERSON' },
+          { name: 'High-Speed Fiber WiFi Network', category: 'Connectivity & Utilities', description: 'Dedicated high-speed 100Mbps dedicated fiber connectivity for all attendees', icon_name: 'Wifi', price: 0, pricing_type: 'INCLUDED' },
+          { name: 'Executive Speaker Podium & Stage', category: 'Seating & Setup', description: 'Elevated presentation stage platform with wooden podium and gooseneck mic', icon_name: 'Mic', price: 50000, pricing_type: 'FIXED' }
+        ];
+        for (const df of defaultFacs) {
+          try {
+            await api.post('/conference/facilities', df);
+          } catch (err) {
+            console.error("Failed to seed facility", df.name, err);
+          }
+        }
+        facilitiesRes = await api.get('/conference/facilities');
+      }
+
       const mappedFacilities = facilitiesRes.data.map((fac: any) => ({
         id: String(fac.facility_id),
         facility_id: fac.facility_id,
@@ -349,6 +439,57 @@ export const useConference = () => {
       console.error("Failed to add conference hall", e);
       addNotification('Error', 'Failed to create conference hall', 'event');
       throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateConferenceHall = async (id: string | number, hallData: {
+    hall_name?: string;
+    capacity?: number;
+    standard_price?: number;
+    hourly_rate?: number;
+    half_day_rate?: number;
+    full_day_rate?: number;
+    description?: string;
+    amenities?: string;
+    image?: string;
+    photos?: string[];
+    main_photo_index?: number;
+    is_vat_inclusive?: boolean;
+  }) => {
+    setIsLoading(true);
+    const numericId = typeof id === 'number' ? id : (parseInt(String(id).replace(/\D/g, ''), 10) || id);
+    const mainImg = hallData.image || (hallData.photos && hallData.photos.length > 0 ? hallData.photos[hallData.main_photo_index || 0] : undefined);
+    try {
+      await api.put(`/conference/halls/${numericId}`, {
+        hall_name: hallData.hall_name,
+        capacity: hallData.capacity ? Number(hallData.capacity) : undefined,
+        standard_price: hallData.standard_price !== undefined ? Number(hallData.standard_price) : undefined,
+        full_day_rate: hallData.standard_price !== undefined ? Number(hallData.standard_price) : undefined,
+        description: hallData.description,
+        amenities: hallData.amenities,
+        image: mainImg,
+        photos: hallData.photos,
+        main_photo_index: hallData.main_photo_index,
+        is_vat_inclusive: hallData.is_vat_inclusive
+      });
+      await fetchConferenceData();
+      addNotification('Conference Hall Updated', 'Updated hall details successfully.', 'event');
+    } catch (e) {
+      console.error("Failed to update hall", e);
+      setHalls(prev => prev.map(h => (h.id === String(id) || h.hall_id === numericId) ? {
+        ...h,
+        name: hallData.hall_name ?? h.name,
+        capacity: hallData.capacity ?? h.capacity,
+        basePriceUGX: hallData.standard_price ?? h.basePriceUGX,
+        description: hallData.description ?? h.description,
+        amenities: hallData.amenities ?? h.amenities,
+        photos: hallData.photos ?? h.photos,
+        main_photo_index: hallData.main_photo_index ?? h.main_photo_index,
+        image: mainImg ?? h.image
+      } : h));
+      addNotification('Conference Hall Updated', 'Updated hall details locally.', 'event');
     } finally {
       setIsLoading(false);
     }
@@ -452,6 +593,13 @@ export const useConference = () => {
     soundSystem?: boolean;
     projector?: boolean;
     cateringOption?: 'None' | 'Standard Breakfast' | 'Executive Full Day';
+    hall_standard_price?: number;
+    subtotal?: number;
+    total_amount?: number;
+    amount_paid?: number;
+    balance_due?: number;
+    payment_responsibility?: string;
+    facilities?: Array<{ facility_id: number; quantity?: number; unit_price?: number; total_price?: number }>;
   }) => {
     setIsLoading(true);
     try {
@@ -504,26 +652,37 @@ export const useConference = () => {
         specialReqStr = `${specialReqStr} [${extrasList.join(', ')}]`.trim();
       }
 
+      const eventDateVal = data.event_date || (data as any).event_start_date || new Date().toISOString().split('T')[0];
+
       const payload = {
         customer_id: customerId,
         hall_id: Number(data.hall_id),
         event_name: data.event_name,
-        event_date: data.event_date,
+        event_start_date: eventDateVal,
+        event_end_date: (data as any).event_end_date || eventDateVal,
         start_time: data.start_time.includes(':') && data.start_time.split(':').length === 2 ? `${data.start_time}:00` : data.start_time,
         end_time: data.end_time.includes(':') && data.end_time.split(':').length === 2 ? `${data.end_time}:00` : data.end_time,
         num_participants: Number(data.num_participants),
-        booking_type: data.booking_type,
+        booking_type: data.booking_type || "Standard",
         special_requests: specialReqStr.trim() || undefined,
         resources: selectedResources,
-        meals: selectedMeals
+        meals: selectedMeals,
+        hall_standard_price: data.hall_standard_price,
+        subtotal: data.subtotal,
+        total_amount: data.total_amount,
+        amount_paid: data.amount_paid || 0,
+        balance_due: data.balance_due,
+        payment_responsibility: data.payment_responsibility || "Individual",
+        facilities: data.facilities
       };
 
       await api.post('/conference/reservations', payload);
       await fetchConferenceData();
       addNotification('Reservation Created', `Reservation for ${data.event_name} successfully placed.`, 'event');
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to create reservation", e);
-      addNotification('Error', 'Failed to create reservation', 'event');
+      const serverMsg = e.response?.data?.detail || 'Failed to create reservation';
+      addNotification('Booking Conflict / Error', serverMsg, 'event');
       throw e;
     } finally {
       setIsLoading(false);
@@ -860,6 +1019,7 @@ export const useConference = () => {
     requestQuote,
     updateQuoteStatus,
     addConferenceHall,
+    updateConferenceHall,
     addEvent,
     updateEvent,
     deleteEvent,

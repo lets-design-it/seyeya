@@ -9,7 +9,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
-    ConferenceReservation, MenuItem, MenuCategory, Room, RoomCategory, ConferenceHall,
+    ConferenceReservation, MenuItem, MenuCategory, Room, RoomCategory, ConferenceHall, HallPhoto,
     ConferenceFacility, ConferenceHallFacility, ConferenceBookingFacility,
     Payment, CustomerReview, OrderItem, OrderItemExtra, MenuExtra, MenuChoice, MenuAccompaniment,
     Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken,
@@ -915,6 +915,7 @@ class ConferenceRepository:
         result = await self.db.execute(
             select(ConferenceHall)
             .options(
+                selectinload(ConferenceHall.photos_rel),
                 selectinload(ConferenceHall.facilities)
                 .selectinload(ConferenceHallFacility.facility)
                 .selectinload(ConferenceFacility.category_relation)
@@ -928,22 +929,36 @@ class ConferenceRepository:
         hall_name: str,
         capacity: int,
         standard_price: Optional[Decimal] = None,
+        hourly_rate: Optional[Decimal] = None,
+        half_day_rate: Optional[Decimal] = None,
+        full_day_rate: Optional[Decimal] = None,
         description: Optional[str] = None,
         image: Optional[str] = None,
+        photos: Optional[List[str]] = None,
+        main_photo_index: Optional[int] = 0,
         facility_ids: Optional[List[int]] = None
     ) -> ConferenceHall:
         """Create a new conference hall"""
+        std_price = standard_price if standard_price is not None else full_day_rate
         hall = ConferenceHall(
             hall_name=hall_name,
             capacity=capacity,
-            standard_price=standard_price,
+            standard_price=std_price,
+            hourly_rate=hourly_rate,
+            half_day_rate=half_day_rate,
+            full_day_rate=full_day_rate,
             description=description,
             image=image,
+            main_photo_index=main_photo_index or 0,
             is_active=True
         )
         self.db.add(hall)
         await self.db.flush()
         
+        if photos:
+            for idx, p_url in enumerate(photos):
+                self.db.add(HallPhoto(hall_id=hall.hall_id, photo_url=p_url, sort_order=idx))
+
         if facility_ids:
             for fid in facility_ids:
                 hall_facility = ConferenceHallFacility(
@@ -965,8 +980,13 @@ class ConferenceRepository:
         hall_name: Optional[str] = None,
         capacity: Optional[int] = None,
         standard_price: Optional[Decimal] = None,
+        hourly_rate: Optional[Decimal] = None,
+        half_day_rate: Optional[Decimal] = None,
+        full_day_rate: Optional[Decimal] = None,
         description: Optional[str] = None,
         image: Optional[str] = None,
+        photos: Optional[List[str]] = None,
+        main_photo_index: Optional[int] = None,
         is_active: Optional[bool] = None,
         facility_ids: Optional[List[int]] = None
     ) -> Optional[ConferenceHall]:
@@ -984,12 +1004,32 @@ class ConferenceRepository:
             hall.capacity = capacity
         if standard_price is not None:
             hall.standard_price = standard_price
+        elif full_day_rate is not None:
+            hall.standard_price = full_day_rate
+
+        if hourly_rate is not None:
+            hall.hourly_rate = hourly_rate
+        if half_day_rate is not None:
+            hall.half_day_rate = half_day_rate
+        if full_day_rate is not None:
+            hall.full_day_rate = full_day_rate
+
         if description is not None:
             hall.description = description
         if image is not None:
             hall.image = image
+        if main_photo_index is not None:
+            hall.main_photo_index = main_photo_index
         if is_active is not None:
             hall.is_active = is_active
+
+        if photos is not None:
+            from sqlalchemy import delete
+            await self.db.execute(
+                delete(HallPhoto).where(HallPhoto.hall_id == hall_id)
+            )
+            for idx, p_url in enumerate(photos):
+                self.db.add(HallPhoto(hall_id=hall_id, photo_url=p_url, sort_order=idx))
 
         if facility_ids is not None:
             from sqlalchemy import delete
@@ -1065,6 +1105,8 @@ class ConferenceRepository:
             .options(
                 selectinload(ConferenceReservation.customer), 
                 selectinload(ConferenceReservation.hall)
+                .selectinload(ConferenceHall.photos_rel),
+                selectinload(ConferenceReservation.hall)
                 .selectinload(ConferenceHall.facilities)
                 .selectinload(ConferenceHallFacility.facility)
                 .selectinload(ConferenceFacility.category_relation),
@@ -1081,6 +1123,7 @@ class ConferenceRepository:
         result = await self.db.execute(
             select(ConferenceHall)
             .options(
+                selectinload(ConferenceHall.photos_rel),
                 selectinload(ConferenceHall.facilities)
                 .selectinload(ConferenceHallFacility.facility)
                 .selectinload(ConferenceFacility.category_relation)
