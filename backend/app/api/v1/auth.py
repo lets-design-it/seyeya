@@ -12,11 +12,36 @@ from app.schemas import (
 )
 from app.services import AuthService, UserService
 from app.core.security import get_current_user, check_permission
-from app.models import User, UserRole
-from sqlalchemy import select
+from app.models import User, UserRole, RolePermission, Permission
+from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+async def get_user_permissions(user: User, db: AsyncSession, roles: List[str]) -> List[str]:
+    """Helper to retrieve effective active permission keys for a user"""
+    if not user.is_staff:
+        return []
+    active_condition = or_(Permission.is_active == True, Permission.is_active.is_(None))
+    if "Super Admin" in roles:
+        res = await db.execute(select(Permission.permission_key).where(active_condition))
+        return [r[0] for r in res.all()]
+    
+    role_ids = [ur.role_id for ur in user.roles if ur.role]
+    if not role_ids:
+        return []
+    
+    res = await db.execute(
+        select(Permission.permission_key)
+        .join(RolePermission, RolePermission.permission_id == Permission.permission_id)
+        .where(and_(
+            RolePermission.role_id.in_(role_ids),
+            active_condition
+        ))
+        .distinct()
+    )
+    return [r[0] for r in res.all()]
 
 
 async def build_token_response(user: User, access_token: str, refresh_token: str, db: AsyncSession) -> TokenResponse:
@@ -35,6 +60,7 @@ async def build_token_response(user: User, access_token: str, refresh_token: str
     
     customer_id = user_with_relations.customer.customer_id if user_with_relations.customer else None
     roles = [ur.role.role_name for ur in user_with_relations.roles if ur.role]
+    perms = await get_user_permissions(user_with_relations, db, roles)
     
     return TokenResponse(
         access_token=access_token,
@@ -45,7 +71,8 @@ async def build_token_response(user: User, access_token: str, refresh_token: str
         email=user.email,
         is_staff=user.is_staff,
         customer_id=customer_id,
-        roles=roles
+        roles=roles,
+        permissions=perms
     )
 
 
@@ -91,6 +118,18 @@ async def login(
             ip_address=ip_address,
             user_agent=user_agent
         )
+        
+        # Enforce staff-only access for CRM portal logins
+        x_portal = (req_obj.headers.get("x-portal") or "").lower()
+        x_require_staff = (req_obj.headers.get("x-require-staff") or "").lower()
+        if x_portal == "crm" or x_require_staff == "true":
+            if not user.is_staff:
+                if refresh_token:
+                    await auth_service.logout_user(refresh_token)
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied"
+                )
         
         return await build_token_response(user, access_token, refresh_token, db)
     except ValueError as e:
@@ -154,6 +193,7 @@ async def get_me(current_user: Dict = Depends(get_current_user), db: AsyncSessio
     customer_id = user.customer.customer_id if user.customer else None
     customer_code = user.customer.customer_code if user.customer else None
     roles = [ur.role.role_name for ur in user.roles if ur.role]
+    perms = await get_user_permissions(user, db, roles)
     
     return {
         "user_id": user.user_id,
@@ -164,7 +204,8 @@ async def get_me(current_user: Dict = Depends(get_current_user), db: AsyncSessio
         "is_active": user.is_active,
         "customer_id": customer_id,
         "customer_code": customer_code,
-        "roles": roles
+        "roles": roles,
+        "permissions": perms
     }
 
 

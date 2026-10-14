@@ -19,8 +19,8 @@ export const Login: React.FC = () => {
     setIsSubmitting(true);
     try {
       await login(email);
-    } catch (err) {
-      setError('Invalid login credentials');
+    } catch (err: any) {
+      setError(err.message || 'Invalid login credentials');
     } finally {
       setIsSubmitting(false);
     }
