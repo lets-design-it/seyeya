@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth, UserRole } from '../../context/AuthContext';
-import { Lock, Mail, ChevronRight } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Lock, Mail, ChevronRight, AlertCircle } from 'lucide-react';
 import loginBg from '../../assets/Login.jpg';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/Card';
 
@@ -27,8 +27,6 @@ export const Login: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
-
 
   return (
     <div
@@ -57,8 +55,11 @@ export const Login: React.FC = () => {
 
           <CardContent className="pt-4">
             {error && (
-              <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400">
-                {error}
+              <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-200/90 p-3.5 text-xs text-red-800 shadow-sm animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1 leading-relaxed font-medium">
+                  {error}
+                </div>
               </div>
             )}
 

@@ -44,6 +44,7 @@ class TokenResponse(BaseModel):
     is_staff: Optional[bool] = False
     customer_id: Optional[int] = None
     roles: Optional[List[str]] = []
+    permissions: Optional[List[str]] = []
 
 
 class RefreshTokenRequest(BaseModel):

@@ -29,17 +29,17 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }: AppSidebarProps) {
-  const { user } = useAuth();
+  const { user, canAccessPage, hasPermission } = useAuth();
 
   if (!user) return null;
 
   const isSuperAdmin = user.role === 'admin' || (user as any).roles?.includes('Super Admin');
 
-  // Define settings sub-items based on role
+  // Define settings sub-items based on granular permissions
   const settingsSubItems = [
     { id: 'settings-profile', title: 'Profile' },
-    ...(user.role === 'admin' ? [{ id: 'settings-hotel', title: 'Hotel Details' }] : []),
-    ...(isSuperAdmin ? [{ id: 'settings-permissions', title: 'Role Permissions' }] : []),
+    ...(user.role === 'admin' || user.role === 'manager' || hasPermission('roles.view') ? [{ id: 'settings-hotel', title: 'Hotel Details' }] : []),
+    ...(isSuperAdmin || hasPermission('roles.manage') ? [{ id: 'settings-permissions', title: 'Role Permissions' }] : []),
     { id: 'settings-theme', title: 'Theme' },
     { id: 'settings-notifications', title: 'Notifications' },
   ];
@@ -148,10 +148,15 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
 
       <SidebarContent className="py-4 bg-sidebar">
         <NavMain
-          items={menuItems}
+          items={menuItems
+            .filter(item => canAccessPage(item.id))
+            .map(item => ({
+              ...item,
+              items: item.items ? item.items.filter(sub => canAccessPage(sub.id)) : undefined
+            }))
+          }
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          userRole={user.role}
         />
       </SidebarContent>
 

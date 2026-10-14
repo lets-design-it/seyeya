@@ -35,9 +35,9 @@ interface NavMainProps {
   userRole: string
 }
 
-export function NavMain({ items, activeTab, setActiveTab, userRole }: NavMainProps) {
-  // Filter items by user role
-  const allowedItems = items.filter(item => item.roles.includes(userRole))
+export function NavMain({ items, activeTab, setActiveTab }: NavMainProps) {
+  // Items are already filtered dynamically based on page permissions in AppSidebar
+  const allowedItems = items;
 
   return (
     <SidebarGroup>
