@@ -1,90 +1,139 @@
 """
-Email utility functions for immediate sending
+Email utility functions for immediate and background sending
 """
 import smtplib
 import logging
+import asyncio
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
 from app.core.config import settings
+from app.utils.email_templates import (
+    get_welcome_email,
+    get_registration_welcome_email,
+    get_password_reset_email,
+    get_password_changed_email
+)
 
 logger = logging.getLogger(__name__)
+
+
+def send_email_sync(
+    to_email: str,
+    subject: str,
+    html_content: str,
+    to_name: Optional[str] = None
+) -> bool:
+    """
+    Synchronous SMTP email sender using standard library smtplib.
+    Returns True if sent successfully, False otherwise.
+    Never raises an exception to the caller so API endpoints remain uninterrupted.
+    """
+    if not to_email or "@" not in to_email:
+        logger.warning(f"Invalid recipient email provided: {to_email}")
+        return False
+
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        logger.warning(
+            f"SMTP configuration is missing. Email simulated to: {to_email} | Subject: {subject}"
+        )
+        print(f"\n[EMAIL SIMULATION] To: {to_email}")
+        print(f"Subject: {subject}\n")
+        return False
+
+    try:
+        msg = MIMEMultipart()
+        sender_email = settings.SMTP_USER or settings.SEND_FROM_EMAIL
+        msg['From'] = f"SEYEYA Courts <{sender_email}>"
+        msg['To'] = f"{to_name} <{to_email}>" if to_name else to_email
+        msg['Subject'] = subject
+        msg.attach(MIMEText(html_content, 'html', 'utf-8'))
+
+        server = smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT, timeout=15)
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        server.sendmail(sender_email, [to_email], msg.as_string())
+        server.close()
+
+        logger.info(f"Email successfully sent to {to_email} with subject '{subject}'")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email} via SMTP: {str(e)}")
+        print(f"\n[EMAIL SEND FAILURE FALLBACK] To: {to_email} | Subject: {subject} | Error: {str(e)}\n")
+        return False
+
+
+async def send_email_async(
+    to_email: str,
+    subject: str,
+    html_content: str,
+    to_name: Optional[str] = None
+) -> bool:
+    """
+    Non-blocking async wrapper around send_email_sync using asyncio.to_thread.
+    """
+    try:
+        return await asyncio.to_thread(send_email_sync, to_email, subject, html_content, to_name)
+    except Exception as e:
+        logger.error(f"Error in send_email_async for {to_email}: {str(e)}")
+        return False
+
 
 def send_immediate_welcome_email(
     email: str, 
     full_name: str, 
     temp_password: str, 
-    reset_token: str
+    reset_token: str,
+    role_title: str = "User"
 ) -> bool:
     """
-    Sends a welcome email to the customer immediately with login credentials 
-    and a link to set a new password.
-    
-    If SMTP parameters are missing or the transfer fails, logs a warning and 
-    returns False without raising an error to protect the registration flow.
+    Sends a welcome email immediately with initial credentials and setup link.
     """
-    # 1. Check if SMTP configuration is completed
-    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-        logger.warning(
-            f"SMTP configuration is missing. Welcome email not sent to {email}. "
-            f"Temporary password: {temp_password}, Reset token: {reset_token}"
-        )
-        # Also print to stdout for easy debugging during local development
-        print(f"\n[EMAIL SIMULATION] To: {email}")
-        print(f"Dear {full_name}, welcome to SEYEYA Courts!")
-        print(f"Your temporary password is: {temp_password}")
-        print(f"Reset Link: http://localhost:8000/reset-password?token={reset_token}\n")
-        return False
-        
-    try:
-        # Create message container
-        msg = MIMEMultipart()
-        msg['From'] = settings.SEND_FROM_EMAIL
-        msg['To'] = email
-        msg['Subject'] = "Welcome to SEYEYA Courts - Your Credentials"
-        
-        reset_link = f"http://localhost:8000/reset-password?token={reset_token}"
-        
-        # HTML body
-        html = f"""
-        <html>
-          <body>
-            <h2>Welcome to SEYEYA Courts!</h2>
-            <p>Dear {full_name},</p>
-            <p>An account has been created for you on the SEYEYA booking platform.</p>
-            <p>Here are your temporary login details:</p>
-            <ul>
-              <li><strong>Email:</strong> {email}</li>
-              <li><strong>Temporary Password:</strong> {temp_password}</li>
-            </ul>
-            <p>For security reasons, we strongly recommend you change your password immediately by clicking the link below:</p>
-            <p><a href="{reset_link}">Click here to set your password</a></p>
-            <p>Or copy this link to your browser:</p>
-            <p>{reset_link}</p>
-            <p>Best regards,<br>The SEYEYA Courts Team</p>
-          </body>
-        </html>
-        """
-        
-        msg.attach(MIMEText(html, 'html'))
-        
-        # Connect to SMTP server
-        server = smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT)
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.sendmail(settings.SEND_FROM_EMAIL, email, msg.as_string())
-        server.close()
-        
-        logger.info(f"Welcome email successfully sent to {email}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to send welcome email to {email} via SMTP: {str(e)}")
-        # Print fallback details to stdout for developer visibility
-        print(f"\n[EMAIL SEND FAILURE FALLBACK] To: {email}")
-        print(f"Temporary password: {temp_password}, Reset token: {reset_token}\n")
-        return False
+    frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+    reset_link = f"{frontend_base}/reset-password?token={reset_token}"
+    login_link = f"{frontend_base}/login"
+    html = get_welcome_email(
+        full_name=full_name,
+        email=email,
+        temp_password=temp_password,
+        reset_link=reset_link,
+        role_title=role_title,
+        login_link=login_link
+    )
+    return send_email_sync(
+        to_email=email,
+        subject=f"Welcome to SEYEYA Courts - Your Credentials ({role_title})",
+        html_content=html,
+        to_name=full_name
+    )
+
+
+def send_account_registered_email(
+    email: str,
+    full_name: str,
+    password: Optional[str] = None,
+    role_title: Optional[str] = None
+) -> bool:
+    """
+    Sends a welcome email for newly registered accounts with username, password, and login link.
+    """
+    frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+    login_link = f"{frontend_base}/login"
+    html = get_registration_welcome_email(
+        full_name=full_name,
+        email=email,
+        password=password,
+        login_link=login_link,
+        role_title=role_title
+    )
+    return send_email_sync(
+        to_email=email,
+        subject="Welcome to SEYEYA Courts - Your Login Credentials",
+        html_content=html,
+        to_name=full_name
+    )
 
 
 def send_password_reset_email(
@@ -94,58 +143,33 @@ def send_password_reset_email(
 ) -> bool:
     """
     Sends a password reset link to the user immediately.
-    
-    If SMTP parameters are missing or the transfer fails, logs a warning and 
-    returns False without raising an error.
     """
-    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-        logger.warning(
-            f"SMTP configuration is missing. Password reset email not sent to {email}. "
-            f"Reset token: {reset_token}"
-        )
-        print(f"\n[EMAIL SIMULATION] To: {email}")
-        print(f"Dear {full_name}, click the link below to reset your password:")
-        print(f"Reset Link: http://localhost:8000/reset-password?token={reset_token}\n")
-        return False
-        
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = settings.SEND_FROM_EMAIL
-        msg['To'] = email
-        msg['Subject'] = "Reset Your SEYEYA Courts Password"
-        
-        reset_link = f"http://localhost:8000/reset-password?token={reset_token}"
-        
-        html = f"""
-        <html>
-          <body>
-            <h2>Password Reset Request</h2>
-            <p>Dear {full_name},</p>
-            <p>We received a request to reset your password for your SEYEYA Courts account.</p>
-            <p>Click the link below to set a new password. This link is valid for 24 hours:</p>
-            <p><a href="{reset_link}">Reset my password</a></p>
-            <p>Or copy this link to your browser:</p>
-            <p>{reset_link}</p>
-            <p>If you did not make this request, please ignore this email.</p>
-            <p>Best regards,<br>The SEYEYA Courts Team</p>
-          </body>
-        </html>
-        """
-        
-        msg.attach(MIMEText(html, 'html'))
-        
-        server = smtplib.SMTP(settings.SMTP_SERVER, settings.SMTP_PORT)
-        server.ehlo()
-        server.starttls()
-        server.ehlo()
-        server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-        server.sendmail(settings.SEND_FROM_EMAIL, email, msg.as_string())
-        server.close()
-        
-        logger.info(f"Password reset email successfully sent to {email}")
-        return True
-    except Exception as e:
-        logger.error(f"Failed to send password reset email to {email} via SMTP: {str(e)}")
-        print(f"\n[EMAIL SEND FAILURE FALLBACK] To: {email}")
-        print(f"Password Reset Link: http://localhost:8000/reset-password?token={reset_token}\n")
-        return False
+    frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+    reset_link = f"{frontend_base}/reset-password?token={reset_token}"
+    html = get_password_reset_email(
+        full_name=full_name,
+        reset_link=reset_link,
+        reset_token=reset_token
+    )
+    return send_email_sync(
+        to_email=email,
+        subject="Reset Your SEYEYA Courts Password",
+        html_content=html,
+        to_name=full_name
+    )
+
+
+def send_password_changed_email(
+    email: str,
+    full_name: str
+) -> bool:
+    """
+    Sends a security notification when account password has been changed.
+    """
+    html = get_password_changed_email(full_name=full_name)
+    return send_email_sync(
+        to_email=email,
+        subject="Your SEYEYA Courts Password Was Changed",
+        html_content=html,
+        to_name=full_name
+    )

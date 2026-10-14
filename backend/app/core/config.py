@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     SEND_FROM_EMAIL: str = "noreply@seyeyacourts.com"
+    FRONTEND_URL: str = "http://localhost:5173"
     
     # API
     API_VERSION: str = "v1"

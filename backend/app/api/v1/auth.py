@@ -1,13 +1,13 @@
 """
 Authentication routes
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, List
 from app.db.database import get_db
 from app.schemas import (
     UserRegisterRequest, UserLoginRequest, TokenResponse, 
-    RefreshTokenRequest, LogoutRequest, UserResponse, UserUpdate,
+    RefreshTokenRequest, LogoutRequest, UserResponse, UserUpdate, UserCreate,
     ForgotPasswordRequest, ResetPasswordConfirm
 )
 from app.services import AuthService, UserService
@@ -77,7 +77,11 @@ async def build_token_response(user: User, access_token: str, refresh_token: str
 
 
 @router.post("/register", response_model=TokenResponse)
-async def register(request: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(
+    request: UserRegisterRequest, 
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
     """Register a new user"""
     if request.password != request.confirm_password:
         raise HTTPException(
@@ -88,7 +92,13 @@ async def register(request: UserRegisterRequest, db: AsyncSession = Depends(get_
     try:
         auth_service = AuthService(db)
         user, access_token, refresh_token = await auth_service.register_user(
-            request.full_name, request.email, request.password, request.phone_number, request.role_ids, request.is_staff
+            request.full_name,
+            request.email,
+            request.password,
+            request.phone_number,
+            request.role_ids,
+            request.is_staff,
+            background_tasks=background_tasks
         )
         
         return await build_token_response(user, access_token, refresh_token, db)
@@ -209,6 +219,33 @@ async def get_me(current_user: Dict = Depends(get_current_user), db: AsyncSessio
     }
 
 
+@router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user(
+    request: UserCreate,
+    background_tasks: BackgroundTasks,
+    current_user: Dict = Depends(check_permission("users.create")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new user or staff member by administrator"""
+    user_service = UserService(db)
+    try:
+        user = await user_service.create_user(
+            full_name=request.full_name,
+            email=request.email,
+            password=request.password,
+            phone_number=request.phone_number,
+            is_staff=request.is_staff or False,
+            is_active=request.is_active if request.is_active is not None else True,
+            background_tasks=background_tasks
+        )
+        return user
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(
     skip: int = 0,
@@ -278,16 +315,57 @@ async def update_user(
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
+    hard: bool = Query(True, description="Permanently delete user from database to free up email"),
     current_user: Dict = Depends(check_permission("users.delete")),
     db: AsyncSession = Depends(get_db)
 ):
-    """Deactivate/delete a user"""
+    """Deactivate or permanently delete a user. Defaults to permanent delete so the email is immediately freed up."""
     user_service = UserService(db)
-    success = await user_service.delete_user(user_id)
+    success = await user_service.delete_user(user_id, hard=hard)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
+        )
+    return
+
+
+@router.delete("/users/{user_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def permanent_delete_user(
+    user_id: int,
+    current_user: Dict = Depends(check_permission("users.delete")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Explicit endpoint to permanently delete a user and cascade all references from the database."""
+    user_service = UserService(db)
+    success = await user_service.permanent_delete_user(user_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return
+
+
+@router.delete("/users/by-email/{email}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_by_email(
+    email: str,
+    current_user: Dict = Depends(check_permission("users.delete")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Permanently delete a user by email address"""
+    user_service = UserService(db)
+    user = await user_service.get_user_by_email(email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    success = await user_service.permanent_delete_user(user.user_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to permanently delete user"
         )
     return
 
