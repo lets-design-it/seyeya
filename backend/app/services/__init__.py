@@ -9,6 +9,9 @@ from decimal import Decimal
 from typing import Optional, Tuple, List
 import uuid
 import secrets
+import asyncio
+import logging
+from app.core.config import settings
 from app.repositories import (
     UserRepository, CustomerRepository, MenuRepository,
     RestaurantOrderRepository, AccommodationRepository,
@@ -22,7 +25,10 @@ from app.models import (
     UserSession, ActivityLog, LoginLog, PasswordResetToken,
     Role, Permission, PermissionGroup, UserRole, RolePermission
 )
-from app.utils.email import send_immediate_welcome_email, send_password_reset_email
+from app.utils.email import send_email_sync, send_email_async, send_immediate_welcome_email, send_password_reset_email
+from app.utils.email_templates import get_registration_welcome_email, get_welcome_email
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -39,13 +45,18 @@ class AuthService:
         password: str,
         phone_number: Optional[str] = None,
         role_ids: Optional[List[int]] = None,
-        is_staff: bool = False
+        is_staff: bool = False,
+        background_tasks: Optional[Any] = None
     ) -> Tuple[User, str, str]:
         """Register a new user"""
         # Check if user already exists
         existing_user = await self.user_repo.get_by_email(email)
         if existing_user:
-            raise ValueError("User with this email already exists")
+            if not existing_user.is_active:
+                # Previously deleted/inactive user; purge completely so fresh registration succeeds
+                await self.user_repo.permanent_delete_user(existing_user.user_id)
+            else:
+                raise ValueError("User with this email already exists")
         
         # Hash password
         password_hash = hash_password(password)
@@ -85,8 +96,71 @@ class AuthService:
             is_active=True
         )
         self.db.add(session)
+        
+        # Auto-create Customer profile for Guest/Customer users
+        if not is_staff:
+            c_check = await self.db.execute(select(Customer).where(Customer.email == email))
+            existing_cust = c_check.scalars().first()
+            if not existing_cust:
+                new_cust = Customer(
+                    user_id=user.user_id,
+                    customer_code=f"CUST-{user.user_id}",
+                    full_name=full_name,
+                    email=email,
+                    phone_number=phone_number,
+                    customer_type="Registered",
+                    total_spent=Decimal("0"),
+                    visit_count=1
+                )
+                self.db.add(new_cust)
+            elif existing_cust.user_id is None:
+                existing_cust.user_id = user.user_id
+
         await self.db.commit()
         
+        # Dispatch welcome email with username, password, and login page
+        try:
+            frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+            login_link = f"{frontend_base}/login"
+            
+            # Find role name if assigned
+            role_name_str = None
+            if role_ids:
+                try:
+                    r_res = await self.db.execute(select(Role.role_name).where(Role.role_id.in_(role_ids)))
+                    role_names = r_res.scalars().all()
+                    if role_names:
+                        role_name_str = ", ".join(role_names)
+                except Exception:
+                    pass
+
+            welcome_html = get_registration_welcome_email(
+                full_name=full_name,
+                email=email,
+                password=password,
+                login_link=login_link,
+                role_title=role_name_str or ("Staff Member" if is_staff else "Customer")
+            )
+
+            if background_tasks:
+                background_tasks.add_task(
+                    send_email_sync,
+                    to_email=email,
+                    subject="Welcome to SEYEYA Courts - Your Login Credentials",
+                    html_content=welcome_html,
+                    to_name=full_name
+                )
+            else:
+                asyncio.create_task(send_email_async(
+                    to_email=email,
+                    subject="Welcome to SEYEYA Courts - Your Login Credentials",
+                    html_content=welcome_html,
+                    to_name=full_name
+                ))
+            logger.info(f"Dispatched registration welcome email to {email}")
+        except Exception as e:
+            logger.error(f"Error dispatching registration welcome email to {email}: {str(e)}")
+
         # Trigger notification event
         try:
             from app.services.notifications import NotificationService
@@ -95,10 +169,11 @@ class AuthService:
                 event_type="Account Created",
                 reference_type="User",
                 reference_id=str(user.user_id),
-                triggered_by=user.user_id
+                triggered_by=user.user_id,
+                background_tasks=background_tasks
             )
         except Exception as e:
-            pass
+            logger.error(f"Error triggering account created event: {str(e)}")
             
         return user, access_token, refresh_token
     
@@ -363,24 +438,25 @@ class CustomerService:
                 )
                 user_id = new_user.user_id
 
-            reset_token = uuid.uuid4().hex
-            expires_at = datetime.utcnow() + timedelta(days=1)
-            password_reset = PasswordResetToken(
-                user_id=user_id,
-                token=reset_token,
-                expires_at=expires_at
-            )
-            self.db.add(password_reset)
-            await self.db.commit()
-            await self.db.refresh(password_reset)
+                reset_token = uuid.uuid4().hex
+                expires_at = datetime.utcnow() + timedelta(days=1)
+                password_reset = PasswordResetToken(
+                    user_id=user_id,
+                    token=reset_token,
+                    expires_at=expires_at
+                )
+                self.db.add(password_reset)
+                await self.db.commit()
+                await self.db.refresh(password_reset)
 
-            # Send the welcome credentials email immediately
-            send_immediate_welcome_email(
-                email=email,
-                full_name=full_name,
-                temp_password=temp_password,
-                reset_token=reset_token
-            )
+                # Send the welcome credentials email immediately
+                send_immediate_welcome_email(
+                    email=email,
+                    full_name=full_name,
+                    temp_password=temp_password,
+                    reset_token=reset_token,
+                    role_title="Customer"
+                )
 
         customer_code = f"CUST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8].upper()}"
         customer = await self.repo.create_customer(
@@ -499,7 +575,21 @@ class RestaurantOrderService:
         self.order_repo = RestaurantOrderRepository(db)
         self.menu_repo = MenuRepository(db)
     
-    async def create_order(self, customer_id: Optional[int] = None, items_data: Optional[list] = None, delivery_option: str = "Premises", delivery_lat: Optional[Decimal] = None, delivery_lng: Optional[Decimal] = None, delivery_charge: Optional[Decimal] = None, delivery_address: Optional[str] = None, preferred_time: Optional[datetime] = None, special_instr: Optional[str] = None) -> RestaurantOrder:
+    async def create_order(
+        self,
+        customer_id: Optional[int] = None,
+        items_data: Optional[list] = None,
+        delivery_option: str = "Premises",
+        delivery_lat: Optional[Decimal] = None,
+        delivery_lng: Optional[Decimal] = None,
+        delivery_charge: Optional[Decimal] = None,
+        delivery_address: Optional[str] = None,
+        preferred_time: Optional[datetime] = None,
+        special_instr: Optional[str] = None,
+        seating_location: Optional[str] = None,
+        allergy_info: Optional[str] = None,
+        assigned_waiter: Optional[str] = None
+    ) -> RestaurantOrder:
         """Create a new restaurant order"""
         # Generate unique order number
         order_number = f"ORD-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
@@ -511,6 +601,9 @@ class RestaurantOrderService:
         order.delivery_lng = delivery_lng
         order.preferred_time = preferred_time
         order.special_instr = special_instr
+        order.seating_location = seating_location
+        order.allergy_info = allergy_info
+        order.assigned_waiter = assigned_waiter
         
         # Add items to order
         if items_data:
@@ -617,12 +710,14 @@ class RestaurantOrderService:
             except Exception:
                 pass
             
-            tax_rate = vat_percent / Decimal("100.00")
-            tax = total * tax_rate
+            if vat_percent > 0:
+                tax = round(total * (vat_percent / (Decimal("100.00") + vat_percent)), 2)
+            else:
+                tax = Decimal(0)
             
             order.tax_amount = tax
-            order.sub_total = total
-            order.total_amount = total + charge + tax
+            order.sub_total = total - tax
+            order.total_amount = total + charge
             order.balance_due = order.total_amount - (order.amount_paid or Decimal(0))
         
         self.db.add(order)
@@ -695,13 +790,13 @@ class RestaurantOrderService:
         await self.db.commit()
         return await self.get_order(order_id)
 
-    async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
+    async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: Optional[int] = None) -> List[RestaurantOrder]:
         """Get orders for a customer"""
         return await self.order_repo.get_customer_orders(customer_id, skip=skip, limit=limit)
 
-    async def get_all_orders(self, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
+    async def get_all_orders(self, skip: int = 0, limit: Optional[int] = None) -> List[RestaurantOrder]:
         """Get all restaurant orders"""
-        result = await self.db.execute(
+        query = (
             select(RestaurantOrder)
             .options(
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.extras).selectinload(OrderItemExtra.extra),
@@ -709,9 +804,12 @@ class RestaurantOrderService:
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
             )
-            .offset(skip)
-            .limit(limit)
         )
+        if skip:
+            query = query.offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        result = await self.db.execute(query)
         return result.scalars().all()
 
     async def delete_order(self, order_id: int) -> bool:
@@ -726,28 +824,16 @@ class AccommodationService:
         self.db = db
         self.repo = AccommodationRepository(db)
     
-    async def create_reservation(self, customer_id: int, room_id: int, check_in_date, check_out_date, num_nights: int, rate_per_night, total_amount: Decimal) -> AccommodationReservation:
+    async def create_reservation(self, customer_id: int, room_id: Optional[int], check_in_date, check_out_date, num_nights: int, rate_per_night, total_amount: Decimal, room_category_id: Optional[int] = None) -> AccommodationReservation:
         """Create accommodation reservation"""
         # Generate reservation code
         reservation_code = f"ACC-{datetime.utcnow().strftime('%Y')}-{str(uuid.uuid4())[:8].upper()}"
         
         reservation = await self.repo.create_reservation(
             customer_id, room_id, check_in_date, check_out_date,
-            num_nights, rate_per_night, total_amount, reservation_code
+            num_nights, rate_per_night, total_amount, reservation_code,
+            room_category_id=room_category_id
         )
-        
-        # Trigger notification event
-        try:
-            from app.services.notifications import NotificationService
-            notif_service = NotificationService(self.db)
-            await notif_service.create_event(
-                event_type="Reservation Created",
-                reference_type="AccommodationReservation",
-                reference_id=str(reservation.reservation_id)
-            )
-        except Exception as e:
-            pass
-            
         return reservation
     
     async def get_reservation(self, reservation_id: int) -> Optional[AccommodationReservation]:
@@ -765,12 +851,13 @@ class AccommodationService:
         reservation.checked_in_by = checked_in_by
         
         # Update room status to Occupied
-        from app.models import Room
-        result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
-        room = result.scalar_one_or_none()
-        if room:
-            room.room_status = "Occupied"
-            self.db.add(room)
+        if reservation.room_id:
+            from app.models import Room
+            result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
+            room = result.scalar_one_or_none()
+            if room:
+                room.room_status = "Occupied"
+                self.db.add(room)
         
         self.db.add(reservation)
         await self.db.commit()
@@ -788,12 +875,13 @@ class AccommodationService:
         reservation.checked_out_by = checked_out_by
         
         # Update room status to Available
-        from app.models import Room
-        result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
-        room = result.scalar_one_or_none()
-        if room:
-            room.room_status = "Available"
-            self.db.add(room)
+        if reservation.room_id:
+            from app.models import Room
+            result = await self.db.execute(select(Room).where(Room.room_id == reservation.room_id))
+            room = result.scalar_one_or_none()
+            if room:
+                room.room_status = "Available"
+                self.db.add(room)
         
         self.db.add(reservation)
         await self.db.commit()
@@ -940,15 +1028,20 @@ class UserService:
         password: str,
         phone_number: Optional[str] = None,
         is_staff: bool = False,
-        is_active: bool = True
+        is_active: bool = True,
+        background_tasks: Optional[Any] = None
     ) -> User:
         """Create a new user"""
         existing = await self.user_repo.get_by_email(email)
         if existing:
-            raise ValueError("User with this email already exists")
+            if not existing.is_active:
+                # Previously deleted/inactive user; purge completely so fresh creation succeeds
+                await self.user_repo.permanent_delete_user(existing.user_id)
+            else:
+                raise ValueError("User with this email already exists")
             
         password_hash = hash_password(password)
-        return await self.user_repo.create_user(
+        user = await self.user_repo.create_user(
             full_name=full_name,
             email=email,
             password_hash=password_hash,
@@ -956,6 +1049,65 @@ class UserService:
             is_staff=is_staff,
             is_active=is_active
         )
+
+        # Generate reset token for account setup
+        reset_token = uuid.uuid4().hex
+        expires_at = datetime.utcnow() + timedelta(days=1)
+        pwd_reset = PasswordResetToken(
+            user_id=user.user_id,
+            token=reset_token,
+            expires_at=expires_at
+        )
+        self.db.add(pwd_reset)
+        await self.db.commit()
+
+        # Send credentials welcome email with username, password, and login link
+        try:
+            frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+            login_link = f"{frontend_base}/login"
+            role_title = "Staff Member" if is_staff else "User"
+            welcome_html = get_welcome_email(
+                full_name=full_name,
+                email=email,
+                temp_password=password,
+                reset_link=f"{frontend_base}/reset-password?token={reset_token}",
+                role_title=role_title,
+                login_link=login_link
+            )
+            if background_tasks:
+                background_tasks.add_task(
+                    send_email_sync,
+                    to_email=email,
+                    subject=f"Welcome to SEYEYA Courts - Your Login Credentials ({role_title})",
+                    html_content=welcome_html,
+                    to_name=full_name
+                )
+            else:
+                asyncio.create_task(send_email_async(
+                    to_email=email,
+                    subject=f"Welcome to SEYEYA Courts - Your Login Credentials ({role_title})",
+                    html_content=welcome_html,
+                    to_name=full_name
+                ))
+            logger.info(f"Dispatched user credentials welcome email to {email}")
+        except Exception as e:
+            logger.error(f"Failed to dispatch user credentials email to {email}: {str(e)}")
+
+        # Trigger Account Created notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.create_event(
+                event_type="Account Created",
+                reference_type="User",
+                reference_id=str(user.user_id),
+                triggered_by=user.user_id,
+                background_tasks=background_tasks
+            )
+        except Exception as e:
+            logger.error(f"Failed to trigger account created notification: {str(e)}")
+
+        return user
         
     async def update_user(self, user_id: int, updates: dict) -> Optional[User]:
         """Update an existing user"""
@@ -991,9 +1143,13 @@ class UserService:
                     
         return await self.user_repo.update_user(user)
         
-    async def delete_user(self, user_id: int) -> bool:
-        """Soft delete a user"""
-        return await self.user_repo.delete_user(user_id)
+    async def delete_user(self, user_id: int, hard: bool = True) -> bool:
+        """Delete a user (permanent by default to free email, or soft-deactivate)"""
+        return await self.user_repo.delete_user(user_id, hard=hard)
+
+    async def permanent_delete_user(self, user_id: int) -> bool:
+        """Permanently delete a user and cascade all references"""
+        return await self.user_repo.permanent_delete_user(user_id)
 
 
 class RoleService:

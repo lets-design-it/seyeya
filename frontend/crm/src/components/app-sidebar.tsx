@@ -19,6 +19,7 @@ import {
   Utensils,
   Shield,
   Settings as SettingsIcon,
+  BarChart3,
 } from "lucide-react"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
@@ -28,17 +29,17 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }: AppSidebarProps) {
-  const { user } = useAuth();
+  const { user, canAccessPage, hasPermission } = useAuth();
 
   if (!user) return null;
 
   const isSuperAdmin = user.role === 'admin' || (user as any).roles?.includes('Super Admin');
 
-  // Define settings sub-items based on role
+  // Define settings sub-items based on granular permissions
   const settingsSubItems = [
     { id: 'settings-profile', title: 'Profile' },
-    ...(user.role === 'admin' ? [{ id: 'settings-hotel', title: 'Hotel Details' }] : []),
-    ...(isSuperAdmin ? [{ id: 'settings-permissions', title: 'Role Permissions' }] : []),
+    ...(user.role === 'admin' || user.role === 'manager' || hasPermission('roles.view') ? [{ id: 'settings-hotel', title: 'Hotel Details' }] : []),
+    ...(isSuperAdmin || hasPermission('roles.manage') ? [{ id: 'settings-permissions', title: 'Role Permissions' }] : []),
     { id: 'settings-theme', title: 'Theme' },
     { id: 'settings-notifications', title: 'Notifications' },
   ];
@@ -80,7 +81,10 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
       roles: ['admin', 'manager'],
       items: [
         { id: 'conferences-quotes', title: 'Reservations' },
-        { id: 'conferences-halls', title: 'Event Halls' }
+        { id: 'conferences-halls', title: 'Halls' },
+        { id: 'conferences-events', title: 'Events' },
+        { id: 'conferences-facilities', title: 'Facilities' },
+        { id: 'conferences-categories', title: 'Categories' }
       ]
     },
     {
@@ -94,6 +98,19 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
       title: 'Menu',
       icon: Utensils,
       roles: ['admin', 'manager']
+    },
+    {
+      id: 'reports',
+      title: 'Reports',
+      icon: BarChart3,
+      roles: ['admin', 'manager', 'agent'],
+      items: [
+        { id: 'reports-executive', title: 'Executive Overview' },
+        { id: 'reports-staff', title: 'Staff Performance' },
+        { id: 'reports-guests', title: 'Guest 360 & Origins' },
+        { id: 'reports-channels', title: 'Sales Channels' },
+        { id: 'reports-vat', title: 'Financial & VAT' }
+      ]
     },
     {
       id: 'users',
@@ -131,10 +148,15 @@ export function AppSidebar({ activeTab, setActiveTab, onSwitchPortal, ...props }
 
       <SidebarContent className="py-4 bg-sidebar">
         <NavMain
-          items={menuItems}
+          items={menuItems
+            .filter(item => canAccessPage(item.id))
+            .map(item => ({
+              ...item,
+              items: item.items ? item.items.filter(sub => canAccessPage(sub.id)) : undefined
+            }))
+          }
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          userRole={user.role}
         />
       </SidebarContent>
 

@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { Button as ShadcnButton } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Guest360DossierSheet } from '../../components/Guest360DossierSheet';
 import {
   Search,
   X,
@@ -413,7 +414,7 @@ export const ClientsCRM: React.FC = () => {
         </div>
         <ShadcnButton
           onClick={() => setIsCreateDrawerOpen(true)}
-          className="rounded-xl px-4.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs flex items-center gap-1.5 select-none shrink-0 self-end sm:self-auto dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+          className="rounded-xl px-4.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs flex items-center gap-1.5 select-none shrink-0 self-end sm:self-auto dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
         >
           <Plus className="h-4 w-4" />
           Add Guest
@@ -444,7 +445,7 @@ export const ClientsCRM: React.FC = () => {
                 setSearchTerm('');
                 fetchGuests();
               }}
-              className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer flex items-center gap-2 text-xs font-bold dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+              className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer flex items-center gap-2 text-xs font-bold dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Reset
@@ -455,7 +456,7 @@ export const ClientsCRM: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <ShadcnButton
                   variant="outline"
-                  className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer flex items-center gap-2 text-xs font-bold dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+                  className="h-10 px-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer flex items-center gap-2 text-xs font-bold dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
                 >
                   <Settings2 className="h-3.5 w-3.5" />
                   Columns
@@ -577,203 +578,16 @@ export const ClientsCRM: React.FC = () => {
         </div>
       </div>
 
-      {/* Guest Profile Details Drawer */}
-      <Drawer open={selectedGuestId !== null} onOpenChange={(open) => { if (!open) setSelectedGuestId(null); }} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg bg-card text-card-foreground">
-          <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <DrawerTitle className="text-base font-bold text-zinc-900 dark:text-zinc-50">Guest CRM Profile</DrawerTitle>
-                <DrawerDescription className="text-xs text-zinc-500 dark:text-zinc-400">History, transaction summaries, and customer tier.</DrawerDescription>
-              </div>
-              <button
-                onClick={() => setSelectedGuestId(null)}
-                className="text-zinc-400 hover:text-zinc-700 rounded-lg p-1.5 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-            </div>
-          </DrawerHeader>
-
-          {isProfileLoading ? (
-            <div className="py-20 text-center text-xs text-zinc-500 dark:text-zinc-400 font-semibold flex flex-col items-center justify-center gap-3">
-              <RefreshCw className="h-6 w-6 animate-spin text-zinc-500 dark:text-zinc-400" />
-              <span>Fetching customer profile...</span>
-            </div>
-          ) : guestProfile ? (
-            <div className="p-5 space-y-6">
-              {/* Profile Main Header */}
-              <div className="flex items-center gap-3.5 pb-4 border-b border-zinc-100 dark:border-zinc-800">
-                <div className="h-12 w-12 rounded-full bg-zinc-955 dark:bg-zinc-800 text-white dark:text-zinc-100 flex items-center justify-center font-bold text-lg">
-                  {guestProfile.full_name ? guestProfile.full_name[0].toUpperCase() : 'G'}
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-50">{guestProfile.full_name}</h4>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className="text-[10px] font-bold rounded-lg bg-zinc-100 dark:bg-zinc-850 text-zinc-650 dark:text-zinc-300">
-                      {guestProfile.customer_code}
-                    </Badge>
-                    {guestProfile.customer_tier && (
-                      <Badge className="text-[10px] font-bold rounded-lg bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-500/15 border-none flex items-center gap-1">
-                        <Award className="h-3 w-3" />
-                        {guestProfile.customer_tier}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* CRM Metrics grid */}
-              <div className="grid grid-cols-3 gap-3 bg-zinc-50/50 dark:bg-zinc-950/30 p-4 rounded-2xl border border-zinc-100/50 dark:border-zinc-800">
-                <div className="text-center">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 dark:text-zinc-400 block">Spent</span>
-                  <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-100 mt-1 block">UGX {Number(guestProfile.total_spent || 0).toLocaleString()}</span>
-                </div>
-                <div className="text-center border-x border-zinc-150 dark:border-zinc-800">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 dark:text-zinc-400 block">Visits</span>
-                  <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-100 mt-1 block">{guestProfile.visit_count} visit(s)</span>
-                </div>
-                <div className="text-center">
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 dark:text-zinc-400 block">Points</span>
-                  <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-100 mt-1 block">{guestProfile.loyalty_points} pts</span>
-                </div>
-              </div>
-
-              {/* Guest Information Details */}
-              <div className="space-y-3.5">
-                <h5 className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-350">Client Details</h5>
-                <div className="space-y-3 text-xs">
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100/50 dark:border-zinc-800/80">
-                    <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                      <Mail className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                      Email Address
-                    </span>
-                    <span className="text-zinc-800 dark:text-zinc-200 font-medium select-all">{guestProfile.email || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100/50 dark:border-zinc-800/80">
-                    <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                      <Phone className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                      Phone Number
-                    </span>
-                    <span className="text-zinc-800 dark:text-zinc-200 font-medium select-all">{guestProfile.phone_number || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100/50 dark:border-zinc-800/80">
-                    <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 text-left">
-                      <MapPin className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                      Address / Region
-                    </span>
-                    <span className="text-zinc-800 dark:text-zinc-200 font-medium text-right">{guestProfile.address || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100/50 dark:border-zinc-800/80">
-                    <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                      <Building className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                      Nationality
-                    </span>
-                    <span className="text-zinc-800 dark:text-zinc-200 font-medium">{guestProfile.nationality || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100/50 dark:border-zinc-800/80">
-                    <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                      <User className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                      NIN / Passport
-                    </span>
-                    <span className="text-zinc-800 dark:text-zinc-200 font-medium">{guestProfile.nin || guestProfile.passport_number || '—'}</span>
-                  </div>
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100/50 dark:border-zinc-800/80">
-                    <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                      <User className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                      Classification
-                    </span>
-                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-lg border uppercase tracking-wider ${guestProfile.is_child
-                      ? 'bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
-                      : 'bg-indigo-50 dark:bg-indigo-955/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
-                    }`}>
-                      {guestProfile.is_child ? 'Child' : 'Adult'}
-                    </span>
-                  </div>
-                  {guestProfile.is_child && guestProfile.parent_id && (
-                    <div className="flex items-center justify-between pb-2 border-b border-zinc-100/50 dark:border-zinc-800/80">
-                      <span className="text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                        <Users className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-                        Parent / Guardian
-                      </span>
-                      <span className="text-zinc-800 dark:text-zinc-200 font-medium">
-                        {guests.find(g => g.customer_id === guestProfile.parent_id)?.full_name || `ID: ${guestProfile.parent_id}`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Reservation Stats */}
-              <div className="space-y-3">
-                <h5 className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-350">Reservation History</h5>
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-zinc-50/50 dark:bg-zinc-950/30 border border-zinc-100 dark:border-zinc-800 p-2.5 rounded-xl text-center">
-                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-bold">Restaurant</span>
-                    <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100 mt-1 block">{guestProfile.num_restaurant_orders}</span>
-                  </div>
-                  <div className="bg-zinc-50/50 dark:bg-zinc-955/30 border border-zinc-100 dark:border-zinc-800 p-2.5 rounded-xl text-center">
-                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-bold">Lodging</span>
-                    <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100 mt-1 block">{guestProfile.num_accommodation_reservations}</span>
-                  </div>
-                  <div className="bg-zinc-50/50 dark:bg-zinc-955/30 border border-zinc-100 dark:border-zinc-800 p-2.5 rounded-xl text-center">
-                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 block font-bold">Events</span>
-                    <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100 mt-1 block">{guestProfile.num_conference_reservations}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Transactions List */}
-              {guestProfile.recent_transactions && guestProfile.recent_transactions.length > 0 && (
-                <div className="space-y-3">
-                  <h5 className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-350">Recent Transactions</h5>
-                  <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
-                    {guestProfile.recent_transactions.map((tx, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-3 rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50/30 dark:bg-zinc-950/20 text-xs">
-                        <div className="text-left">
-                          <p className="font-bold text-zinc-800 dark:text-zinc-200">{tx.description || tx.type}</p>
-                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 mt-0.5 font-semibold">
-                            <Clock className="h-3 w-3 text-zinc-400" />
-                            {new Date(tx.date).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <span className="font-extrabold text-zinc-900 dark:text-zinc-100 text-right">
-                          {tx.amount > 0 ? '+' : ''} {tx.amount.toLocaleString()} {tx.currency}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Guest Reviews/Feedback Timeline */}
-              {guestProfile.reviews && guestProfile.reviews.length > 0 && (
-                <div className="space-y-3">
-                  <h5 className="text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-350 flex items-center gap-1">
-                    <Star className="h-4.5 w-4.5 text-zinc-400" />
-                    Guest Reviews & Notes
-                  </h5>
-                  <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
-                    {guestProfile.reviews.map((review, idx) => (
-                      <div key={idx} className="bg-zinc-50/50 dark:bg-zinc-950/30 border border-zinc-100 dark:border-zinc-800 p-3 rounded-xl text-xs leading-relaxed text-zinc-650 dark:text-zinc-300 text-left">
-                        <p className="italic">"{review}"</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="py-20 text-center text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-              Failed to load profile. Please try again.
-            </div>
-          )}
-        </DrawerContent>
-      </Drawer>
+      {/* Guest 360 Dossier Sheet */}
+      <Guest360DossierSheet
+        customerId={selectedGuestId}
+        isOpen={selectedGuestId !== null}
+        onClose={() => setSelectedGuestId(null)}
+      />
 
       {/* Register Guest Drawer */}
       <Drawer open={isCreateDrawerOpen} onOpenChange={setIsCreateDrawerOpen} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-md bg-card text-card-foreground">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl bg-card text-card-foreground">
           <DrawerHeader className="border-b border-zinc-150 dark:border-zinc-800 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -981,7 +795,7 @@ export const ClientsCRM: React.FC = () => {
               <ShadcnButton
                 type="submit"
                 disabled={isCreating}
-                className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs disabled:opacity-50 flex items-center gap-1.5 dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="rounded-xl px-5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer h-10 shadow-xs disabled:opacity-50 flex items-center gap-1.5 dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
               >
                 {isCreating ? (
                   <>

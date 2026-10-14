@@ -113,8 +113,12 @@ export const UserManagement: React.FC = () => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  // Filtered users for search
+  // Filtered users for search (Staff personnel only)
   const filteredUsers = users.filter(u => {
+    // Exclude guest/customer user accounts from staff management workspace
+    const hasCustomerRole = u.roles && u.roles.some(r => r.toLowerCase() === 'customer' || r.toLowerCase() === 'guest');
+    if (hasCustomerRole && !u.is_staff) return false;
+
     if (!searchTerm) return true;
     const query = searchTerm.toLowerCase();
     return (
@@ -298,7 +302,7 @@ export const UserManagement: React.FC = () => {
         </div>
         <ShadcnButton
           onClick={handleOpenModal}
-          className="bg-black! text-white! hover:bg-black/90! font-bold px-4 py-5 rounded-xl border-none shadow-xs cursor-pointer flex items-center gap-1.5 h-11"
+          className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-4 py-5 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5 h-11"
         >
           <UserPlus className="h-4.5 w-4.5" />
           Provision Team Member
@@ -339,7 +343,7 @@ export const UserManagement: React.FC = () => {
             </div>
             <ShadcnButton
               onClick={() => setSearchTerm('')}
-              className="bg-black! text-white! hover:bg-black/90! font-bold px-4 rounded-xl cursor-pointer h-10 border-none flex items-center justify-center text-xs"
+              className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-4 rounded-xl cursor-pointer h-10 flex items-center justify-center text-xs"
             >
               Reset
             </ShadcnButton>
@@ -494,7 +498,7 @@ export const UserManagement: React.FC = () => {
 
       {/* Provision Member Drawer */}
       <Drawer open={isModalOpen} onOpenChange={setIsModalOpen} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl">
           <DrawerHeader className="border-b border-zinc-150 pb-4">
             <DrawerTitle className="text-base font-bold">Provision Team Member</DrawerTitle>
             <DrawerDescription className="text-xs text-zinc-500">
@@ -630,7 +634,7 @@ export const UserManagement: React.FC = () => {
 
       {/* Details & Update Drawer */}
       <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl">
           {selectedUser && (
             <>
               <DrawerHeader className="border-b border-zinc-150 pb-4">

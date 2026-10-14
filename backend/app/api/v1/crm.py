@@ -239,7 +239,7 @@ async def vip_customers(
 async def get_customer_orders_crm(
     customer_id: int,
     skip: int = 0,
-    limit: int = 50,
+    limit: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(check_permission("crm.view"))
 ):

@@ -474,7 +474,7 @@ export const Leads: React.FC = () => {
 
       {/* Slide-out details drawer */}
       <div 
-        className={`fixed inset-y-0 right-0 z-40 w-full sm:max-w-md bg-card/95 light:bg-zinc-50/98  light:border-zinc-250 shadow-2xl backdrop-blur-xl transform transition-transform duration-300 ease-in-out ${
+        className={`fixed inset-y-0 right-0 z-40 w-full sm:max-w-xl md:max-w-2xl bg-card/95 light:bg-zinc-50/98  light:border-zinc-250 shadow-2xl backdrop-blur-xl transform transition-transform duration-300 ease-in-out ${
           activeLead ? 'translate-x-0' : 'translate-x-full'
         }`}
       >

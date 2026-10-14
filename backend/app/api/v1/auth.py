@@ -1,22 +1,47 @@
 """
 Authentication routes
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, List
 from app.db.database import get_db
 from app.schemas import (
     UserRegisterRequest, UserLoginRequest, TokenResponse, 
-    RefreshTokenRequest, LogoutRequest, UserResponse, UserUpdate,
+    RefreshTokenRequest, LogoutRequest, UserResponse, UserUpdate, UserCreate,
     ForgotPasswordRequest, ResetPasswordConfirm
 )
 from app.services import AuthService, UserService
 from app.core.security import get_current_user, check_permission
-from app.models import User, UserRole
-from sqlalchemy import select
+from app.models import User, UserRole, RolePermission, Permission
+from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+async def get_user_permissions(user: User, db: AsyncSession, roles: List[str]) -> List[str]:
+    """Helper to retrieve effective active permission keys for a user"""
+    if not user.is_staff:
+        return []
+    active_condition = or_(Permission.is_active == True, Permission.is_active.is_(None))
+    if "Super Admin" in roles:
+        res = await db.execute(select(Permission.permission_key).where(active_condition))
+        return [r[0] for r in res.all()]
+    
+    role_ids = [ur.role_id for ur in user.roles if ur.role]
+    if not role_ids:
+        return []
+    
+    res = await db.execute(
+        select(Permission.permission_key)
+        .join(RolePermission, RolePermission.permission_id == Permission.permission_id)
+        .where(and_(
+            RolePermission.role_id.in_(role_ids),
+            active_condition
+        ))
+        .distinct()
+    )
+    return [r[0] for r in res.all()]
 
 
 async def build_token_response(user: User, access_token: str, refresh_token: str, db: AsyncSession) -> TokenResponse:
@@ -35,6 +60,7 @@ async def build_token_response(user: User, access_token: str, refresh_token: str
     
     customer_id = user_with_relations.customer.customer_id if user_with_relations.customer else None
     roles = [ur.role.role_name for ur in user_with_relations.roles if ur.role]
+    perms = await get_user_permissions(user_with_relations, db, roles)
     
     return TokenResponse(
         access_token=access_token,
@@ -45,12 +71,17 @@ async def build_token_response(user: User, access_token: str, refresh_token: str
         email=user.email,
         is_staff=user.is_staff,
         customer_id=customer_id,
-        roles=roles
+        roles=roles,
+        permissions=perms
     )
 
 
 @router.post("/register", response_model=TokenResponse)
-async def register(request: UserRegisterRequest, db: AsyncSession = Depends(get_db)):
+async def register(
+    request: UserRegisterRequest, 
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
     """Register a new user"""
     if request.password != request.confirm_password:
         raise HTTPException(
@@ -61,7 +92,13 @@ async def register(request: UserRegisterRequest, db: AsyncSession = Depends(get_
     try:
         auth_service = AuthService(db)
         user, access_token, refresh_token = await auth_service.register_user(
-            request.full_name, request.email, request.password, request.phone_number, request.role_ids, request.is_staff
+            request.full_name,
+            request.email,
+            request.password,
+            request.phone_number,
+            request.role_ids,
+            request.is_staff,
+            background_tasks=background_tasks
         )
         
         return await build_token_response(user, access_token, refresh_token, db)
@@ -91,6 +128,18 @@ async def login(
             ip_address=ip_address,
             user_agent=user_agent
         )
+        
+        # Enforce staff-only access for CRM portal logins
+        x_portal = (req_obj.headers.get("x-portal") or "").lower()
+        x_require_staff = (req_obj.headers.get("x-require-staff") or "").lower()
+        if x_portal == "crm" or x_require_staff == "true":
+            if not user.is_staff:
+                if refresh_token:
+                    await auth_service.logout_user(refresh_token)
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied"
+                )
         
         return await build_token_response(user, access_token, refresh_token, db)
     except ValueError as e:
@@ -154,6 +203,7 @@ async def get_me(current_user: Dict = Depends(get_current_user), db: AsyncSessio
     customer_id = user.customer.customer_id if user.customer else None
     customer_code = user.customer.customer_code if user.customer else None
     roles = [ur.role.role_name for ur in user.roles if ur.role]
+    perms = await get_user_permissions(user, db, roles)
     
     return {
         "user_id": user.user_id,
@@ -164,8 +214,36 @@ async def get_me(current_user: Dict = Depends(get_current_user), db: AsyncSessio
         "is_active": user.is_active,
         "customer_id": customer_id,
         "customer_code": customer_code,
-        "roles": roles
+        "roles": roles,
+        "permissions": perms
     }
+
+
+@router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user(
+    request: UserCreate,
+    background_tasks: BackgroundTasks,
+    current_user: Dict = Depends(check_permission("users.create")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create a new user or staff member by administrator"""
+    user_service = UserService(db)
+    try:
+        user = await user_service.create_user(
+            full_name=request.full_name,
+            email=request.email,
+            password=request.password,
+            phone_number=request.phone_number,
+            is_staff=request.is_staff or False,
+            is_active=request.is_active if request.is_active is not None else True,
+            background_tasks=background_tasks
+        )
+        return user
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.get("/users", response_model=List[UserResponse])
@@ -237,16 +315,57 @@ async def update_user(
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: int,
+    hard: bool = Query(True, description="Permanently delete user from database to free up email"),
     current_user: Dict = Depends(check_permission("users.delete")),
     db: AsyncSession = Depends(get_db)
 ):
-    """Deactivate/delete a user"""
+    """Deactivate or permanently delete a user. Defaults to permanent delete so the email is immediately freed up."""
     user_service = UserService(db)
-    success = await user_service.delete_user(user_id)
+    success = await user_service.delete_user(user_id, hard=hard)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
+        )
+    return
+
+
+@router.delete("/users/{user_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
+async def permanent_delete_user(
+    user_id: int,
+    current_user: Dict = Depends(check_permission("users.delete")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Explicit endpoint to permanently delete a user and cascade all references from the database."""
+    user_service = UserService(db)
+    success = await user_service.permanent_delete_user(user_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return
+
+
+@router.delete("/users/by-email/{email}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_user_by_email(
+    email: str,
+    current_user: Dict = Depends(check_permission("users.delete")),
+    db: AsyncSession = Depends(get_db)
+):
+    """Permanently delete a user by email address"""
+    user_service = UserService(db)
+    user = await user_service.get_user_by_email(email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    success = await user_service.permanent_delete_user(user.user_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to permanently delete user"
         )
     return
 

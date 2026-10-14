@@ -16,14 +16,15 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = "inline-flex items-center justify-center font-semibold rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed";
+  const baseStyles = "inline-flex items-center justify-center font-semibold rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
   
   const variants = {
-    primary: "bg-primary text-white shadow-sm hover:bg-zinc-800 border border-transparent focus:ring-zinc-500/20",
-    secondary: "bg-white hover:bg-zinc-100  text-primary dark:bg-zinc-100/80 dark:hover:bg-zinc-800 dark:border-zinc-850 dark:text-foreground",
-    outline: " hover:border-zinc-700 bg-transparent text-foreground hover:text-zinc-100 light:border-zinc-250 light:hover:border-zinc-400 light:text-zinc-750",
-    ghost: "bg-transparent hover:bg-zinc-100 text-zinc-550 hover:text-foreground light:hover:bg-zinc-100 light:text-zinc-600 light:hover:text-zinc-850",
-    danger: "bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400"
+    primary: "bg-[#0A2540] hover:bg-[#07192C] text-[#D4AF37] border border-[#D4AF37]/30 shadow-sm dark:bg-[#D4AF37] dark:text-[#0A192F] dark:hover:bg-[#B89320]",
+    secondary: "bg-[#D4AF37] hover:bg-[#B89320] text-[#0A192F] border border-[#D4AF37]/30 dark:bg-[#D4AF37] dark:text-[#0A192F] dark:hover:bg-[#B89320]",
+    outline: "border border-[#D4AF37]/40 bg-transparent text-[#0A2540] hover:bg-[#0A2540]/10 dark:text-[#D4AF37] dark:hover:bg-[#162A45] dark:border-[#1E3A5F]",
+    ghost: "bg-transparent hover:bg-zinc-100 dark:hover:bg-[#162A45] text-zinc-600 dark:text-zinc-300",
+    danger: "bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400",
+    gold: "bg-[#D4AF37] hover:bg-[#B89320] text-[#0A192F] dark:bg-[#D4AF37] dark:text-[#0A192F] dark:hover:bg-[#B89320] border border-[#D4AF37]/30 shadow-sm font-bold"
   };
 
   const sizes = {

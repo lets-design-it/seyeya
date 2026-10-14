@@ -2,17 +2,20 @@
 Repository implementations for different modules
 """
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, delete, update
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime, date
 from decimal import Decimal
 from app.models import (
     User, Customer, RestaurantOrder, AccommodationReservation, 
-    ConferenceReservation, MenuItem, MenuCategory, Room, RoomCategory, ConferenceHall,
+    ConferenceReservation, MenuItem, MenuCategory, Room, RoomCategory, ConferenceHall, HallPhoto,
+    ConferenceFacility, ConferenceHallFacility, ConferenceBookingFacility,
     Payment, CustomerReview, OrderItem, OrderItemExtra, MenuExtra, MenuChoice, MenuAccompaniment,
     Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken,
-    RoomAmenity, Amenity, RoomRatePlan, RoomPolicy
+    RoomAmenity, Amenity, RoomRatePlan, RoomPolicy,
+    UserSession, DeviceToken, NotificationPreference, Notification, EmailQueue,
+    NotificationEvent, PaymentMethod, LoginLog, ActivityLog, AuditLog, OrderStatusHistory, HotelDetails, PaymentRefund
 )
 
 
@@ -82,25 +85,120 @@ class UserRepository:
         await self.db.commit()
         return await self.get_by_id(user.user_id)
 
-    async def delete_user(self, user_id: int) -> bool:
-        """Attempt hard delete, fallback to soft delete for relational integrity"""
+    async def permanent_delete_user(self, user_id: int) -> bool:
+        """Permanently delete a user and decouple/cascade all foreign key references"""
+        user = await self.get_by_id(user_id)
+        if not user:
+            return False
+
+        try:
+            # 1. Nullify non-cascading staff action foreign keys
+            await self.db.execute(
+                update(RolePermission).where(RolePermission.granted_by == user_id).values(granted_by=None)
+            )
+            await self.db.execute(
+                update(RestaurantOrder).where(RestaurantOrder.assigned_waiter == user_id).values(assigned_waiter=None)
+            )
+            await self.db.execute(
+                update(OrderStatusHistory).where(OrderStatusHistory.changed_by == user_id).values(changed_by=None)
+            )
+            await self.db.execute(
+                update(AccommodationReservation).where(AccommodationReservation.checked_in_by == user_id).values(checked_in_by=None)
+            )
+            await self.db.execute(
+                update(AccommodationReservation).where(AccommodationReservation.checked_out_by == user_id).values(checked_out_by=None)
+            )
+            await self.db.execute(
+                update(Payment).where(Payment.verified_by == user_id).values(verified_by=None)
+            )
+            await self.db.execute(
+                update(PaymentRefund).where(PaymentRefund.processed_by == user_id).values(processed_by=None)
+            )
+            await self.db.execute(
+                update(AuditLog).where(AuditLog.changed_by == user_id).values(changed_by=None)
+            )
+            await self.db.execute(
+                update(CustomerReview).where(CustomerReview.replied_by == user_id).values(replied_by=None)
+            )
+            await self.db.execute(
+                update(HotelDetails).where(HotelDetails.created_by == user_id).values(created_by=None)
+            )
+            await self.db.execute(
+                update(HotelDetails).where(HotelDetails.updated_by == user_id).values(updated_by=None)
+            )
+            await self.db.execute(
+                update(NotificationEvent).where(NotificationEvent.triggered_by == user_id).values(triggered_by=None)
+            )
+            # Decouple customer user link
+            await self.db.execute(
+                update(Customer).where(Customer.user_id == user_id).values(user_id=None)
+            )
+
+            # 2. Delete user-specific cascading tables
+            user_notifs = await self.db.execute(
+                select(Notification.id).where(Notification.recipient_id == user_id)
+            )
+            notif_ids = user_notifs.scalars().all()
+            if notif_ids:
+                await self.db.execute(
+                    delete(EmailQueue).where(EmailQueue.notification_id.in_(notif_ids))
+                )
+            await self.db.execute(
+                delete(EmailQueue).where(EmailQueue.recipient_email == user.email)
+            )
+            await self.db.execute(
+                delete(Notification).where(Notification.recipient_id == user_id)
+            )
+            await self.db.execute(
+                delete(NotificationPreference).where(NotificationPreference.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(UserRole).where(UserRole.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(UserSession).where(UserSession.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(DeviceToken).where(DeviceToken.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(PaymentMethod).where(PaymentMethod.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(LoginLog).where(LoginLog.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(ActivityLog).where(ActivityLog.user_id == user_id)
+            )
+
+            # 3. Permanently delete the User row
+            await self.db.execute(
+                delete(User).where(User.user_id == user_id)
+            )
+            await self.db.commit()
+            return True
+        except Exception:
+            await self.db.rollback()
+            raise
+
+    async def delete_user(self, user_id: int, hard: bool = True) -> bool:
+        """Delete user - permanently by default or soft-deactivate"""
+        if hard:
+            try:
+                return await self.permanent_delete_user(user_id)
+            except Exception:
+                pass
+
+        # Fallback to soft delete
         user = await self.get_by_id(user_id)
         if user:
-            try:
-                # Attempt to hard delete the user and cascade related roles/sessions/tokens
-                await self.db.delete(user)
-                await self.db.commit()
-                return True
-            except Exception:
-                # Fallback to soft delete if there are active references in other tables
-                await self.db.rollback()
-                # Re-fetch user in new transaction context and deactivate
-                user = await self.get_by_id(user_id)
-                if user:
-                    user.is_active = False
-                    self.db.add(user)
-                    await self.db.commit()
-                    return True
+            user.is_active = False
+            self.db.add(user)
+            await self.db.commit()
+            return True
         return False
 
 
@@ -770,9 +868,9 @@ class RestaurantOrderRepository:
         )
         return result.scalar_one_or_none()
     
-    async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: int = 50) -> List[RestaurantOrder]:
+    async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: Optional[int] = None) -> List[RestaurantOrder]:
         """Get orders for a customer"""
-        result = await self.db.execute(
+        query = (
             select(RestaurantOrder)
             .where(RestaurantOrder.customer_id == customer_id)
             .options(
@@ -781,9 +879,12 @@ class RestaurantOrderRepository:
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.accompaniment),
                 selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
             )
-            .offset(skip)
-            .limit(limit)
         )
+        if skip:
+            query = query.offset(skip)
+        if limit is not None:
+            query = query.limit(limit)
+        result = await self.db.execute(query)
         return result.scalars().all()
 
     async def delete_order(self, order_id: int) -> bool:
@@ -844,11 +945,30 @@ class AccommodationRepository:
         )
         return result.scalar_one_or_none()
     
-    async def create_reservation(self, customer_id: int, room_id: int, check_in_date, check_out_date, num_nights: int, rate_per_night, total_amount, reservation_code: str) -> AccommodationReservation:
+    async def get_room_category_by_id(self, room_category_id: int) -> Optional[RoomCategory]:
+        """Get room category by ID"""
+        result = await self.db.execute(
+            select(RoomCategory)
+            .options(
+                selectinload(RoomCategory.beds),
+                selectinload(RoomCategory.views),
+                selectinload(RoomCategory.bathroom_features),
+                selectinload(RoomCategory.room_facilities),
+                selectinload(RoomCategory.images),
+                selectinload(RoomCategory.amenity_assignments).selectinload(RoomAmenity.amenity).selectinload(Amenity.category),
+                selectinload(RoomCategory.available_rates),
+                selectinload(RoomCategory.policies)
+            )
+            .where(RoomCategory.room_category_id == room_category_id)
+        )
+        return result.scalar_one_or_none()
+    
+    async def create_reservation(self, customer_id: int, room_id: Optional[int], check_in_date, check_out_date, num_nights: int, rate_per_night, total_amount, reservation_code: str, room_category_id: Optional[int] = None) -> AccommodationReservation:
         """Create a new accommodation reservation"""
         reservation = AccommodationReservation(
             customer_id=customer_id,
             room_id=room_id,
+            room_category_id=room_category_id,
             check_in_date=check_in_date,
             check_out_date=check_out_date,
             num_nights=num_nights,
@@ -890,32 +1010,207 @@ class ConferenceRepository:
     async def get_all_halls(self) -> List[ConferenceHall]:
         """Get all conference halls"""
         result = await self.db.execute(
-            select(ConferenceHall).where(ConferenceHall.is_active == True)
+            select(ConferenceHall)
+            .options(
+                selectinload(ConferenceHall.photos_rel),
+                selectinload(ConferenceHall.facilities)
+                .selectinload(ConferenceHallFacility.facility)
+                .selectinload(ConferenceFacility.category_relation)
+            )
+            .where(ConferenceHall.is_active == True)
         )
         return result.scalars().all()
     
-    async def create_hall(self, hall_name: str, capacity: int, hourly_rate, half_day_rate, full_day_rate, description: Optional[str] = None, amenities: Optional[str] = None) -> ConferenceHall:
+    async def create_hall(
+        self,
+        hall_name: str,
+        capacity: int,
+        standard_price: Optional[Decimal] = None,
+        hourly_rate: Optional[Decimal] = None,
+        half_day_rate: Optional[Decimal] = None,
+        full_day_rate: Optional[Decimal] = None,
+        description: Optional[str] = None,
+        image: Optional[str] = None,
+        photos: Optional[List[str]] = None,
+        main_photo_index: Optional[int] = 0,
+        facility_ids: Optional[List[int]] = None
+    ) -> ConferenceHall:
         """Create a new conference hall"""
+        std_price = standard_price if standard_price is not None else full_day_rate
         hall = ConferenceHall(
             hall_name=hall_name,
             capacity=capacity,
+            standard_price=std_price,
             hourly_rate=hourly_rate,
             half_day_rate=half_day_rate,
             full_day_rate=full_day_rate,
             description=description,
-            amenities=amenities,
+            image=image,
+            main_photo_index=main_photo_index or 0,
             is_active=True
         )
         self.db.add(hall)
+        await self.db.flush()
+        
+        if photos:
+            for idx, p_url in enumerate(photos):
+                self.db.add(HallPhoto(hall_id=hall.hall_id, photo_url=p_url, sort_order=idx))
+
+        if facility_ids:
+            for fid in facility_ids:
+                hall_facility = ConferenceHallFacility(
+                    hall_id=hall.hall_id,
+                    facility_id=fid,
+                    status="Available"
+                )
+                self.db.add(hall_facility)
+                
         await self.db.commit()
-        await self.db.refresh(hall)
-        return hall
+        self.db.expire_all()
+        
+        # Load the newly created hall with its facilities
+        return await self.get_hall_by_id(hall.hall_id)
+
+    async def update_hall(
+        self,
+        hall_id: int,
+        hall_name: Optional[str] = None,
+        capacity: Optional[int] = None,
+        standard_price: Optional[Decimal] = None,
+        hourly_rate: Optional[Decimal] = None,
+        half_day_rate: Optional[Decimal] = None,
+        full_day_rate: Optional[Decimal] = None,
+        description: Optional[str] = None,
+        image: Optional[str] = None,
+        photos: Optional[List[str]] = None,
+        main_photo_index: Optional[int] = None,
+        is_active: Optional[bool] = None,
+        facility_ids: Optional[List[int]] = None
+    ) -> Optional[ConferenceHall]:
+        """Update a conference hall"""
+        result = await self.db.execute(
+            select(ConferenceHall).where(ConferenceHall.hall_id == hall_id)
+        )
+        hall = result.scalar_one_or_none()
+        if not hall:
+            return None
+
+        if hall_name is not None:
+            hall.hall_name = hall_name
+        if capacity is not None:
+            hall.capacity = capacity
+        if standard_price is not None:
+            hall.standard_price = standard_price
+        elif full_day_rate is not None:
+            hall.standard_price = full_day_rate
+
+        if hourly_rate is not None:
+            hall.hourly_rate = hourly_rate
+        if half_day_rate is not None:
+            hall.half_day_rate = half_day_rate
+        if full_day_rate is not None:
+            hall.full_day_rate = full_day_rate
+
+        if description is not None:
+            hall.description = description
+        if image is not None:
+            hall.image = image
+        if main_photo_index is not None:
+            hall.main_photo_index = main_photo_index
+        if is_active is not None:
+            hall.is_active = is_active
+
+        if photos is not None:
+            from sqlalchemy import delete
+            await self.db.execute(
+                delete(HallPhoto).where(HallPhoto.hall_id == hall_id)
+            )
+            for idx, p_url in enumerate(photos):
+                self.db.add(HallPhoto(hall_id=hall_id, photo_url=p_url, sort_order=idx))
+
+        if facility_ids is not None:
+            from sqlalchemy import delete
+            # Delete existing facility associations
+            await self.db.execute(
+                delete(ConferenceHallFacility).where(ConferenceHallFacility.hall_id == hall_id)
+            )
+            # Re-add specified facilities
+            for fid in facility_ids:
+                hall_facility = ConferenceHallFacility(
+                    hall_id=hall_id,
+                    facility_id=fid,
+                    status="Available"
+                )
+                self.db.add(hall_facility)
+
+        self.db.add(hall)
+        await self.db.commit()
+        self.db.expire_all()
+        return await self.get_hall_by_id(hall_id)
+
+    async def assign_facilities_to_hall(self, hall_id: int, facility_ids: List[int]) -> Optional[ConferenceHall]:
+        """Assign facilities list (multiple) to a conference hall"""
+        return await self.update_hall(hall_id=hall_id, facility_ids=facility_ids)
+
+    async def add_facility_to_hall(self, hall_id: int, facility_id: int) -> Optional[ConferenceHall]:
+        """Add a single facility to a hall without removing existing ones"""
+        from sqlalchemy import select
+        existing = await self.db.execute(
+            select(ConferenceHallFacility).where(
+                ConferenceHallFacility.hall_id == hall_id,
+                ConferenceHallFacility.facility_id == facility_id
+            )
+        )
+        if not existing.scalar_one_or_none():
+            hall_fac = ConferenceHallFacility(
+                hall_id=hall_id,
+                facility_id=facility_id,
+                status="Available"
+            )
+            self.db.add(hall_fac)
+            await self.db.commit()
+        return await self.get_hall_by_id(hall_id)
+
+    async def remove_facility_from_hall(self, hall_id: int, facility_id: int) -> Optional[ConferenceHall]:
+        """Remove a single facility association from a hall"""
+        from sqlalchemy import delete
+        await self.db.execute(
+            delete(ConferenceHallFacility).where(
+                ConferenceHallFacility.hall_id == hall_id,
+                ConferenceHallFacility.facility_id == facility_id
+            )
+        )
+        await self.db.commit()
+        return await self.get_hall_by_id(hall_id)
+
+    async def delete_hall(self, hall_id: int) -> bool:
+        """Delete a conference hall"""
+        result = await self.db.execute(
+            select(ConferenceHall).where(ConferenceHall.hall_id == hall_id)
+        )
+        hall = result.scalar_one_or_none()
+        if not hall:
+            return False
+        await self.db.delete(hall)
+        await self.db.commit()
+        return True
     
     async def get_all_reservations(self) -> List[ConferenceReservation]:
         """Get all conference reservations"""
         result = await self.db.execute(
             select(ConferenceReservation)
-            .options(selectinload(ConferenceReservation.customer), selectinload(ConferenceReservation.hall))
+            .options(
+                selectinload(ConferenceReservation.customer), 
+                selectinload(ConferenceReservation.hall)
+                .selectinload(ConferenceHall.photos_rel),
+                selectinload(ConferenceReservation.hall)
+                .selectinload(ConferenceHall.facilities)
+                .selectinload(ConferenceHallFacility.facility)
+                .selectinload(ConferenceFacility.category_relation),
+                selectinload(ConferenceReservation.facility_bookings)
+                .selectinload(ConferenceBookingFacility.facility)
+                .selectinload(ConferenceFacility.category_relation)
+            )
             .order_by(ConferenceReservation.created_at.desc())
         )
         return result.scalars().all()
@@ -923,11 +1218,37 @@ class ConferenceRepository:
     async def get_hall_by_id(self, hall_id: int) -> Optional[ConferenceHall]:
         """Get hall by ID"""
         result = await self.db.execute(
-            select(ConferenceHall).where(ConferenceHall.hall_id == hall_id)
+            select(ConferenceHall)
+            .options(
+                selectinload(ConferenceHall.photos_rel),
+                selectinload(ConferenceHall.facilities)
+                .selectinload(ConferenceHallFacility.facility)
+                .selectinload(ConferenceFacility.category_relation)
+            )
+            .where(ConferenceHall.hall_id == hall_id)
         )
         return result.scalar_one_or_none()
     
-    async def create_reservation(self, customer_id: int, hall_id: int, event_name: str, event_start_date, event_end_date, start_time, end_time, num_participants: int, booking_type: str, reservation_code: str, total_amount) -> ConferenceReservation:
+    async def create_reservation(
+        self,
+        customer_id: int,
+        hall_id: int,
+        event_name: str,
+        event_start_date,
+        event_end_date,
+        start_time,
+        end_time,
+        num_participants: Optional[int] = 1,
+        reservation_code: str = "",
+        total_amount: Decimal = Decimal('0.00'),
+        subtotal: Decimal = Decimal('0.00'),
+        hall_standard_price: Optional[Decimal] = Decimal('0.00'),
+        amount_paid: Decimal = Decimal('0.00'),
+        balance_due: Optional[Decimal] = Decimal('0.00'),
+        payment_responsibility: str = "Individual",
+        booking_type: Optional[str] = "Standard",
+        special_requests: Optional[str] = None
+    ) -> ConferenceReservation:
         """Create a new conference reservation"""
         reservation = ConferenceReservation(
             customer_id=customer_id,
@@ -938,22 +1259,38 @@ class ConferenceRepository:
             start_time=start_time,
             end_time=end_time,
             num_participants=num_participants,
-            booking_type=booking_type,
+            booking_type=booking_type or "Standard",
             reservation_code=reservation_code,
             total_amount=total_amount,
+            subtotal=subtotal,
+            hall_cost=hall_standard_price or Decimal('0.00'),
+            hall_unit_price=hall_standard_price or Decimal('0.00'),
+            payment_responsibility=payment_responsibility,
+            amount_paid=amount_paid,
+            balance_due=balance_due,
+            special_requests=special_requests,
             reservation_status="Pending",
             payment_status="Pending"
         )
         self.db.add(reservation)
         await self.db.commit()
         await self.db.refresh(reservation)
-        return reservation
+        return await self.get_reservation_by_id(reservation.conference_res_id)
     
     async def get_reservation_by_id(self, conference_res_id: int) -> Optional[ConferenceReservation]:
         """Get reservation by ID"""
         result = await self.db.execute(
             select(ConferenceReservation)
-            .options(selectinload(ConferenceReservation.customer), selectinload(ConferenceReservation.hall))
+            .options(
+                selectinload(ConferenceReservation.customer), 
+                selectinload(ConferenceReservation.hall)
+                .selectinload(ConferenceHall.facilities)
+                .selectinload(ConferenceHallFacility.facility)
+                .selectinload(ConferenceFacility.category_relation),
+                selectinload(ConferenceReservation.facility_bookings)
+                .selectinload(ConferenceBookingFacility.facility)
+                .selectinload(ConferenceFacility.category_relation)
+            )
             .where(ConferenceReservation.conference_res_id == conference_res_id)
         )
         return result.scalar_one_or_none()

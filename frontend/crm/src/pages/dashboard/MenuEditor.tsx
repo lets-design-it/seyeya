@@ -93,6 +93,7 @@ export const MenuEditor: React.FC = () => {
   const [category, setCategory] = useState<string>('Local Food');
   const [priceUGX, setPriceUGX] = useState<number>(10000);
   const [priceUSD, setPriceUSD] = useState<number>(3);
+  const [includesVat, setIncludesVat] = useState<boolean>(true);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
   const [quantity, setQuantity] = useState<number>(100);
@@ -140,6 +141,7 @@ export const MenuEditor: React.FC = () => {
     setCategory(categories[0]?.category_name || 'Local Food');
     setPriceUGX(15000);
     setPriceUSD(4);
+    setIncludesVat(true);
     setDescription('');
     setImage('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200'); // generic food placeholder
     setQuantity(100);
@@ -154,11 +156,14 @@ export const MenuEditor: React.FC = () => {
   };
 
   const openEditModal = (item: MenuItem) => {
+    const vatIncl = (item as any).is_vat_inclusive ?? true;
     setEditItem(item);
     setName(item.name);
     setCategory(item.category);
-    setPriceUGX(item.priceUGX);
+    const basePrice = vatIncl ? Math.round(item.priceUGX / 1.18) : item.priceUGX;
+    setPriceUGX(basePrice);
     setPriceUSD(item.priceUSD);
+    setIncludesVat(vatIncl);
     setDescription(item.description);
     setImage(item.image);
     setQuantity(item.quantity ?? 100);
@@ -218,11 +223,14 @@ export const MenuEditor: React.FC = () => {
     e.preventDefault();
     if (!name.trim()) return;
 
+    const finalPriceUGX = includesVat ? Math.round(Number(priceUGX) * 1.18) : Number(priceUGX);
+
     const itemData = {
       name: name.trim(),
       category,
-      priceUGX: Number(priceUGX),
+      priceUGX: finalPriceUGX,
       priceUSD: Number(priceUSD),
+      is_vat_inclusive: includesVat,
       description: description.trim(),
       image: image.trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200',
       quantity: Number(quantity),
@@ -431,13 +439,13 @@ export const MenuEditor: React.FC = () => {
           <ShadcnButton
             variant="outline"
             onClick={() => setIsCategoryModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer h-10 shadow-sm dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+            className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold border border-zinc-200 dark:border-zinc-800 bg-white hover:bg-zinc-50 text-zinc-700 cursor-pointer h-10 shadow-sm dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
           >
             Manage Categories
           </ShadcnButton>
           <ShadcnButton
             onClick={openAddModal}
-            className="flex items-center gap-2 bg-black! text-white! hover:bg-black/90! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+            className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4 py-2 text-xs font-bold cursor-pointer h-10 shadow-sm"
           >
             <Plus className="h-4 w-4" />
             Add Menu Item
@@ -515,7 +523,7 @@ export const MenuEditor: React.FC = () => {
             {/* Columns selector dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!">
+                <ShadcnButton variant="outline" className="flex items-center gap-1.5 h-10 px-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-750 cursor-pointer text-xs font-bold shadow-xs dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!">
                   <SlidersHorizontal className="h-3.5 w-3.5" />
                   Columns
                   <ChevronDown className="h-4 w-4 text-zinc-500" />
@@ -569,7 +577,7 @@ export const MenuEditor: React.FC = () => {
             </p>
             <ShadcnButton
               onClick={openAddModal}
-              className="mt-4 flex items-center gap-1.5 mx-auto bg-black! text-white! hover:bg-black/90! rounded-xl px-4.5 py-2 text-xs font-bold cursor-pointer h-9 shadow-sm border-none dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+              className="mt-4 flex items-center gap-1.5 mx-auto bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-xl px-4.5 py-2 text-xs font-bold cursor-pointer h-9 shadow-sm"
             >
               <Plus className="h-3.5 w-3.5" />
               Add Menu Item
@@ -651,9 +659,8 @@ export const MenuEditor: React.FC = () => {
         )}
       </div>
 
-      {/* Add / Edit Drawer */}
       <Drawer open={isOpen} onOpenChange={setIsOpen} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl">
           <DrawerHeader className="border-b border-zinc-150 pb-4">
             <DrawerTitle className="text-base font-bold">
               {editItem ? 'Edit Menu Item' : 'New Menu Listing'}
@@ -708,26 +715,45 @@ export const MenuEditor: React.FC = () => {
                 type="number"
                 min={0}
                 required
-                placeholder="e.g. 15000"
+                placeholder="e.g. 60000"
                 value={priceUGX}
                 onChange={(e) => setPriceUGX(Number(e.target.value))}
                 className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
               />
+              <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={includesVat}
+                  onChange={(e) => setIncludesVat(e.target.checked)}
+                  className="rounded border-zinc-300 dark:border-zinc-700 accent-[#D4AF37] h-4 w-4 cursor-pointer"
+                />
+                <span>Add VAT (18%)</span>
+              </label>
+              {priceUGX > 0 && (
+                <div className="mt-1.5 text-xs font-semibold">
+                  {includesVat ? (
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex flex-col gap-1">
+                      <div className="flex items-center justify-between gap-2 text-xs font-bold">
+                        <span>New Total Price (incl. 18% VAT):</span>
+                        <span className="font-extrabold text-foreground dark:text-zinc-50 bg-white dark:bg-zinc-900 px-2.5 py-1 rounded-lg border border-amber-500/30 shadow-xs">
+                          UGX {Math.round(priceUGX * 1.18).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-2 pt-0.5 border-t border-amber-500/10 mt-0.5">
+                        <span>Base: UGX {priceUGX.toLocaleString()}</span>
+                        <span>•</span>
+                        <span>VAT (18%): UGX {Math.round(priceUGX * 0.18).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500 dark:text-zinc-400 pl-1">
+                      New Total Price: <span className="font-bold text-foreground dark:text-zinc-200">UGX {priceUGX.toLocaleString()}</span> <span className="text-[11px] font-normal">(No VAT added)</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Price (USD) *</label>
-              <input
-                type="number"
-                min={0}
-                step="0.1"
-                required
-                placeholder="e.g. 4"
-                value={priceUSD}
-                onChange={(e) => setPriceUSD(Number(e.target.value))}
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
-              />
-            </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Stock Quantity *</label>
@@ -812,7 +838,7 @@ export const MenuEditor: React.FC = () => {
                     type="button"
                     variant="ghost"
                     onClick={handleAddChoice}
-                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
                   >
                     <Plus className="h-3 w-3" /> Add Choice
                   </ShadcnButton>
@@ -876,7 +902,7 @@ export const MenuEditor: React.FC = () => {
                     type="button"
                     variant="ghost"
                     onClick={handleAddAccompaniment}
-                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
                   >
                     <Plus className="h-3 w-3" /> Add Side
                   </ShadcnButton>
@@ -940,7 +966,7 @@ export const MenuEditor: React.FC = () => {
                     type="button"
                     variant="ghost"
                     onClick={handleAddExtra}
-                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-white! dark:text-black! dark:hover:bg-white/90! dark:border-transparent!"
+                    className="text-[10px] font-bold text-zinc-955 hover:bg-zinc-200 h-7 px-2.5 rounded-xl cursor-pointer flex items-center gap-1 border border-zinc-200 bg-white shadow-2xs dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700! dark:border-transparent!"
                   >
                     <Plus className="h-3 w-3" /> Add Extra
                   </ShadcnButton>
@@ -1019,7 +1045,7 @@ export const MenuEditor: React.FC = () => {
               </ShadcnButton>
               <ShadcnButton
                 type="submit"
-                className="bg-black! text-white! hover:bg-black/90! font-bold px-6 py-2.5 rounded-xl shadow-sm border-none cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-6 py-2.5 rounded-xl shadow-sm cursor-pointer"
               >
                 {editItem ? 'Save Updates' : 'Add Item'}
               </ShadcnButton>
@@ -1030,14 +1056,14 @@ export const MenuEditor: React.FC = () => {
       {/* Sliding Details Drawer Backdrop Overlay */}
       {selectedItem && (
         <div
-          className="fixed inset-0 z-30 bg-zinc-950/15 backdrop-blur-xs transition-opacity duration-300"
+          className="fixed inset-0 z-30 bg-black/50 dark:bg-zinc-955/60 backdrop-blur-md transition-opacity duration-300"
           onClick={() => setSelectedItem(null)}
         />
       )}
 
       {/* Sliding Details Drawer */}
       <div
-        className={`fixed inset-y-0 right-0 z-40 w-full sm:max-w-md bg-card shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col border-l border-zinc-100 dark:border-zinc-800 ${selectedItem ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed inset-y-0 right-0 z-40 w-full sm:max-w-xl md:max-w-2xl bg-card shadow-2xl transform transition-transform duration-300 ease-in-out flex flex-col border-l border-zinc-100 dark:border-zinc-800 ${selectedItem ? 'translate-x-0' : 'translate-x-full'
           }`}
       >
         {selectedItem && (
@@ -1211,7 +1237,7 @@ export const MenuEditor: React.FC = () => {
                   openEditModal(selectedItem);
                   setSelectedItem(null);
                 }}
-                className="flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-5 py-2.5 text-xs font-bold shadow-sm dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                className="flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full px-5 py-2.5 text-xs font-bold shadow-sm dark:bg-zinc-800! dark:text-white! dark:hover:bg-zinc-700!"
               >
                 <Edit2 className="h-4 w-4" />
                 Edit Item
@@ -1223,7 +1249,7 @@ export const MenuEditor: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 animate-fade-in backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-md animate-fade-in">
           <div className="glass-panel w-full max-w-sm bg-card rounded-[24px] p-6 text-center shadow-2xl bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
             <h4 className="text-sm font-bold text-primary dark:text-white uppercase tracking-wider mb-2">Delete Menu Item?</h4>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-6">
@@ -1249,7 +1275,7 @@ export const MenuEditor: React.FC = () => {
 
       {/* Category Manager Drawer */}
       <Drawer open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen} direction="right">
-        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-lg">
+        <DrawerContent className="h-full overflow-y-auto w-full sm:max-w-xl md:max-w-2xl">
           <DrawerHeader className="border-b border-zinc-150 pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -1308,7 +1334,7 @@ export const MenuEditor: React.FC = () => {
                       setCategoryError(err.message || 'Failed to create category');
                     }
                   }}
-                  className="bg-black! text-white! hover:bg-black/90! font-bold px-4 py-2 rounded-xl text-xs shadow-sm border-none cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                  className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! font-bold px-4 py-2 rounded-xl text-xs shadow-sm cursor-pointer"
                 >
                   Add Category
                 </ShadcnButton>
@@ -1376,7 +1402,7 @@ export const MenuEditor: React.FC = () => {
                                   setCategoryError(err.message || 'Failed to update category');
                                 }
                               }}
-                              className="bg-black! text-white! hover:bg-black/90! text-xs px-4 py-1.5 font-bold rounded-xl border-none cursor-pointer dark:bg-white! dark:text-black! dark:hover:bg-white/90!"
+                              className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! text-xs px-4 py-1.5 font-bold rounded-xl cursor-pointer"
                             >
                               Save
                             </ShadcnButton>

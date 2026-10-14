@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth, UserRole } from '../../context/AuthContext';
-import { Lock, Mail, ChevronRight } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Lock, Mail, ChevronRight, AlertCircle } from 'lucide-react';
 import loginBg from '../../assets/Login.jpg';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/Card';
 
@@ -27,8 +27,6 @@ export const Login: React.FC = () => {
       setIsSubmitting(false);
     }
   };
-
-
 
   return (
     <div
@@ -57,8 +55,11 @@ export const Login: React.FC = () => {
 
           <CardContent className="pt-4">
             {error && (
-              <div className="mb-4 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-400">
-                {error}
+              <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-red-50 border border-red-200/90 p-3.5 text-xs text-red-800 shadow-sm animate-in fade-in slide-in-from-top-1">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1 leading-relaxed font-medium">
+                  {error}
+                </div>
               </div>
             )}
 
@@ -74,7 +75,7 @@ export const Login: React.FC = () => {
                     placeholder="name@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-150 py-2.5 pl-10 pr-4 text-xs text-foreground placeholder-zinc-400 outline-none transition-all focus:border-[#212121] focus:ring-2 focus:ring-[#212121]/5"
+                    className="w-full rounded-xl bg-zinc-50 border border-zinc-150 py-2.5 pl-10 pr-4 text-xs text-foreground placeholder-zinc-400 outline-none transition-all focus:border-[#0A2540] focus:ring-2 focus:ring-[#0A2540]/10"
                   />
                 </div>
               </div>
@@ -90,7 +91,7 @@ export const Login: React.FC = () => {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 border border-zinc-150 py-2.5 pl-10 pr-4 text-xs text-foreground placeholder-zinc-400 outline-none transition-all focus:border-[#212121] focus:ring-2 focus:ring-[#212121]/5"
+                    className="w-full rounded-xl bg-zinc-50 border border-zinc-150 py-2.5 pl-10 pr-4 text-xs text-foreground placeholder-zinc-400 outline-none transition-all focus:border-[#0A2540] focus:ring-2 focus:ring-[#0A2540]/10"
                   />
                 </div>
               </div>
@@ -98,7 +99,7 @@ export const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="relative flex w-full items-center justify-center rounded-xl bg-[#212121] py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-zinc-800 disabled:opacity-50 mt-6 cursor-pointer"
+                className="relative flex w-full items-center justify-center rounded-xl bg-[#0A2540] hover:bg-[#07192C] text-[#D4AF37] border border-[#D4AF37]/30 py-3 text-sm font-semibold shadow-md transition-all disabled:opacity-50 mt-6 cursor-pointer"
               >
                 {isSubmitting ? (
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />

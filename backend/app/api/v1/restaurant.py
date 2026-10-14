@@ -316,15 +316,24 @@ async def create_order(
             delivery_charge=request.delivery_charge,
             delivery_address=request.delivery_address,
             preferred_time=request.preferred_time,
-            special_instr=request.special_instr
+            special_instr=request.special_instr,
+            seating_location=request.seating_location,
+            allergy_info=request.allergy_info,
+            assigned_waiter=request.assigned_waiter
         )
         
-        # Set additional fields
-        order.seating_location = request.seating_location
-        
-        db.add(order)
-        await db.commit()
-        
+        # Trigger notification event for restaurant order
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(db)
+            await notif_service.create_event(
+                event_type="Order Placed",
+                reference_type="RestaurantOrder",
+                reference_id=str(order.order_id)
+            )
+        except Exception:
+            pass
+            
         return await service.get_order(order.order_id)
     except Exception as e:
         raise HTTPException(
@@ -337,7 +346,7 @@ async def create_order(
 async def list_orders(
     customer_id: Optional[int] = None,
     skip: int = 0,
-    limit: int = 50,
+    limit: Optional[int] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
@@ -396,6 +405,17 @@ async def update_order(
         if request.amount_paid is not None:
             order.amount_paid = request.amount_paid
             order.balance_due = order.total_amount - request.amount_paid
+            
+        update_fields = [
+            "seating_location", "delivery_option", "delivery_address",
+            "delivery_lat", "delivery_lng", "delivery_charge",
+            "preferred_time", "special_instr", "allergy_info",
+            "assigned_waiter", "tracking_number"
+        ]
+        for field in update_fields:
+            val = getattr(request, field, None)
+            if val is not None:
+                setattr(order, field, val)
         
         db.add(order)
         await db.commit()
@@ -500,8 +520,8 @@ async def get_active_delivery_pricing(db: AsyncSession = Depends(get_db)):
     """Get the active delivery pricing configuration (public/app endpoint)"""
     from sqlalchemy.future import select
     from app.models import DeliveryPricing
-    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True))
-    pricing = res.scalar_one_or_none()
+    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True).order_by(DeliveryPricing.pricing_id.desc()))
+    pricing = res.scalars().first()
     if not pricing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No active delivery pricing found")
     return pricing
@@ -515,8 +535,8 @@ async def calculate_delivery_pricing(request: DeliveryCalculationRequest, db: As
     from app.utils.haversine import get_driving_distance_km
     from decimal import Decimal
     
-    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True))
-    pricing = res.scalar_one_or_none()
+    res = await db.execute(select(DeliveryPricing).where(DeliveryPricing.is_active == True).order_by(DeliveryPricing.pricing_id.desc()))
+    pricing = res.scalars().first()
     
     if not pricing:
         return DeliveryCalculationResponse(

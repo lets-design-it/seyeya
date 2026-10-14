@@ -8,10 +8,14 @@ export interface RoomType {
   priceUGX: number;
   priceUSD: number;
   capacity: string;
+  maxOccupancy?: number;
   amenities: string[];
   description: string;
   image: string;
   photos?: string[];
+  rateOptions?: any[];
+  selectedAmenityIds?: (string | number)[];
+  selectedPolicyIds?: (string | number)[];
 }
 
 export interface RoomUnit {
@@ -39,6 +43,9 @@ export interface BookingRecord {
   totalPaid: number; // in UGX
   customerId?: number;
   guests?: { customer_id: number; is_child: boolean }[];
+  ratePlanId?: string;
+  ratePlanName?: string;
+  rateInclusions?: string[];
 }
 
 const getErrorMessage = (err: any, fallback = 'An error occurred'): string => {
@@ -64,22 +71,66 @@ export const useAccommodation = () => {
   const fetchAccommodationData = async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch categories
+      // 1. Fetch categories with rates, amenities, and policies
       const catRes = await api.get('/accommodation/categories');
       const parsedCats = catRes.data.map((c: any) => {
-        const parts = c.description ? c.description.split(" | ") : [];
         const dbPhotos = c.photos ? c.photos.map((p: any) => p.photo_url) : [];
-        const defaultImg = dbPhotos.length > 0 ? dbPhotos[0] : (parts[3] || 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300');
+        const defaultImg = dbPhotos.length > 0 ? dbPhotos[0] : 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=300';
+
+        const mappedRates = (c.available_rates && c.available_rates.length > 0)
+          ? c.available_rates.map((r: any) => ({
+              id: String(r.rate_id),
+              name: r.rate_name,
+              priceUGX: Number(r.price || 0),
+              priceUSD: Number(r.price || 0),
+              description: r.description || '',
+              inclusions: r.inclusions || [],
+              isActive: r.is_active !== false
+            }))
+          : undefined;
+
+        const mappedAmenityIds = (c.amenity_assignments && c.amenity_assignments.length > 0)
+          ? c.amenity_assignments.map((a: any) => String(a.amenity_id))
+          : undefined;
+
+        const mappedPolicyIds = (c.policies && c.policies.length > 0)
+          ? c.policies.map((p: any) => String(p.policy_id))
+          : undefined;
+
+        const extractedAmenityNames: string[] = [];
+        if (c.amenities && Array.isArray(c.amenities) && c.amenities.length > 0) {
+          c.amenities.forEach((grp: any) => {
+            if (grp.amenities && Array.isArray(grp.amenities)) {
+              grp.amenities.forEach((am: any) => {
+                if (am && am.name) extractedAmenityNames.push(am.name);
+              });
+            } else if (typeof grp === 'string') {
+              extractedAmenityNames.push(grp);
+            }
+          });
+        }
+        if (extractedAmenityNames.length === 0 && c.amenity_assignments && Array.isArray(c.amenity_assignments)) {
+          c.amenity_assignments.forEach((assignment: any) => {
+            if (assignment.amenity && assignment.amenity.name) {
+              extractedAmenityNames.push(assignment.amenity.name);
+            }
+          });
+        }
+
         return {
           id: String(c.room_category_id),
           name: c.category_name,
           priceUGX: Number(c.base_rate || 0),
           priceUSD: Number(c.base_rate || 0),
-          capacity: parts[1] || "2 Adults, 1 Child",
-          amenities: parts[2] ? parts[2].split(",") : ['AC', 'Free Wi-Fi', 'King Bed'],
-          description: parts[0] || c.description || "",
+          capacity: "2 Adults, 1 Child",
+          maxOccupancy: c.max_occupancy ? Number(c.max_occupancy) : undefined,
+          amenities: extractedAmenityNames,
+          description: c.description || "",
           image: defaultImg,
           photos: dbPhotos,
+          rateOptions: mappedRates,
+          selectedAmenityIds: mappedAmenityIds,
+          selectedPolicyIds: mappedPolicyIds
         };
       });
       setCategories(parsedCats);
@@ -101,20 +152,23 @@ export const useAccommodation = () => {
       // 3. Fetch reservations
       const resRes = await api.get('/accommodation/reservations');
       const parsedBookings = resRes.data.map((b: any) => {
-        const associatedRoom = parsedRooms.find((r: any) => r.id === String(b.room_id));
-        const associatedCat = parsedCats.find((c: any) => c.id === (associatedRoom ? associatedRoom.roomCategoryId : ""));
+        const associatedRoom = b.room_id ? parsedRooms.find((r: any) => r.id === String(b.room_id)) : null;
+        const categoryId = (b.category_id || b.room_category_id) ? String(b.category_id || b.room_category_id) : (associatedRoom ? associatedRoom.roomCategoryId : "");
+        const associatedCat = parsedCats.find((c: any) => c.id === categoryId);
         
-        let displayStatus: BookingRecord['status'] = 'Reserved';
-        if (b.reservation_status === 'CheckedIn') displayStatus = 'Checked In';
-        else if (b.reservation_status === 'CheckedOut') displayStatus = 'Checked Out';
+        let displayStatus: BookingRecord['status'] = 'Pending';
+        if (b.reservation_status === 'Confirmed') displayStatus = 'Confirmed';
+        else if (b.reservation_status === 'CheckedIn' || b.reservation_status === 'Checked In') displayStatus = 'Checked In';
+        else if (b.reservation_status === 'CheckedOut' || b.reservation_status === 'Checked Out') displayStatus = 'Checked Out';
         else if (b.reservation_status === 'Cancelled') displayStatus = 'Cancelled';
+        else if (b.reservation_status === 'Reserved') displayStatus = 'Reserved';
 
         return {
           id: String(b.reservation_id),
-          roomId: associatedRoom ? associatedRoom.roomCategoryId : "",
-          roomName: associatedCat ? associatedCat.name : "Unknown Category",
-          roomUnitId: String(b.room_id),
-          roomUnitNumber: associatedRoom ? associatedRoom.roomNumber : undefined,
+          roomId: categoryId,
+          roomName: associatedCat ? associatedCat.name : (associatedRoom ? "Cottage Room" : "Unassigned Room"),
+          roomUnitId: b.room_id ? String(b.room_id) : "",
+          roomUnitNumber: associatedRoom ? associatedRoom.roomNumber : "Unassigned",
           guestName: b.guest_name || `Customer #${b.customer_id}`,
           email: b.guest_email || "guest@seyeyalodge.com",
           checkIn: b.check_in_date,
@@ -166,14 +220,66 @@ export const useAccommodation = () => {
   // Room Categories CRUD
   const addCategory = async (category: Omit<RoomType, 'id'>) => {
     try {
-      const descPayload = `${category.description} | ${category.capacity} | ${category.amenities.join(',')} | ${category.image}`;
-      await api.post('/accommodation/categories', {
+      const res = await api.post('/accommodation/categories', {
         category_name: category.name,
-        description: descPayload,
+        description: category.description || '',
         base_rate: category.priceUGX || category.priceUSD || 0,
         is_active: true,
         photos: category.photos || []
       });
+
+      const categoryId = res.data?.room_category_id || res.data?.id;
+
+      if (categoryId) {
+        // 1. Sync Assigned Amenities
+        if (category.selectedAmenityIds && Array.isArray(category.selectedAmenityIds)) {
+          const numericIds = category.selectedAmenityIds
+            .map((id: any) => parseInt(String(id), 10))
+            .filter((id: number) => !isNaN(id) && id > 0);
+          if (numericIds.length > 0) {
+            try {
+              await api.post(`/accommodation/categories/${categoryId}/amenities`, numericIds);
+            } catch (aErr) {
+              console.warn("Category amenity assignment error:", aErr);
+            }
+          }
+        }
+
+        // 2. Sync Rate Options / Rate Plans
+        if (category.rateOptions && Array.isArray(category.rateOptions)) {
+          for (const rateOpt of category.rateOptions) {
+            try {
+              await api.post(`/accommodation/categories/${categoryId}/rates`, {
+                rate_name: rateOpt.name,
+                price: Number(rateOpt.priceUGX) || Number(rateOpt.priceUSD) || category.priceUGX || category.priceUSD,
+                description: rateOpt.description || '',
+                is_active: rateOpt.isActive !== false
+              });
+            } catch (rErr) {
+              console.warn("Category rate plan error:", rErr);
+            }
+          }
+        }
+
+        // 3. Sync Category Policies
+        if (category.selectedPolicyIds && Array.isArray(category.selectedPolicyIds)) {
+          for (const polId of category.selectedPolicyIds) {
+            const numericPolId = parseInt(String(polId), 10);
+            if (!isNaN(numericPolId) && numericPolId > 0) {
+              try {
+                await api.post(`/accommodation/categories/${categoryId}/policies`, {
+                  policy_id: numericPolId,
+                  value: 'Standard Policy',
+                  is_active: true
+                });
+              } catch (pErr) {
+                console.warn("Category policy assignment error:", pErr);
+              }
+            }
+          }
+        }
+      }
+
       await fetchAccommodationData();
       addNotification('Category Added', `Created new room category: ${category.name}`, 'booking');
     } catch (err: any) {
@@ -184,14 +290,64 @@ export const useAccommodation = () => {
 
   const updateCategory = async (updatedCat: RoomType) => {
     try {
-      const descPayload = `${updatedCat.description} | ${updatedCat.capacity} | ${updatedCat.amenities.join(',')} | ${updatedCat.image}`;
-      await api.put(`/accommodation/categories/${updatedCat.id}`, {
+      const categoryId = updatedCat.id;
+      await api.put(`/accommodation/categories/${categoryId}`, {
         category_name: updatedCat.name,
-        description: descPayload,
+        description: updatedCat.description || '',
         base_rate: updatedCat.priceUGX || updatedCat.priceUSD || 0,
         is_active: true,
         photos: updatedCat.photos || []
       });
+
+      // 1. Sync Assigned Amenities
+      if (updatedCat.selectedAmenityIds && Array.isArray(updatedCat.selectedAmenityIds)) {
+        const numericIds = updatedCat.selectedAmenityIds
+          .map((id: any) => parseInt(String(id), 10))
+          .filter((id: number) => !isNaN(id) && id > 0);
+        if (numericIds.length > 0) {
+          try {
+            await api.post(`/accommodation/categories/${categoryId}/amenities`, numericIds);
+          } catch (aErr) {
+            console.warn("Category amenity assignment update error:", aErr);
+          }
+        }
+      }
+
+      // 2. Sync Rate Options / Rate Plans
+      if (updatedCat.rateOptions && Array.isArray(updatedCat.rateOptions)) {
+        for (const rateOpt of updatedCat.rateOptions) {
+          try {
+            await api.post(`/accommodation/categories/${categoryId}/rates`, {
+              rate_name: rateOpt.name,
+              price: Number(rateOpt.priceUGX) || Number(rateOpt.priceUSD) || updatedCat.priceUGX || updatedCat.priceUSD,
+              currency: 'USD',
+              description: rateOpt.description || '',
+              is_active: rateOpt.isActive !== false
+            });
+          } catch (rErr) {
+            console.warn("Category rate plan update error:", rErr);
+          }
+        }
+      }
+
+      // 3. Sync Category Policies
+      if (updatedCat.selectedPolicyIds && Array.isArray(updatedCat.selectedPolicyIds)) {
+        for (const polId of updatedCat.selectedPolicyIds) {
+          const numericPolId = parseInt(String(polId), 10);
+          if (!isNaN(numericPolId) && numericPolId > 0) {
+            try {
+              await api.post(`/accommodation/categories/${categoryId}/policies`, {
+                policy_id: numericPolId,
+                value: 'Standard Policy',
+                is_active: true
+              });
+            } catch (pErr) {
+              console.warn("Category policy assignment update error:", pErr);
+            }
+          }
+        }
+      }
+
       await fetchAccommodationData();
       addNotification('Category Updated', `Updated room category: ${updatedCat.name}`, 'booking');
     } catch (err: any) {
@@ -275,6 +431,15 @@ export const useAccommodation = () => {
   };
 
   // Bookings CRUD
+  const isUnitBookedForDates = (unitId: string, checkIn: string, checkOut: string, excludeBookingId?: string) => {
+    return bookings.some(b => {
+      if (excludeBookingId && b.id === excludeBookingId) return false;
+      if (b.roomUnitId !== unitId) return false;
+      if (b.status === 'Cancelled' || b.status === 'Checked Out') return false;
+      return b.checkIn < checkOut && b.checkOut > checkIn;
+    });
+  };
+
   const reserveRoom = async (
     room: RoomType,
     guestName: string,
@@ -287,30 +452,18 @@ export const useAccommodation = () => {
     try {
       const customerId = await getOrCreateCustomer(guestName, email);
       
-      // If no roomUnitId assigned, search for available room unit in category
-      let targetRoomId = roomUnitId ? parseInt(roomUnitId) : null;
-      if (!targetRoomId) {
-        const matchingUnit = roomUnits.find(ru => ru.roomCategoryId === room.id && ru.roomStatus === 'Available');
-        if (matchingUnit) {
-          targetRoomId = parseInt(matchingUnit.id);
-        } else {
-          // Fallback to first room in category if none available
-          const firstInCat = roomUnits.find(ru => ru.roomCategoryId === room.id);
-          if (firstInCat) targetRoomId = parseInt(firstInCat.id);
-        }
-      }
-
-      if (!targetRoomId) {
-        throw new Error("No room units configured for this category.");
-      }
+      const targetRoomId = roomUnitId && roomUnitId.trim() !== "" ? parseInt(roomUnitId) : null;
+      const targetCategoryId = room && room.id ? parseInt(room.id) : null;
 
       await api.post('/accommodation/reservations', {
         customer_id: customerId,
         room_id: targetRoomId,
+        room_category_id: targetCategoryId,
         check_in_date: checkIn,
         check_out_date: checkOut,
         num_adults: 2,
-        num_children: 0
+        num_children: 0,
+        reservation_status: 'Pending'
       });
 
       await fetchAccommodationData();
@@ -328,24 +481,8 @@ export const useAccommodation = () => {
         customerId = await getOrCreateCustomer(booking.guestName, booking.email);
       }
       
-      let targetRoomId = booking.roomUnitId ? parseInt(booking.roomUnitId) : null;
-      if (!targetRoomId) {
-        // Auto-assign available room unit
-        const matchingUnit = roomUnits.find(ru => ru.roomCategoryId === booking.roomId && ru.roomStatus === 'Available');
-        if (matchingUnit) {
-          targetRoomId = parseInt(matchingUnit.id);
-        } else {
-          // Fallback to first room in category
-          const firstInCat = roomUnits.find(ru => ru.roomCategoryId === booking.roomId);
-          if (firstInCat) {
-            targetRoomId = parseInt(firstInCat.id);
-          }
-        }
-      }
-
-      if (!targetRoomId) {
-        throw new Error("No rooms are configured in this category. Please create a room unit first.");
-      }
+      const targetRoomId = booking.roomUnitId && booking.roomUnitId.trim() !== "" ? parseInt(booking.roomUnitId) : null;
+      const targetCategoryId = booking.roomId && booking.roomId.trim() !== "" ? parseInt(booking.roomId) : null;
 
       const guestsList = booking.guests || [];
       const numAdults = guestsList.length > 0 ? guestsList.filter(g => !g.is_child).length : 1;
@@ -354,10 +491,13 @@ export const useAccommodation = () => {
       await api.post('/accommodation/reservations', {
         customer_id: customerId,
         room_id: targetRoomId,
+        room_category_id: targetCategoryId,
+        category_id: targetCategoryId,
         check_in_date: booking.checkIn,
         check_out_date: booking.checkOut,
         num_adults: numAdults,
         num_children: numChildren,
+        reservation_status: booking.status || 'Pending',
         guests: guestsList
       });
 
@@ -376,28 +516,10 @@ export const useAccommodation = () => {
         customerId = await getOrCreateCustomer(updatedBooking.guestName, updatedBooking.email);
       }
       
-      // Update by deleting old and creating new if room or date changes,
-      // or simply delete and recreate as a clean update mechanism for full forms.
       await api.delete(`/accommodation/reservations/${updatedBooking.id}`);
       
-      let targetRoomId = updatedBooking.roomUnitId ? parseInt(updatedBooking.roomUnitId) : null;
-      if (!targetRoomId) {
-        // Auto-assign available room unit
-        const matchingUnit = roomUnits.find(ru => ru.roomCategoryId === updatedBooking.roomId && ru.roomStatus === 'Available');
-        if (matchingUnit) {
-          targetRoomId = parseInt(matchingUnit.id);
-        } else {
-          // Fallback to first room in category
-          const firstInCat = roomUnits.find(ru => ru.roomCategoryId === updatedBooking.roomId);
-          if (firstInCat) {
-            targetRoomId = parseInt(firstInCat.id);
-          }
-        }
-      }
-
-      if (!targetRoomId) {
-        throw new Error("No rooms are configured in this category. Please create a room unit first.");
-      }
+      const targetRoomId = updatedBooking.roomUnitId && updatedBooking.roomUnitId.trim() !== "" ? parseInt(updatedBooking.roomUnitId) : null;
+      const targetCategoryId = updatedBooking.roomId && updatedBooking.roomId.trim() !== "" ? parseInt(updatedBooking.roomId) : null;
 
       const guestsList = updatedBooking.guests || [];
       const numAdults = guestsList.length > 0 ? guestsList.filter(g => !g.is_child).length : 1;
@@ -406,10 +528,13 @@ export const useAccommodation = () => {
       await api.post('/accommodation/reservations', {
         customer_id: customerId,
         room_id: targetRoomId,
+        room_category_id: targetCategoryId,
+        category_id: targetCategoryId,
         check_in_date: updatedBooking.checkIn,
         check_out_date: updatedBooking.checkOut,
         num_adults: numAdults,
         num_children: numChildren,
+        reservation_status: updatedBooking.status || 'Pending',
         guests: guestsList
       });
 
@@ -429,11 +554,11 @@ export const useAccommodation = () => {
       } else if (newStatus === 'Checked Out') {
         await api.post(`/accommodation/reservations/${bookingId}/checkout`);
         addNotification('Guest Check-out Alert', 'Checked out guest successfully', 'booking');
-      } else if (newStatus === 'Cancelled') {
+      } else {
         await api.patch(`/accommodation/reservations/${bookingId}`, {
-          reservation_status: 'Cancelled'
+          reservation_status: newStatus
         });
-        addNotification('Booking Cancelled', 'Cancelled booking successfully', 'booking');
+        addNotification('Booking Status Updated', `Updated status to ${newStatus}`, 'booking');
       }
       await fetchAccommodationData();
     } catch (err: any) {

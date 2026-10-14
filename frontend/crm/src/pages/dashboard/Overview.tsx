@@ -47,10 +47,10 @@ export const Overview: React.FC = () => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Introduction Banner */}
-      <div className="rounded-3xl bg-[#D2FE54] p-6 shadow-sm relative overflow-hidden">
-        <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-black/5 blur-[40px] pointer-events-none" />
-        <h3 className="text-xl font-bold text-primary tracking-tight">Staff Executive Hub</h3>
-        <p className="mt-1 text-sm text-zinc-800 max-w-xl">
+      <div className="rounded-3xl bg-gradient-to-r from-[#0A2540] via-[#0F2C59] to-[#0A192F] p-6 shadow-sm relative overflow-hidden border border-[#D4AF37]/30">
+        <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-[#D4AF37]/10 blur-[40px] pointer-events-none" />
+        <h3 className="text-xl font-bold text-[#D4AF37] tracking-tight">Staff Executive Hub</h3>
+        <p className="mt-1 text-sm text-zinc-300 max-w-xl">
           Consolidated analytics across Seyeya Cottage booking sheets, kitchen tickets, and corporate event quotas.
         </p>
       </div>
@@ -150,7 +150,7 @@ export const Overview: React.FC = () => {
           </CardHeader>
           <CardContent className="h-[250px] w-full">
             {isMounted && (
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              <ResponsiveContainer width="100%" height={230} minWidth={0} minHeight={230}>
                 <AreaChart data={analytics.monthlyTrendData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorLodge" x1="0" y1="0" x2="0" y2="1">

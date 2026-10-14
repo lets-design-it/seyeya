@@ -35,9 +35,9 @@ interface NavMainProps {
   userRole: string
 }
 
-export function NavMain({ items, activeTab, setActiveTab, userRole }: NavMainProps) {
-  // Filter items by user role
-  const allowedItems = items.filter(item => item.roles.includes(userRole))
+export function NavMain({ items, activeTab, setActiveTab }: NavMainProps) {
+  // Items are already filtered dynamically based on page permissions in AppSidebar
+  const allowedItems = items;
 
   return (
     <SidebarGroup>
@@ -65,17 +65,17 @@ export function NavMain({ items, activeTab, setActiveTab, userRole }: NavMainPro
                         tooltip={item.title}
                         className={`w-full flex items-center gap-3 px-3.5 py-5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
                           isParentActive
-                            ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                            : "text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                            ? "bg-[#0A2540] text-[#D4AF37] border border-[#D4AF37]/30 shadow-xs dark:bg-[#162A45] dark:text-[#F3C649]"
+                            : "text-zinc-400 hover:bg-[#0A2540]/20 hover:text-amber-400 dark:hover:bg-[#162A45]/30 dark:hover:text-amber-300"
                         }`}
                       >
                         {Icon && <Icon className="h-4.5 w-4.5 shrink-0" />}
                         <span>{item.title}</span>
-                        <ChevronRightIcon className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 text-zinc-400" />
+                        <ChevronRightIcon className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 text-[#D4AF37]/60" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <SidebarMenuSub className="mt-1 ml-4 border-l border-zinc-200 dark:border-zinc-800 pl-2 space-y-1">
+                      <SidebarMenuSub className="mt-1 ml-4 border-l border-[#D4AF37]/20 dark:border-[#D4AF37]/30 pl-2 space-y-1">
                         {item.items?.map((subItem) => {
                           const isSubActive = activeTab === subItem.id
                           return (
@@ -85,8 +85,8 @@ export function NavMain({ items, activeTab, setActiveTab, userRole }: NavMainPro
                                 isActive={isSubActive}
                                 className={`w-full text-left py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer ${
                                   isSubActive
-                                    ? "bg-black! text-white! hover:bg-black! hover:text-white! dark:bg-white! dark:text-black!"
-                                    : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                                    ? "bg-[#0A2540]! text-[#D4AF37]! border border-[#D4AF37]/30 shadow-xs dark:bg-[#162A45]! dark:text-[#F3C649]!"
+                                    : "text-zinc-400 hover:text-[#D4AF37] dark:hover:text-[#F3C649]"
                                 }`}
                               >
                                 <span>{subItem.title}</span>
@@ -111,8 +111,8 @@ export function NavMain({ items, activeTab, setActiveTab, userRole }: NavMainPro
                   isActive={isActive}
                   className={`w-full flex items-center gap-3 px-3.5 py-5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer ${
                     isActive
-                      ? "bg-black! text-white! hover:bg-black! hover:text-white! shadow-sm dark:bg-white! dark:text-black!"
-                      : "text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                      ? "bg-[#0A2540]! text-[#D4AF37]! border border-[#D4AF37]/30 shadow-xs dark:bg-[#162A45]! dark:text-[#F3C649]!"
+                      : "text-zinc-400 hover:bg-[#0A2540]/20 hover:text-[#D4AF37] dark:hover:bg-[#162A45]/30 dark:hover:text-[#F3C649]"
                   }`}
                 >
                   {Icon && <Icon className="h-4.5 w-4.5 shrink-0" />}

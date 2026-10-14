@@ -44,6 +44,7 @@ class TokenResponse(BaseModel):
     is_staff: Optional[bool] = False
     customer_id: Optional[int] = None
     roles: Optional[List[str]] = []
+    permissions: Optional[List[str]] = []
 
 
 class RefreshTokenRequest(BaseModel):
@@ -378,6 +379,7 @@ class MenuItemResponse(BaseModel):
     image_url: Optional[str] = None
     allergen_info: Optional[str] = None
     preparation_time: Optional[int] = None
+    is_vat_inclusive: Optional[bool] = True
     is_available: bool
     is_active: bool
     extras: Optional[List[MenuExtraResponse]] = []
@@ -397,6 +399,7 @@ class MenuItemCreate(BaseModel):
     image_url: Optional[str] = None
     allergen_info: Optional[str] = None
     preparation_time: Optional[int] = None
+    is_vat_inclusive: Optional[bool] = True
     is_available: Optional[bool] = True
     is_active: Optional[bool] = True
 
@@ -410,6 +413,7 @@ class MenuItemUpdate(BaseModel):
     image_url: Optional[str] = None
     allergen_info: Optional[str] = None
     preparation_time: Optional[int] = None
+    is_vat_inclusive: Optional[bool] = None
     is_available: Optional[bool] = None
     is_active: Optional[bool] = None
 
@@ -455,6 +459,8 @@ class RestaurantOrderCreate(BaseModel):
     delivery_charge: Optional[Decimal] = None
     preferred_time: Optional[datetime] = None
     special_instr: Optional[str] = None
+    allergy_info: Optional[str] = None
+    assigned_waiter: Optional[int] = None
     items: List[OrderItemCreate]
 
 
@@ -462,6 +468,17 @@ class RestaurantOrderUpdate(BaseModel):
     order_status: Optional[str] = None
     payment_status: Optional[str] = None
     amount_paid: Optional[Decimal] = None
+    seating_location: Optional[str] = None
+    delivery_option: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_lat: Optional[Decimal] = None
+    delivery_lng: Optional[Decimal] = None
+    delivery_charge: Optional[Decimal] = None
+    preferred_time: Optional[datetime] = None
+    special_instr: Optional[str] = None
+    allergy_info: Optional[str] = None
+    assigned_waiter: Optional[int] = None
+    tracking_number: Optional[str] = None
 
 
 class OrderItemExtraResponse(BaseModel):
@@ -528,16 +545,24 @@ class RestaurantOrderResponse(BaseModel):
     order_number: str
     seating_location: Optional[str] = None
     delivery_option: Optional[str] = None
+    delivery_address: Optional[str] = None
+    delivery_lat: Optional[Decimal] = None
+    delivery_lng: Optional[Decimal] = None
     delivery_distance_km: Optional[Decimal] = Decimal(0)
     price_per_km_used: Optional[Decimal] = Decimal(0)
     delivery_charge: Optional[Decimal] = Decimal(0)
     tax_amount: Optional[Decimal] = Decimal(0)
+    preferred_time: Optional[datetime] = None
+    special_instr: Optional[str] = None
+    allergy_info: Optional[str] = None
     sub_total: Optional[Decimal] = Decimal(0)
     total_amount: Optional[Decimal] = Decimal(0)
     amount_paid: Optional[Decimal] = Decimal(0)
     balance_due: Optional[Decimal] = Decimal(0)
     order_status: Optional[str] = "Pending"
     payment_status: Optional[str] = "Pending"
+    assigned_waiter: Optional[int] = None
+    tracking_number: Optional[str] = None
     items: List[OrderItemResponse]
     created_at: datetime
     updated_at: datetime
@@ -710,7 +735,6 @@ class AmenityBase(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
-    price: Optional[Decimal] = Field(default=0.00)
     is_active: Optional[bool] = True
 
 
@@ -741,7 +765,6 @@ class RoomAmenityItem(BaseModel):
     name: str
     description: Optional[str] = None
     icon: Optional[str] = None
-    price: Optional[Decimal] = Field(default=0.00)
     category_id: Optional[int] = None
     category_name: Optional[str] = None
     category: Optional[AmenityCategoryResponse] = None
@@ -762,7 +785,6 @@ class RoomRatePlanBase(BaseModel):
     rate_code: Optional[str] = None
     description: Optional[str] = None
     price: Decimal
-    currency: Optional[str] = None
     pricing_basis: Optional[str] = "PER_NIGHT"
     meal_plan: Optional[str] = None
     cancellation_policy: Optional[str] = None
@@ -790,7 +812,6 @@ class RoomRatePlanUpdate(BaseModel):
     rate_code: Optional[str] = None
     description: Optional[str] = None
     price: Optional[Decimal] = None
-    currency: Optional[str] = None
     pricing_basis: Optional[str] = None
     meal_plan: Optional[str] = None
     cancellation_policy: Optional[str] = None
@@ -907,12 +928,13 @@ class RoomCategoryResponse(BaseModel):
                 imgs_val = []
                 
             grouped_amenities = []
-            if hasattr(data, 'amenity_assignments') and data.amenity_assignments:
+            amenity_assignments = data.__dict__.get('amenity_assignments') or []
+            if amenity_assignments:
                 cat_dict = {}
-                for assignment in data.amenity_assignments:
-                    am = getattr(assignment, 'amenity', None)
+                for assignment in amenity_assignments:
+                    am = assignment.__dict__.get('amenity') if hasattr(assignment, '__dict__') else None
                     if not am: continue
-                    cat = getattr(am, 'category', None)
+                    cat = am.__dict__.get('category') if hasattr(am, '__dict__') else None
                     
                     cat_id = cat.category_id if cat else 0
                     cat_name = cat.name if cat else "Other Room Amenities"
@@ -942,7 +964,6 @@ class RoomCategoryResponse(BaseModel):
                         "name": am.name,
                         "description": am.description,
                         "icon": am.icon,
-                        "price": getattr(am, 'price', 0.00),
                         "category_id": cat_id if cat_id != 0 else None,
                         "category_name": cat_name,
                         "category": cat_obj
@@ -1028,6 +1049,7 @@ class RoomCategoryCreate(BaseModel):
     room_size: Optional[float] = Field(None, gt=0)
     room_size_unit: Optional[str] = "m²"
     max_occupancy: int = Field(2, gt=0)
+    is_vat_inclusive: Optional[bool] = True
     is_active: bool = True
     photos: Optional[List[str]] = []
     beds: List[BedItem] = []
@@ -1051,6 +1073,7 @@ class RoomCategoryUpdate(BaseModel):
     room_size: Optional[float] = Field(None, gt=0)
     room_size_unit: Optional[str] = None
     max_occupancy: Optional[int] = Field(None, gt=0)
+    is_vat_inclusive: Optional[bool] = None
     is_active: Optional[bool] = None
     photos: Optional[List[str]] = None
     beds: Optional[List[BedItem]] = None
@@ -1114,9 +1137,12 @@ class GuestReservationDetail(BaseModel):
 
 class AccommodationReservationCreate(BaseModel):
     customer_id: int
-    room_id: int
+    room_id: Optional[int] = None
+    room_category_id: Optional[int] = None
+    category_id: Optional[int] = None
     check_in_date: date
     check_out_date: date
+    reservation_status: Optional[str] = "Pending"
     num_adults: int = 1
     num_children: int = 0
     special_requests: Optional[str] = None
@@ -1147,6 +1173,9 @@ class GuestCheckInDetailResponse(BaseModel):
 
 
 class AccommodationReservationUpdate(BaseModel):
+    room_id: Optional[int] = None
+    room_category_id: Optional[int] = None
+    category_id: Optional[int] = None
     reservation_status: Optional[str] = None
     payment_status: Optional[str] = None
     amount_paid: Optional[Decimal] = None
@@ -1155,7 +1184,9 @@ class AccommodationReservationUpdate(BaseModel):
 class AccommodationReservationResponse(BaseModel):
     reservation_id: int
     customer_id: int
-    room_id: int
+    room_id: Optional[int] = None
+    room_category_id: Optional[int] = None
+    category_id: Optional[int] = None
     reservation_code: str
     check_in_date: date
     check_out_date: date
@@ -1182,25 +1213,56 @@ class AccommodationReservationResponse(BaseModel):
 class ConferenceHallCreate(BaseModel):
     hall_name: str
     capacity: int
+    standard_price: Optional[Decimal] = Decimal('0.00')
+    hourly_rate: Optional[Decimal] = Decimal('0.00')
+    half_day_rate: Optional[Decimal] = Decimal('0.00')
+    full_day_rate: Optional[Decimal] = Decimal('0.00')
+    description: Optional[str] = None
+    image: Optional[str] = None
+    photos: Optional[List[str]] = None
+    main_photo_index: Optional[int] = 0
+    facility_ids: Optional[List[int]] = None
+    facilities: Optional[Any] = None
+
+
+class ConferenceHallUpdate(BaseModel):
+    hall_name: Optional[str] = None
+    capacity: Optional[int] = None
+    standard_price: Optional[Decimal] = None
     hourly_rate: Optional[Decimal] = None
     half_day_rate: Optional[Decimal] = None
     full_day_rate: Optional[Decimal] = None
     description: Optional[str] = None
-    amenities: Optional[str] = None
+    image: Optional[str] = None
+    photos: Optional[List[str]] = None
+    main_photo_index: Optional[int] = None
+    is_active: Optional[bool] = None
+    facility_ids: Optional[List[int]] = None
+    facilities: Optional[Any] = None
 
 
 class ConferenceHallResponse(BaseModel):
     hall_id: int
     hall_name: str
     capacity: int
-    hourly_rate: Optional[Decimal] = None
-    full_day_rate: Optional[Decimal] = None
-    half_day_rate: Optional[Decimal] = None
+    standard_price: Optional[Decimal] = Decimal('0.00')
+    hourly_rate: Optional[Decimal] = Decimal('0.00')
+    half_day_rate: Optional[Decimal] = Decimal('0.00')
+    full_day_rate: Optional[Decimal] = Decimal('0.00')
     description: Optional[str] = None
-    amenities: Optional[str] = None
+    image: Optional[str] = None
+    photos: Optional[List[str]] = None
+    main_photo_index: Optional[int] = 0
+    is_active: Optional[bool] = True
+    facilities: List["ConferenceHallFacilityResponse"] = []
     
     class Config:
         from_attributes = True
+
+
+class ConferenceHallFacilitiesAssign(BaseModel):
+    facility_ids: Optional[List[int]] = None
+    facilities: Optional[Any] = None
 
 
 class ConferenceResourceResponse(BaseModel):
@@ -1243,17 +1305,24 @@ class ConferenceReservationCreate(BaseModel):
     event_end_date: date
     start_time: time
     end_time: time
-    num_participants: int
-    booking_type: str
+    num_participants: Optional[int] = 1
+    hall_standard_price: Optional[Decimal] = None
+    subtotal: Optional[Decimal] = None
+    total_amount: Optional[Decimal] = None
+    amount_paid: Optional[Decimal] = Decimal('0.00')
+    balance_due: Optional[Decimal] = None
+    booking_type: Optional[str] = "Standard"
+    payment_responsibility: Optional[str] = "Individual"
     special_requests: Optional[str] = None
-    resources: Optional[List[ConferenceResourceBookingCreate]] = None
-    meals: Optional[List[ConferenceMealBookingCreate]] = None
+    facilities: Optional[List['ConferenceBookingFacilityCreate']] = None
 
 
 class ConferenceReservationUpdate(BaseModel):
     reservation_status: Optional[str] = None
     payment_status: Optional[str] = None
     amount_paid: Optional[Decimal] = None
+    total_amount: Optional[Decimal] = None
+    balance_due: Optional[Decimal] = None
 
 
 class ConferenceReservationResponse(BaseModel):
@@ -1266,20 +1335,169 @@ class ConferenceReservationResponse(BaseModel):
     event_end_date: date
     start_time: time
     end_time: time
-    booking_type: str
     num_participants: int
+    hall_standard_price: Optional[Decimal] = None
+    subtotal: Decimal
     total_amount: Decimal
     amount_paid: Decimal
     balance_due: Decimal
+    booking_type: Optional[str] = None
+    payment_responsibility: str
     reservation_status: str
     payment_status: str
+    special_requests: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     customer: Optional[CustomerResponse] = None
     hall: Optional[ConferenceHallResponse] = None
+    facilities: Optional[List['ConferenceBookingFacilityResponse']] = Field(None, alias="facility_bookings")
     
     class Config:
         from_attributes = True
+
+
+class ConferenceEventCreate(BaseModel):
+    event_name: str
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    price: Decimal = Decimal('0.00')
+    discount: Optional[Decimal] = Decimal('0.00')
+    event_date: Optional[datetime] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    is_active: Optional[bool] = True
+
+
+class ConferenceEventUpdate(BaseModel):
+    event_name: Optional[str] = None
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    price: Optional[Decimal] = None
+    discount: Optional[Decimal] = None
+    event_date: Optional[datetime] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class ConferenceEventResponse(BaseModel):
+    event_id: int
+    event_name: str
+    description: Optional[str] = None
+    photo_url: Optional[str] = None
+    price: Decimal
+    discount: Decimal
+    event_date: Optional[datetime] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ConferenceFacilityCategoryBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    icon_name: Optional[str] = "Folder"
+    is_active: Optional[bool] = True
+
+
+class ConferenceFacilityCategoryCreate(ConferenceFacilityCategoryBase):
+    pass
+
+
+class ConferenceFacilityCategoryUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    icon_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ConferenceCategoryFacilitiesAssign(BaseModel):
+    facility_ids: List[int]
+
+
+class ConferenceFacilityCategoryResponse(ConferenceFacilityCategoryBase):
+    id: int
+    created_at: Optional[datetime] = None
+    facilities: List["ConferenceFacilityResponse"] = []
+
+    class Config:
+        from_attributes = True
+
+
+class ConferenceFacilityBase(BaseModel):
+    name: str
+    category_id: Optional[int] = None
+    category: Optional[str] = "General Services"
+    description: Optional[str] = None
+    price: Decimal = Decimal('0.00')
+    pricing_type: Optional[str] = "FIXED"
+    icon_name: Optional[str] = "Sparkles"
+    is_active: Optional[bool] = True
+
+
+class ConferenceFacilityCreate(ConferenceFacilityBase):
+    pass
+
+
+class ConferenceFacilityUpdate(BaseModel):
+    name: Optional[str] = None
+    category_id: Optional[int] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[Decimal] = None
+    pricing_type: Optional[str] = None
+    icon_name: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class ConferenceFacilityResponse(ConferenceFacilityBase):
+    facility_id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ConferenceHallFacilityResponse(BaseModel):
+    id: int
+    hall_id: int
+    facility_id: int
+    status: str
+    facility: Optional[ConferenceFacilityResponse] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class ConferenceBookingFacilityCreate(BaseModel):
+    facility_id: int
+    quantity: int = 1
+    unit_price: Optional[Decimal] = None
+    total_price: Optional[Decimal] = None
+
+
+class ConferenceBookingFacilityResponse(BaseModel):
+    id: int
+    booking_id: int
+    facility_id: int
+    quantity: int
+    unit_price: Decimal
+    total_price: Decimal
+    facility: Optional[ConferenceFacilityResponse] = None
+
+    class Config:
+        from_attributes = True
+
+ConferenceReservationCreate.model_rebuild()
+ConferenceReservationResponse.model_rebuild()
+ConferenceHallFacilityResponse.model_rebuild()
+ConferenceHallResponse.model_rebuild()
 
 
 # =====================================================================
@@ -1935,3 +2153,105 @@ class NotificationStatistics(BaseModel):
     deleted_count: int
     category_counts: dict
 
+
+# =====================================================================
+# REPORT SCHEMAS
+# =====================================================================
+
+class ReportExecutiveSummary(BaseModel):
+    total_revenue_ugx: Decimal
+    total_revenue_usd: Decimal
+    lodge_revenue: Decimal
+    restaurant_revenue: Decimal
+    conference_revenue: Decimal
+    crm_revenue: Decimal
+    active_checkins: int
+    pending_orders: int
+    pending_quotes: int
+    distribution_data: List[dict]
+    monthly_trend_data: List[dict]
+
+
+class StaffPerformanceItem(BaseModel):
+    user_id: int
+    full_name: str
+    email: str
+    roles: List[str]
+    orders_managed_count: int
+    orders_managed_value: Decimal
+    reservations_managed_count: int
+    reservations_managed_value: Decimal
+    accounts_created_count: int
+    cancellations_count: int
+    cash_collected: Decimal
+    card_collected: Decimal
+    mobile_money_collected: Decimal
+    total_financial_collected: Decimal
+    last_active: Optional[datetime] = None
+
+
+class StaffPerformanceResponse(BaseModel):
+    period_start: Optional[datetime] = None
+    period_end: Optional[datetime] = None
+    staff_members: List[StaffPerformanceItem]
+    total_managed_value: Decimal
+
+
+class GuestAnalyticsResponse(BaseModel):
+    total_guests: int
+    online_registered_count: int
+    staff_provisioned_count: int
+    contract_clients_count: int
+    child_guests_count: int
+    total_guest_spend: Decimal
+    top_spending_guests: List[dict]
+
+
+class GuestTimelineEvent(BaseModel):
+    id: str
+    event_type: str  # Accommodation | Restaurant | Conference | Payment
+    title: str
+    date: datetime
+    amount: Decimal
+    status: str
+    details: dict
+
+
+class GuestHistory360Response(BaseModel):
+    customer_id: int
+    customer_code: str
+    full_name: str
+    email: Optional[str] = None
+    phone_number: Optional[str] = None
+    customer_type: str
+    created_at: datetime
+    total_spent: Decimal
+    visit_count: int
+    timeline: List[GuestTimelineEvent]
+
+
+class SalesChannelResponse(BaseModel):
+    restaurant_eat_in_count: int
+    restaurant_eat_in_value: Decimal
+    restaurant_room_service_count: int
+    restaurant_room_service_value: Decimal
+    restaurant_external_delivery_count: int
+    restaurant_external_delivery_value: Decimal
+    accommodation_online_count: int
+    accommodation_online_value: Decimal
+    accommodation_front_desk_count: int
+    accommodation_front_desk_value: Decimal
+
+
+class FinancialVatResponse(BaseModel):
+    gross_sales_ugx: Decimal
+    taxable_subtotal: Decimal
+    vat_collected_ugx: Decimal  # 18% VAT
+    delivery_charge_total: Decimal
+    amount_paid_total: Decimal
+    balance_due_total: Decimal
+    payment_method_breakdown: List[dict]
+
+
+# Rebuild schemas with forward references
+ConferenceFacilityCategoryResponse.model_rebuild()
