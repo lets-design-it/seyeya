@@ -17,8 +17,19 @@ class UserRegisterRequest(BaseModel):
     phone_number: Optional[str] = None
     password: str
     confirm_password: str
-    role_ids: Optional[List[int]] = None
+    role_ids: Optional[List[int]] = Field(default=None, description="Optional role IDs (leave empty for default Customer role)")
     is_staff: Optional[bool] = False
+    verification_token: Optional[str] = None
+
+    @field_validator("role_ids", mode="before")
+    @classmethod
+    def validate_role_ids(cls, v):
+        if not v:
+            return None
+        if isinstance(v, list):
+            filtered = [int(r) for r in v if isinstance(r, (int, str)) and str(r).isdigit() and int(r) > 0]
+            return filtered if filtered else None
+        return v
     
     @field_validator("password")
     @classmethod
@@ -26,6 +37,24 @@ class UserRegisterRequest(BaseModel):
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
         return v
+
+
+class EmailVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+class EmailVerificationVerify(BaseModel):
+    email: EmailStr
+    code: str = Field(..., min_length=4, max_length=6, description="4-digit verification code")
+
+
+class EmailVerificationResponse(BaseModel):
+    status: str = "success"
+    message: str
+    email: EmailStr
+    expires_in_seconds: Optional[int] = None
+    resend_cooldown_seconds: Optional[int] = None
+    verification_token: Optional[str] = None
 
 
 class UserLoginRequest(BaseModel):

@@ -192,6 +192,21 @@ class DeviceToken(Base):
     )
 
 
+class EmailVerificationCode(Base):
+    """Email verification codes for mobile and web registration"""
+    __tablename__ = "email_verification_codes"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(255), nullable=False, index=True)
+    code = Column(String(10), nullable=False)
+    verification_token = Column(String(255), unique=True, nullable=True, index=True)
+    attempts = Column(Integer, default=0, nullable=False)
+    is_verified = Column(Boolean, default=False, nullable=False)
+    verified_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # =====================================================================
 # SECTION 2: CUSTOMERS
 # =====================================================================

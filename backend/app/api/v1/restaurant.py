@@ -322,18 +322,6 @@ async def create_order(
             assigned_waiter=request.assigned_waiter
         )
         
-        # Trigger notification event for restaurant order
-        try:
-            from app.services.notifications import NotificationService
-            notif_service = NotificationService(db)
-            await notif_service.create_event(
-                event_type="Order Placed",
-                reference_type="RestaurantOrder",
-                reference_id=str(order.order_id)
-            )
-        except Exception:
-            pass
-            
         return await service.get_order(order.order_id)
     except Exception as e:
         raise HTTPException(

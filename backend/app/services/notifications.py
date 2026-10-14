@@ -5,7 +5,7 @@ import uuid
 import logging
 import smtplib
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional, List, Dict, Any
@@ -149,37 +149,57 @@ class NotificationService:
             res = await self.db.execute(stmt)
             user = res.scalar_one_or_none()
             if user and user.email:
-                # Queue email for record keeping
-                email_item = EmailQueue(
-                    notification_id=notification.id,
-                    recipient_email=user.email,
-                    recipient_name=user.full_name,
+                await self.queue_and_send_email(
+                    to_email=user.email,
                     subject=title,
                     body=message,
-                    status="Pending",
-                    retry_count=0
+                    to_name=user.full_name,
+                    notification_id=notification.id,
+                    background_tasks=background_tasks
                 )
-                self.db.add(email_item)
-                await self.db.flush()
-
-                # Dispatch email immediately using send_email_async / background_tasks
-                if background_tasks:
-                    background_tasks.add_task(
-                        send_email_sync,
-                        to_email=user.email,
-                        subject=title,
-                        html_content=message,
-                        to_name=user.full_name
-                    )
-                else:
-                    asyncio.create_task(send_email_async(
-                        to_email=user.email,
-                        subject=title,
-                        html_content=message,
-                        to_name=user.full_name
-                    ))
 
         return notification
+
+    async def queue_and_send_email(
+        self,
+        to_email: str,
+        subject: str,
+        body: str,
+        to_name: Optional[str] = None,
+        notification_id: Optional[uuid.UUID] = None,
+        background_tasks: Optional[Any] = None
+    ) -> EmailQueue:
+        """Create an EmailQueue record and dispatch it immediately via background task / worker"""
+        email_item = EmailQueue(
+            notification_id=notification_id,
+            recipient_email=to_email,
+            recipient_name=to_name,
+            subject=subject,
+            body=body,
+            status="Pending",
+            retry_count=0
+        )
+        self.db.add(email_item)
+        try:
+            await self.db.commit()
+            await self.db.refresh(email_item)
+        except Exception:
+            await self.db.flush()
+
+        queue_id = email_item.id
+
+        async def _dispatch_task(qid: uuid.UUID):
+            try:
+                await self.send_email_by_queue_id(qid)
+            except Exception as e:
+                logger.error(f"Error in background email dispatch for queue {qid}: {str(e)}")
+
+        if background_tasks:
+            background_tasks.add_task(_dispatch_task, queue_id)
+        else:
+            asyncio.create_task(_dispatch_task(queue_id))
+
+        return email_item
 
     async def create_event(
         self,
@@ -189,11 +209,29 @@ class NotificationService:
         triggered_by: Optional[int] = None,
         background_tasks: Optional[Any] = None
     ) -> NotificationEvent:
-        """Create a new system event and automatically trigger notifications"""
+        """Create a new system event and automatically trigger notifications with duplicate suppression"""
+        # Suppress duplicate events triggered within 5 seconds for same event_type, reference_type, and reference_id
+        recent_threshold = datetime.utcnow() - timedelta(seconds=5)
+        stmt_dup = select(NotificationEvent).where(
+            and_(
+                NotificationEvent.event_type == event_type,
+                NotificationEvent.reference_type == reference_type,
+                NotificationEvent.reference_id == str(reference_id),
+                NotificationEvent.created_at >= recent_threshold
+            )
+        )
+        res_dup = await self.db.execute(stmt_dup)
+        existing_event = res_dup.scalars().first()
+        if existing_event:
+            logger.info(
+                f"Duplicate event suppressed: {event_type} for {reference_type} #{reference_id} within 5s."
+            )
+            return existing_event
+
         event = NotificationEvent(
             event_type=event_type,
             reference_type=reference_type,
-            reference_id=reference_id,
+            reference_id=str(reference_id),
             triggered_by=triggered_by
         )
         self.db.add(event)
@@ -342,7 +380,7 @@ class NotificationService:
                     ).where(AccommodationReservation.reservation_id == int(ref_id))
                     res = await self.db.execute(stmt)
                     resv = res.scalar_one_or_none()
-                    if resv and resv.customer:
+                    if resv and (resv.customer or getattr(resv, 'guest_email', None)):
                         room_label = "Accommodation Room"
                         if resv.room:
                             room_label = f"Room {resv.room.room_number}"
@@ -363,25 +401,30 @@ class NotificationService:
                             balance_due=str(getattr(resv, 'balance_due', resv.total_amount) or "0.00"),
                             special_requests=resv.special_requests or ""
                         )
-                        email_body = get_reservation_confirmation_email(resv.customer.full_name, resv.reservation_code, details_html)
+                        cust_name = resv.customer.full_name if resv.customer else getattr(resv, 'guest_name', 'Guest')
+                        cust_email = resv.customer.email if resv.customer else getattr(resv, 'guest_email', None)
+                        cust_uid = resv.customer.user_id if resv.customer else None
 
-                        if resv.customer.user_id:
+                        email_body = get_reservation_confirmation_email(cust_name, resv.reservation_code, details_html)
+
+                        if cust_uid:
                             await notify_user(
-                                resv.customer.user_id,
+                                cust_uid,
                                 f"Accommodation Reservation Confirmed - {resv.reservation_code}",
                                 email_body,
                                 "Reservation"
                             )
-                        elif resv.customer.email:
-                            asyncio.create_task(send_email_async(
-                                to_email=resv.customer.email,
+                        elif cust_email:
+                            await self.queue_and_send_email(
+                                to_email=cust_email,
                                 subject=f"Accommodation Reservation Confirmed - {resv.reservation_code}",
-                                html_content=email_body,
-                                to_name=resv.customer.full_name
-                            ))
+                                body=email_body,
+                                to_name=cust_name,
+                                background_tasks=background_tasks
+                            )
 
                         # Notify Hotel Managers / Receptionists
-                        mgr_msg = f"New room reservation {resv.reservation_code} received from customer {resv.customer.full_name} for {room_label}."
+                        mgr_msg = f"New room reservation {resv.reservation_code} received from guest {cust_name} for {room_label}."
                         await notify_role("Hotel Manager", "New Reservation Received", mgr_msg, "Reservation")
                         await notify_role("Receptionist", "New Reservation Received", mgr_msg, "Reservation")
 
@@ -427,12 +470,13 @@ class NotificationService:
                                 "Reservation"
                             )
                         elif resv.customer.email:
-                            asyncio.create_task(send_email_async(
+                            await self.queue_and_send_email(
                                 to_email=resv.customer.email,
                                 subject=f"Conference Reservation Confirmed - {resv.reservation_code}",
-                                html_content=email_body,
-                                to_name=resv.customer.full_name
-                            ))
+                                body=email_body,
+                                to_name=resv.customer.full_name,
+                                background_tasks=background_tasks
+                            )
 
                         mgr_msg = f"New conference reservation {resv.reservation_code} received from customer {resv.customer.full_name} for {hall_name}."
                         await notify_role("Hotel Manager", "New Conference Reservation", mgr_msg, "Reservation")
@@ -443,20 +487,25 @@ class NotificationService:
                     stmt = select(AccommodationReservation).options(selectinload(AccommodationReservation.customer)).where(AccommodationReservation.reservation_id == int(ref_id))
                     res = await self.db.execute(stmt)
                     resv = res.scalar_one_or_none()
-                    if resv and resv.customer:
-                        details = f"<p>Reservation Code: {resv.reservation_code}</p>"
-                        email_body = get_reservation_cancellation_email(resv.customer.full_name, resv.reservation_code, details)
-                        if resv.customer.user_id:
-                            await notify_user(resv.customer.user_id, "Reservation Cancelled", email_body, "Reservation", priority="HIGH")
-                        elif resv.customer.email:
-                            asyncio.create_task(send_email_async(
-                                to_email=resv.customer.email,
-                                subject=f"Reservation Cancelled - {resv.reservation_code}",
-                                html_content=email_body,
-                                to_name=resv.customer.full_name
-                            ))
+                    if resv and (resv.customer or getattr(resv, 'guest_email', None)):
+                        cust_name = resv.customer.full_name if resv.customer else getattr(resv, 'guest_name', 'Guest')
+                        cust_email = resv.customer.email if resv.customer else getattr(resv, 'guest_email', None)
+                        cust_uid = resv.customer.user_id if resv.customer else None
 
-                        mgr_msg = f"Room Reservation {resv.reservation_code} has been cancelled by the customer."
+                        details = f"<p>Reservation Code: {resv.reservation_code}</p>"
+                        email_body = get_reservation_cancellation_email(cust_name, resv.reservation_code, details)
+                        if cust_uid:
+                            await notify_user(cust_uid, "Reservation Cancelled", email_body, "Reservation", priority="HIGH")
+                        elif cust_email:
+                            await self.queue_and_send_email(
+                                to_email=cust_email,
+                                subject=f"Reservation Cancelled - {resv.reservation_code}",
+                                body=email_body,
+                                to_name=cust_name,
+                                background_tasks=background_tasks
+                            )
+
+                        mgr_msg = f"Room Reservation {resv.reservation_code} has been cancelled."
                         await notify_role("Hotel Manager", "Reservation Cancelled", mgr_msg, "Reservation", priority="HIGH")
 
                 elif ref_type == "ConferenceReservation":
@@ -470,12 +519,13 @@ class NotificationService:
                         if resv.customer.user_id:
                             await notify_user(resv.customer.user_id, "Conference Reservation Cancelled", email_body, "Reservation", priority="HIGH")
                         elif resv.customer.email:
-                            asyncio.create_task(send_email_async(
+                            await self.queue_and_send_email(
                                 to_email=resv.customer.email,
                                 subject=f"Conference Reservation Cancelled - {resv.reservation_code}",
-                                html_content=email_body,
-                                to_name=resv.customer.full_name
-                            ))
+                                body=email_body,
+                                to_name=resv.customer.full_name,
+                                background_tasks=background_tasks
+                            )
 
             elif event_type == "Reservation Reminder":
                 if ref_type == "AccommodationReservation":
@@ -488,6 +538,14 @@ class NotificationService:
                         email_body = get_reservation_reminder_email(resv.customer.full_name, resv.reservation_code, details)
                         if resv.customer.user_id:
                             await notify_user(resv.customer.user_id, "Upcoming Reservation Reminder", email_body, "Reservation")
+                        elif resv.customer.email:
+                            await self.queue_and_send_email(
+                                to_email=resv.customer.email,
+                                subject=f"Upcoming Reservation Reminder - {resv.reservation_code}",
+                                body=email_body,
+                                to_name=resv.customer.full_name,
+                                background_tasks=background_tasks
+                            )
 
             # 3. Restaurant Orders Triggers
             elif event_type == "Order Placed":
@@ -537,12 +595,13 @@ class NotificationService:
                             "Orders"
                         )
                     elif order.customer.email:
-                        asyncio.create_task(send_email_async(
+                        await self.queue_and_send_email(
                             to_email=order.customer.email,
                             subject=f"Restaurant Order Confirmed - {order.order_number}",
-                            html_content=confirm_body,
-                            to_name=order.customer.full_name
-                        ))
+                            body=confirm_body,
+                            to_name=order.customer.full_name,
+                            background_tasks=background_tasks
+                        )
 
                     # Notify Chef and Waiters
                     staff_msg = f"New restaurant order {order.order_number} placed for preparation. Amount: UGX {order.total_amount}."
@@ -555,20 +614,21 @@ class NotificationService:
                 stmt = select(RestaurantOrder).options(selectinload(RestaurantOrder.customer)).where(RestaurantOrder.order_id == int(ref_id))
                 res = await self.db.execute(stmt)
                 order = res.scalar_one_or_none()
-                if order and order.customer and order.customer.user_id:
+                if order and order.customer:
                     msg = f"Your order {order.order_number} status changed to: {event_type.replace('Order ', '')}."
-                    await self.create_notification(
-                        recipient_id=order.customer.user_id,
-                        title=f"Order {event_type.replace('Order ', '')}",
-                        message=msg,
-                        category="Orders",
-                        notification_type=event_type,
-                        channel="IN_APP",
-                        reference_type=ref_type,
-                        reference_id=ref_id,
-                        event_id=event.id,
-                        background_tasks=background_tasks
-                    )
+                    if order.customer.user_id:
+                        await self.create_notification(
+                            recipient_id=order.customer.user_id,
+                            title=f"Order {event_type.replace('Order ', '')}",
+                            message=msg,
+                            category="Orders",
+                            notification_type=event_type,
+                            channel="IN_APP",
+                            reference_type=ref_type,
+                            reference_id=ref_id,
+                            event_id=event.id,
+                            background_tasks=background_tasks
+                        )
                     
                     if event_type == "Order Ready":
                         # Notify Waiter to pickup
@@ -581,28 +641,84 @@ class NotificationService:
                 stmt = select(Payment).options(selectinload(Payment.customer)).where(Payment.payment_id == int(ref_id))
                 res = await self.db.execute(stmt)
                 payment = res.scalar_one_or_none()
-                if payment and payment.customer and payment.customer.user_id:
+                if payment:
+                    cust_name = payment.customer.full_name if payment.customer else None
+                    cust_email = payment.customer.email if payment.customer else None
+                    cust_uid = payment.customer.user_id if payment.customer else None
+
+                    # If customer email is missing, lookup via linked order or reservation
+                    if not cust_email:
+                        if payment.reference_type == "RestaurantOrder":
+                            from app.models import RestaurantOrder
+                            o_res = await self.db.execute(select(RestaurantOrder).options(selectinload(RestaurantOrder.customer)).where(RestaurantOrder.order_id == payment.reference_id))
+                            ord_obj = o_res.scalar_one_or_none()
+                            if ord_obj and ord_obj.customer:
+                                cust_name = cust_name or ord_obj.customer.full_name
+                                cust_email = ord_obj.customer.email
+                                cust_uid = cust_uid or ord_obj.customer.user_id
+                        elif payment.reference_type == "AccommodationReservation":
+                            from app.models import AccommodationReservation
+                            a_res = await self.db.execute(select(AccommodationReservation).options(selectinload(AccommodationReservation.customer)).where(AccommodationReservation.reservation_id == payment.reference_id))
+                            acc_obj = a_res.scalar_one_or_none()
+                            if acc_obj:
+                                if acc_obj.customer:
+                                    cust_name = cust_name or acc_obj.customer.full_name
+                                    cust_email = acc_obj.customer.email
+                                    cust_uid = cust_uid or acc_obj.customer.user_id
+                                elif getattr(acc_obj, "guest_email", None):
+                                    cust_name = cust_name or getattr(acc_obj, "guest_name", "Guest")
+                                    cust_email = acc_obj.guest_email
+                        elif payment.reference_type == "ConferenceReservation":
+                            from app.models import ConferenceReservation
+                            c_res = await self.db.execute(select(ConferenceReservation).options(selectinload(ConferenceReservation.customer)).where(ConferenceReservation.conference_res_id == payment.reference_id))
+                            conf_obj = c_res.scalar_one_or_none()
+                            if conf_obj and conf_obj.customer:
+                                cust_name = cust_name or conf_obj.customer.full_name
+                                cust_email = conf_obj.customer.email
+                                cust_uid = cust_uid or conf_obj.customer.user_id
+
+                    cust_name = cust_name or "Valued Customer"
+
                     if event_type == "Payment Successful":
                         receipt_body = get_payment_receipt_email(
-                            full_name=payment.customer.full_name,
+                            full_name=cust_name,
                             pay_ref=payment.payment_reference,
                             amount=str(payment.amount_paid),
                             method=payment.payment_method,
                             date_str=str(payment.created_at)
                         )
-                        await notify_user(
-                            payment.customer.user_id,
-                            "Payment Successful (Receipt)",
-                            receipt_body,
-                            "Payments"
-                        )
-                        # Notify Cashier
-                        cashier_msg = f"Payment of {payment.amount_paid} verified for reference {payment.payment_reference}."
+                        if cust_uid:
+                            await notify_user(
+                                cust_uid,
+                                f"Payment Receipt - {payment.payment_reference}",
+                                receipt_body,
+                                "Payments"
+                            )
+                        elif cust_email:
+                            await self.queue_and_send_email(
+                                to_email=cust_email,
+                                subject=f"Payment Receipt - {payment.payment_reference}",
+                                body=receipt_body,
+                                to_name=cust_name,
+                                background_tasks=background_tasks
+                            )
+                        # Notify Cashier & Managers
+                        cashier_msg = f"Payment of UGX {payment.amount_paid} verified for reference {payment.payment_reference}."
                         await notify_role("Cashier", "Payment Verified", cashier_msg, "Payments")
                         await notify_role("Restaurant Manager", "Payment Verified", cashier_msg, "Payments")
+                        await notify_role("Hotel Manager", "Payment Verified", cashier_msg, "Payments")
                     else:
-                        msg = f"Payment failure alert for reference {payment.payment_reference}. Status: {event_type}"
-                        await notify_user(payment.customer.user_id, "Payment Alert", msg, "Payments", priority="HIGH")
+                        msg = f"Payment alert for reference {payment.payment_reference}. Status: {event_type}"
+                        if cust_uid:
+                            await notify_user(cust_uid, "Payment Alert", msg, "Payments", priority="HIGH")
+                        elif cust_email:
+                            await self.queue_and_send_email(
+                                to_email=cust_email,
+                                subject=f"Payment Alert - {payment.payment_reference}",
+                                body=f"<p>{msg}</p>",
+                                to_name=cust_name,
+                                background_tasks=background_tasks
+                            )
 
             # Commit all created events and notifications so they persist
             await self.db.commit()
@@ -612,16 +728,27 @@ class NotificationService:
 
     async def send_email_by_queue_id(self, queue_id: uuid.UUID) -> bool:
         """Process email sending for a specific queue ID (runs in background)"""
-        # Small non-blocking delay to ensure caller transaction commits
-        await asyncio.sleep(0.5)
-
         from app.db.database import AsyncSessionLocal
+
+        # Retry finding item in case caller transaction is in the middle of committing
+        item = None
+        for _ in range(6):
+            async with AsyncSessionLocal() as db:
+                stmt = select(EmailQueue).where(EmailQueue.id == queue_id)
+                result = await db.execute(stmt)
+                item = result.scalar_one_or_none()
+                if item:
+                    break
+            await asyncio.sleep(0.5)
+
+        if not item or item.status in ["Sent", "Processing"]:
+            return False
+
         async with AsyncSessionLocal() as db:
-            # Fetch the item
+            # Re-fetch inside session
             stmt = select(EmailQueue).where(EmailQueue.id == queue_id)
             result = await db.execute(stmt)
             item = result.scalar_one_or_none()
-            
             if not item or item.status in ["Sent", "Processing"]:
                 return False
 

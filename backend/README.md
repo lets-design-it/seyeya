@@ -132,14 +132,98 @@ All endpoints are prefixed with `/api/v1`.
 
 | Module | Base Path | Key Features / Endpoints |
 | :--- | :--- | :--- |
-| **Auth** | `/api/v1/auth` | User login, JWT token generation, password reset request/confirm |
+| **Auth** | `/api/v1/auth` | User login, registration, 4-digit email verification, JWT token refresh, password reset |
 | **CRM / Customers** | `/api/v1/crm` | Customer CRUD, profiles, customer transaction and order history, customer password reset |
 | **Restaurant** | `/api/v1/restaurant` | Menu category & item management, order creation, order status updates, and order reviews |
 | **Accommodation** | `/api/v1/accommodation` | Room availability search, reservation booking, check-in, and check-out |
 | **Conference** | `/api/v1/conference` | Hall directories, reservations, resource equipment bookings, and meal package options |
 | **Payments** | `/api/v1/payments` | Initiate mobile money/card payments and admin verification/propagation |
 
-> **Note for Frontend Developers:** If you are integrating the Restaurant Delivery module, please read the [DISTANCE_DELIVERY_GUIDE.md](./DISTANCE_DELIVERY_GUIDE.md) for details on order payloads and fee calculation.
+---
+
+## 📱 Mobile & Web Email Verification & Registration Flow
+
+To prevent unauthorized registrations and verify user identities, email verification is performed via a **4-digit verification code** before account creation.
+
+### Email Policy & Branding
+* **No Temporary Passwords**: Passwords originate directly from the user/frontend during registration. The backend does not generate temporary passwords or reset links during account creation.
+* **Branded Emails**: All transactional emails use the SEYEYA Courts brand identity:
+  * **Primary Navy**: `#1e3a5f`
+  * **Accent Gold**: `#d4af37`
+* **Staff Accounts (Not Mandatory)**: Email verification is **not mandatory for staff members**. Staff accounts created by administrators through the CRM portal (`POST /api/v1/auth/users`) bypass email verification completely and are created directly with their credentials. On the registration endpoint, `verification_token` is optional and intended specifically for customer self-registration (e.g., via the mobile app).
+* **Account Created Notification**: Upon successful registration, the user receives an official "Account Created" email with their account details and a direct login link.
+* **Password Resets**: Password reset tokens are generated exclusively upon user request via `/api/v1/auth/password-reset/request`.
+
+### 3-Step Verification & Registration API Flow
+
+#### Step 1: Request 4-Digit Verification Code
+**`POST /api/v1/auth/email-verification/request`**
+
+Mobile client prompts the user for their email and initiates verification:
+```json
+{
+  "email": "customer@example.com"
+}
+```
+* **Behavior**:
+  * Validates that the email is not already registered and active.
+  * Generates a 4-digit numeric code (e.g. `4829`) valid for **10 minutes**.
+  * Enforces a **60-second cooldown** between resend attempts to prevent abuse.
+  * Sends a branded email with the 4-digit code.
+* **Response (`200 OK`)**:
+  ```json
+  {
+    "status": "success",
+    "message": "A 4-digit verification code has been sent to your email.",
+    "email": "customer@example.com",
+    "expires_in_seconds": 600,
+    "resend_cooldown_seconds": 60
+  }
+  ```
+
+#### Step 2: Verify the 4-Digit Code
+**`POST /api/v1/auth/email-verification/verify`**
+
+Mobile client submits the 4-digit code entered by the user:
+```json
+{
+  "email": "customer@example.com",
+  "code": "4829"
+}
+```
+* **Behavior**:
+  * Verifies the code against the active record.
+  * Protected against brute force (maximum 5 attempts).
+  * Upon success, issues a single-use `verification_token` valid for **15 minutes**.
+* **Response (`200 OK`)**:
+  ```json
+  {
+    "status": "success",
+    "message": "Email verified successfully.",
+    "email": "customer@example.com",
+    "verification_token": "ev_OG0u2_789kLx..."
+  }
+  ```
+
+#### Step 3: Complete Account Registration
+**`POST /api/v1/auth/register`**
+
+Mobile client submits the full registration form including the user's chosen password and the `verification_token`:
+```json
+{
+  "full_name": "Jean Dupont",
+  "email": "customer@example.com",
+  "password": "ChosenPassword123!",
+  "confirm_password": "ChosenPassword123!",
+  "phone_number": "+250788123456",
+  "verification_token": "ev_OG0u2_789kLx..."
+}
+```
+* **Behavior**:
+  * Validates and consumes the `verification_token`.
+  * Creates user and customer records with the hashed password.
+  * Dispatches the branded "Account Created" email.
+  * Returns JWT tokens (`access_token`, `refresh_token`) and user profile for immediate login.
 
 ---
 

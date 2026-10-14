@@ -1,11 +1,15 @@
 """
 Responsive HTML/CSS Email Templates for SEYEYA Courts Branding
 """
+from datetime import datetime
+from typing import Optional
 
-def get_base_template(content_html: str, title: str) -> str:
+def get_base_template(content_html: str, title: str, year: Optional[int] = None) -> str:
     """
     Wraps content in a professional, responsive layout matching SEYEYA Courts branding.
     """
+    if year is None:
+        year = datetime.utcnow().year
     return f"""
 <!DOCTYPE html>
 <html>
@@ -35,21 +39,26 @@ def get_base_template(content_html: str, title: str) -> str:
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
         }}
         .header {{
-            background: linear-gradient(135deg, #1e293b, #0f172a);
-            padding: 30px;
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f1c2e 100%);
+            padding: 32px 30px;
             text-align: center;
             color: #ffffff;
+            border-bottom: 3px solid #d4af37;
         }}
         .header h1 {{
             margin: 0;
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 700;
-            letter-spacing: -0.5px;
+            letter-spacing: 0.5px;
+            color: #ffffff;
         }}
         .header p {{
-            margin: 5px 0 0 0;
-            font-size: 14px;
-            color: #94a3b8;
+            margin: 6px 0 0 0;
+            font-size: 13px;
+            color: #d4af37;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
         }}
         .body {{
             padding: 40px 30px;
@@ -57,9 +66,12 @@ def get_base_template(content_html: str, title: str) -> str:
             line-height: 1.6;
             font-size: 16px;
         }}
+        h1, h2, h3 {{
+            color: #1e3a5f;
+        }}
         .footer {{
             background-color: #f8fafc;
-            padding: 20px 30px;
+            padding: 24px 30px;
             text-align: center;
             font-size: 12px;
             color: #64748b;
@@ -67,19 +79,34 @@ def get_base_template(content_html: str, title: str) -> str:
         }}
         .button {{
             display: inline-block;
-            background-color: #3b82f6;
+            background-color: #1e3a5f;
             color: #ffffff !important;
-            padding: 12px 24px;
+            padding: 12px 28px;
             border-radius: 6px;
             text-decoration: none;
             font-weight: 600;
-            margin: 20px 0;
+            font-size: 15px;
+            margin: 15px 0;
             text-align: center;
+            border: 1px solid #d4af37;
+        }}
+        .button-gold {{
+            display: inline-block;
+            background-color: #d4af37;
+            color: #1e3a5f !important;
+            padding: 12px 28px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 15px;
+            margin: 15px 0;
+            text-align: center;
+            border: 1px solid #b89327;
         }}
         .highlight {{
-            background-color: #eff6ff;
-            border-left: 4px solid #3b82f6;
-            padding: 15px;
+            background-color: #f7f9fc;
+            border-left: 4px solid #d4af37;
+            padding: 16px 20px;
             border-radius: 0 8px 8px 0;
             margin: 20px 0;
         }}
@@ -94,7 +121,7 @@ def get_base_template(content_html: str, title: str) -> str:
         }}
         .meta-table td.label {{
             font-weight: 600;
-            color: #475569;
+            color: #1e3a5f;
             width: 35%;
         }}
     </style>
@@ -110,14 +137,66 @@ def get_base_template(content_html: str, title: str) -> str:
                 {content_html}
             </div>
             <div class="footer">
-                <p>&copy; 2026 SEYEYA Courts. All rights reserved.</p>
-                <p>Plot 45, Seyeya Road, Kampala, Uganda | Tel: +256 700 000 000</p>
+                <p>&copy; {year} SEYEYA Courts. All rights reserved.</p>
             </div>
         </div>
     </div>
 </body>
 </html>
 """
+
+def get_account_created_email(
+    full_name: str,
+    email: str,
+    role_title: Optional[str] = "Customer",
+    login_link: Optional[str] = None,
+    *args,
+    **kwargs
+) -> str:
+    """
+    Email notification sent to user/customer when their account has been created.
+    Uses SEYEYA Courts theme colors (#1e3a5f and #d4af37).
+    Does NOT contain temporary passwords as the password is provided from the frontend.
+    """
+    login_url = login_link or "http://localhost:5173/login"
+    role_html = f"<p style='margin: 6px 0 0 0;'>Account Type: <strong style='color: #1e3a5f;'>{role_title}</strong></p>" if role_title else ""
+    
+    content = f"""
+    <div style="text-align: center; margin-bottom: 24px;">
+        <div style="display: inline-block; width: 56px; height: 56px; line-height: 56px; border-radius: 50%; background-color: #f0f4f9; border: 2px solid #d4af37; text-align: center;">
+            <span style="font-size: 26px; color: #1e3a5f;">&#10003;</span>
+        </div>
+        <h2 style="color: #1e3a5f; margin: 16px 0 6px 0; font-size: 22px; font-weight: 700;">Account Created Successfully</h2>
+        <p style="color: #64748b; margin: 0; font-size: 14px;">Welcome to SEYEYA Courts</p>
+    </div>
+
+    <p>Dear <strong>{full_name}</strong>,</p>
+    <p>Your account with <strong>SEYEYA Courts</strong> has been created successfully. We are excited to welcome you!</p>
+    
+    <div class="highlight">
+        <p style="margin: 0; font-size: 13px; font-weight: 700; color: #1e3a5f; text-transform: uppercase; letter-spacing: 0.5px;">Account Information</p>
+        <div style="margin-top: 10px; font-size: 15px;">
+            <p style="margin: 4px 0 0 0;">Registered Email / Username: <strong style="color: #1e3a5f;">{email}</strong></p>
+            {role_html}
+        </div>
+    </div>
+
+    <p>You can now log in using your registered email and the password you set during registration.</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="{login_url}" class="button" style="background-color: #1e3a5f; color: #ffffff !important; border: 2px solid #d4af37; padding: 13px 32px; border-radius: 6px; text-decoration: none; font-weight: 600; display: inline-block;">Log In to Your Account</a>
+    </div>
+
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; margin-top: 25px;">
+        <p style="font-size: 13px; color: #64748b; margin: 0; line-height: 1.5;">
+            <strong style="color: #1e3a5f;">Security Reminder:</strong> Keep your password confidential. If you ever forget your password, you can securely request a password reset link at any time from the login page.
+        </p>
+    </div>
+
+    <p style="margin-top: 25px;">Warm regards,<br><strong style="color: #1e3a5f;">The SEYEYA Courts Team</strong></p>
+    """
+    return get_base_template(content, "Welcome to SEYEYA Courts - Account Created")
+
 
 def get_registration_welcome_email(
     full_name: str,
@@ -126,63 +205,69 @@ def get_registration_welcome_email(
     login_link: str = "",
     role_title: Optional[str] = None
 ) -> str:
-    pwd_html = f"<p style='margin:5px 0 0 0;'>Password: <strong style='font-family: monospace; font-size: 15px; color: #1e3a8a;'>{password}</strong></p>" if password else ""
-    role_html = f"<p style='margin:5px 0 0 0;'>Role / Account Type: <strong>{role_title}</strong></p>" if role_title else ""
-    content = f"""
-    <h2>Welcome to SEYEYA Courts!</h2>
-    <p>Dear {full_name},</p>
-    <p>Thank you for registering an account with SEYEYA Courts. We are delighted to have you with us!</p>
-    <div class="highlight">
-        <p style="margin:0; font-size: 15px; font-weight: 700; color: #1e293b;">Your Account Credentials:</p>
-        <p style="margin:8px 0 0 0;">Username / Email: <strong>{email}</strong></p>
-        {pwd_html}
-        {role_html}
-        <p style="margin:8px 0 0 0;">Login Page: <a href="{login_link}" style="color: #2563eb; text-decoration: underline;">{login_link}</a></p>
-    </div>
-    <p>You can now log in using the button below to browse our restaurant, make accommodation reservations, and book conference halls:</p>
-    <div style="text-align: center; margin: 25px 0;">
-        <a href="{login_link}" class="button">Log In to Your Account</a>
-    </div>
-    <p>Or copy this link to your browser:</p>
-    <p style="font-size: 13px; color: #64748b; word-break: break-all; background: #f8fafc; padding: 8px 12px; border-radius: 6px;">{login_link}</p>
-    <p>If you have any questions or need assistance, feel free to reach out to our team at any time.</p>
-    <p>Warm regards,<br>The SEYEYA Courts Team</p>
-    """
-    return get_base_template(content, "Welcome to SEYEYA Courts")
+    """Legacy alias for backward compatibility - sends the account created email."""
+    return get_account_created_email(
+        full_name=full_name,
+        email=email,
+        role_title=role_title or "Customer",
+        login_link=login_link
+    )
 
 
 def get_welcome_email(
     full_name: str,
     email: str,
-    temp_password: str,
-    reset_link: str,
-    role_title: str = "User",
+    temp_password: Optional[str] = None,
+    reset_link: Optional[str] = None,
+    role_title: str = "Customer",
     login_link: Optional[str] = None
 ) -> str:
-    login_url = login_link or (reset_link.split("/reset-password")[0] + "/login" if "/reset-password" in reset_link else reset_link)
-    content = f"""
-    <h2>Welcome to SEYEYA Courts!</h2>
-    <p>Dear {full_name},</p>
-    <p>An account has been created for you ({role_title}) on the SEYEYA Courts platform.</p>
-    <div class="highlight">
-        <p style="margin:0; font-size: 15px; font-weight: 700; color: #1e293b;">Your Login Credentials:</p>
-        <p style="margin:8px 0 0 0;">Username / Email: <strong>{email}</strong></p>
-        <p style="margin:5px 0 0 0;">Password / Temporary Password: <strong style='font-family: monospace; font-size: 15px; color: #1e3a8a;'>{temp_password}</strong></p>
-        <p style="margin:5px 0 0 0;">Role: <strong>{role_title}</strong></p>
-        <p style="margin:8px 0 0 0;">Login Page: <a href="{login_url}" style="color: #2563eb; text-decoration: underline;">{login_url}</a></p>
-    </div>
-    <p>You can log in directly using your temporary credentials above, or click below to set up a personalized password:</p>
-    <div style="text-align: center; margin: 25px 0;">
-        <a href="{reset_link}" class="button">Set Up Your Password</a>
-        &nbsp;&nbsp;
-        <a href="{login_url}" class="button" style="background-color: #0f172a;">Go to Login Page</a>
-    </div>
-    <p>Login Page Link:</p>
-    <p style="font-size: 13px; color: #64748b; word-break: break-all; background: #f8fafc; padding: 8px 12px; border-radius: 6px;">{login_url}</p>
-    <p>If you did not request this account, please contact our support desk.</p>
-    <p>Warm regards,<br>The SEYEYA Courts Team</p>
+    """Sends account created email without temporary password."""
+    login_url = login_link or (reset_link.split("/reset-password")[0] + "/login" if reset_link and "/reset-password" in reset_link else "http://localhost:5173/login")
+    return get_account_created_email(
+        full_name=full_name,
+        email=email,
+        role_title=role_title,
+        login_link=login_url
+    )
+
+
+def get_email_verification_code_email(email: str, code: str) -> str:
     """
-    return get_base_template(content, "Welcome to SEYEYA Courts")
+    4-digit verification code email for mobile / web account verification.
+    Uses SEYEYA Courts theme colors (#1e3a5f and #d4af37).
+    """
+    content = f"""
+    <div style="text-align: center; margin-bottom: 24px;">
+        <div style="display: inline-block; width: 56px; height: 56px; line-height: 56px; border-radius: 50%; background-color: #f0f4f9; border: 2px solid #d4af37; text-align: center;">
+            <span style="font-size: 26px; color: #1e3a5f;">&#128274;</span>
+        </div>
+        <h2 style="color: #1e3a5f; margin: 16px 0 6px 0; font-size: 22px; font-weight: 700;">Verify Your Email Address</h2>
+        <p style="color: #64748b; margin: 0; font-size: 14px;">One-Time Verification Code</p>
+    </div>
+
+    <p>Hello,</p>
+    <p>Thank you for initiating account creation with <strong>SEYEYA Courts</strong>. Please enter the 4-digit verification code below to verify your email address (<strong>{email}</strong>) and proceed:</p>
+
+    <div style="text-align: center; margin: 30px 0;">
+        <div style="display: inline-block; background-color: #1e3a5f; color: #d4af37; padding: 18px 40px; border-radius: 10px; font-size: 38px; font-weight: 800; letter-spacing: 14px; border: 2px solid #d4af37; font-family: 'Courier New', Courier, monospace; box-shadow: 0 4px 12px rgba(30, 58, 95, 0.15);">
+            {code}
+        </div>
+    </div>
+
+    <p style="text-align: center; color: #64748b; font-size: 14px; margin: 15px 0;">
+        This code is valid for <strong>10 minutes</strong>. Never share this code with anyone.
+    </p>
+
+    <div class="highlight" style="margin-top: 25px;">
+        <p style="margin: 0; font-size: 13px; color: #475569;">
+            If you did not request this verification code or attempt to create an account, please disregard this email.
+        </p>
+    </div>
+
+    <p style="margin-top: 25px;">Warm regards,<br><strong style="color: #1e3a5f;">The SEYEYA Courts Security Team</strong></p>
+    """
+    return get_base_template(content, "SEYEYA Courts - Email Verification Code")
 
 def get_verification_email(full_name: str, verification_link: str) -> str:
     content = f"""
