@@ -2,7 +2,7 @@
 Repository implementations for different modules
 """
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, delete, update
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime, date
@@ -13,7 +13,9 @@ from app.models import (
     ConferenceFacility, ConferenceHallFacility, ConferenceBookingFacility,
     Payment, CustomerReview, OrderItem, OrderItemExtra, MenuExtra, MenuChoice, MenuAccompaniment,
     Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken,
-    RoomAmenity, Amenity, RoomRatePlan, RoomPolicy
+    RoomAmenity, Amenity, RoomRatePlan, RoomPolicy,
+    UserSession, DeviceToken, NotificationPreference, Notification, EmailQueue,
+    NotificationEvent, PaymentMethod, LoginLog, ActivityLog, AuditLog, OrderStatusHistory, HotelDetails, PaymentRefund
 )
 
 
@@ -83,25 +85,120 @@ class UserRepository:
         await self.db.commit()
         return await self.get_by_id(user.user_id)
 
-    async def delete_user(self, user_id: int) -> bool:
-        """Attempt hard delete, fallback to soft delete for relational integrity"""
+    async def permanent_delete_user(self, user_id: int) -> bool:
+        """Permanently delete a user and decouple/cascade all foreign key references"""
+        user = await self.get_by_id(user_id)
+        if not user:
+            return False
+
+        try:
+            # 1. Nullify non-cascading staff action foreign keys
+            await self.db.execute(
+                update(RolePermission).where(RolePermission.granted_by == user_id).values(granted_by=None)
+            )
+            await self.db.execute(
+                update(RestaurantOrder).where(RestaurantOrder.assigned_waiter == user_id).values(assigned_waiter=None)
+            )
+            await self.db.execute(
+                update(OrderStatusHistory).where(OrderStatusHistory.changed_by == user_id).values(changed_by=None)
+            )
+            await self.db.execute(
+                update(AccommodationReservation).where(AccommodationReservation.checked_in_by == user_id).values(checked_in_by=None)
+            )
+            await self.db.execute(
+                update(AccommodationReservation).where(AccommodationReservation.checked_out_by == user_id).values(checked_out_by=None)
+            )
+            await self.db.execute(
+                update(Payment).where(Payment.verified_by == user_id).values(verified_by=None)
+            )
+            await self.db.execute(
+                update(PaymentRefund).where(PaymentRefund.processed_by == user_id).values(processed_by=None)
+            )
+            await self.db.execute(
+                update(AuditLog).where(AuditLog.changed_by == user_id).values(changed_by=None)
+            )
+            await self.db.execute(
+                update(CustomerReview).where(CustomerReview.replied_by == user_id).values(replied_by=None)
+            )
+            await self.db.execute(
+                update(HotelDetails).where(HotelDetails.created_by == user_id).values(created_by=None)
+            )
+            await self.db.execute(
+                update(HotelDetails).where(HotelDetails.updated_by == user_id).values(updated_by=None)
+            )
+            await self.db.execute(
+                update(NotificationEvent).where(NotificationEvent.triggered_by == user_id).values(triggered_by=None)
+            )
+            # Decouple customer user link
+            await self.db.execute(
+                update(Customer).where(Customer.user_id == user_id).values(user_id=None)
+            )
+
+            # 2. Delete user-specific cascading tables
+            user_notifs = await self.db.execute(
+                select(Notification.id).where(Notification.recipient_id == user_id)
+            )
+            notif_ids = user_notifs.scalars().all()
+            if notif_ids:
+                await self.db.execute(
+                    delete(EmailQueue).where(EmailQueue.notification_id.in_(notif_ids))
+                )
+            await self.db.execute(
+                delete(EmailQueue).where(EmailQueue.recipient_email == user.email)
+            )
+            await self.db.execute(
+                delete(Notification).where(Notification.recipient_id == user_id)
+            )
+            await self.db.execute(
+                delete(NotificationPreference).where(NotificationPreference.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(UserRole).where(UserRole.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(UserSession).where(UserSession.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(PasswordResetToken).where(PasswordResetToken.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(DeviceToken).where(DeviceToken.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(PaymentMethod).where(PaymentMethod.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(LoginLog).where(LoginLog.user_id == user_id)
+            )
+            await self.db.execute(
+                delete(ActivityLog).where(ActivityLog.user_id == user_id)
+            )
+
+            # 3. Permanently delete the User row
+            await self.db.execute(
+                delete(User).where(User.user_id == user_id)
+            )
+            await self.db.commit()
+            return True
+        except Exception:
+            await self.db.rollback()
+            raise
+
+    async def delete_user(self, user_id: int, hard: bool = True) -> bool:
+        """Delete user - permanently by default or soft-deactivate"""
+        if hard:
+            try:
+                return await self.permanent_delete_user(user_id)
+            except Exception:
+                pass
+
+        # Fallback to soft delete
         user = await self.get_by_id(user_id)
         if user:
-            try:
-                # Attempt to hard delete the user and cascade related roles/sessions/tokens
-                await self.db.delete(user)
-                await self.db.commit()
-                return True
-            except Exception:
-                # Fallback to soft delete if there are active references in other tables
-                await self.db.rollback()
-                # Re-fetch user in new transaction context and deactivate
-                user = await self.get_by_id(user_id)
-                if user:
-                    user.is_active = False
-                    self.db.add(user)
-                    await self.db.commit()
-                    return True
+            user.is_active = False
+            self.db.add(user)
+            await self.db.commit()
+            return True
         return False
 
 

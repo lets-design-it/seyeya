@@ -316,17 +316,24 @@ async def create_order(
             delivery_charge=request.delivery_charge,
             delivery_address=request.delivery_address,
             preferred_time=request.preferred_time,
-            special_instr=request.special_instr
+            special_instr=request.special_instr,
+            seating_location=request.seating_location,
+            allergy_info=request.allergy_info,
+            assigned_waiter=request.assigned_waiter
         )
         
-        # Set additional fields
-        order.seating_location = request.seating_location
-        order.allergy_info = request.allergy_info
-        order.assigned_waiter = request.assigned_waiter
-        
-        db.add(order)
-        await db.commit()
-        
+        # Trigger notification event for restaurant order
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(db)
+            await notif_service.create_event(
+                event_type="Order Placed",
+                reference_type="RestaurantOrder",
+                reference_id=str(order.order_id)
+            )
+        except Exception:
+            pass
+            
         return await service.get_order(order.order_id)
     except Exception as e:
         raise HTTPException(

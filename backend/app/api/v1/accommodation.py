@@ -239,6 +239,18 @@ async def create_reservation(
             reservation.guest_name = reservation.customer.full_name
             reservation.guest_email = reservation.customer.email
         
+        # Trigger notification event with all details committed
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(db)
+            await notif_service.create_event(
+                event_type="Reservation Created",
+                reference_type="AccommodationReservation",
+                reference_id=str(reservation.reservation_id)
+            )
+        except Exception:
+            pass
+
         return reservation
     except Exception as e:
         raise HTTPException(
