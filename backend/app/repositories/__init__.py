@@ -2,7 +2,7 @@
 Repository implementations for different modules
 """
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, delete, update
+from sqlalchemy import select, and_, or_, delete, update, desc
 from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from datetime import datetime, date
@@ -15,7 +15,8 @@ from app.models import (
     Role, Permission, PermissionGroup, UserRole, RolePermission, PasswordResetToken,
     RoomAmenity, Amenity, RoomRatePlan, RoomPolicy,
     UserSession, DeviceToken, NotificationPreference, Notification, EmailQueue,
-    NotificationEvent, PaymentMethod, LoginLog, ActivityLog, AuditLog, OrderStatusHistory, HotelDetails, PaymentRefund
+    NotificationEvent, PaymentMethod, LoginLog, ActivityLog, AuditLog, OrderStatusHistory, HotelDetails, PaymentRefund,
+    EmailVerificationCode
 )
 
 
@@ -1407,6 +1408,78 @@ class PasswordResetRepository:
         """Mark token as used"""
         token_obj.used_at = datetime.utcnow()
         self.db.add(token_obj)
+        await self.db.commit()
+
+
+class EmailVerificationRepository:
+    """Repository for email verification code and token operations"""
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create_code(self, email: str, code: str, expires_at: datetime) -> EmailVerificationCode:
+        """Create a new 4-digit code record and invalidate any previous unverified codes for this email"""
+        clean_email = email.lower().strip()
+        await self.db.execute(
+            delete(EmailVerificationCode).where(
+                and_(
+                    EmailVerificationCode.email == clean_email,
+                    EmailVerificationCode.is_verified == False
+                )
+            )
+        )
+        record = EmailVerificationCode(
+            email=clean_email,
+            code=code,
+            attempts=0,
+            is_verified=False,
+            expires_at=expires_at
+        )
+        self.db.add(record)
+        await self.db.commit()
+        await self.db.refresh(record)
+        return record
+
+    async def get_latest_by_email(self, email: str) -> Optional[EmailVerificationCode]:
+        """Fetch the most recent verification record for an email"""
+        clean_email = email.lower().strip()
+        stmt = (
+            select(EmailVerificationCode)
+            .where(EmailVerificationCode.email == clean_email)
+            .order_by(desc(EmailVerificationCode.created_at))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
+    async def increment_attempts(self, record: EmailVerificationCode) -> int:
+        """Increment failed verification attempts"""
+        record.attempts += 1
+        self.db.add(record)
+        await self.db.commit()
+        return record.attempts
+
+    async def mark_verified(self, record: EmailVerificationCode, token: str) -> EmailVerificationCode:
+        """Mark record as verified and issue verification token"""
+        record.is_verified = True
+        record.verified_at = datetime.utcnow()
+        record.verification_token = token
+        self.db.add(record)
+        await self.db.commit()
+        await self.db.refresh(record)
+        return record
+
+    async def get_by_token(self, token: str) -> Optional[EmailVerificationCode]:
+        """Find verification record by one-time registration token"""
+        stmt = (
+            select(EmailVerificationCode)
+            .where(EmailVerificationCode.verification_token == token)
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def consume_token(self, record: EmailVerificationCode) -> None:
+        """Consume/delete verification token after registration completes"""
+        await self.db.delete(record)
         await self.db.commit()
 
 

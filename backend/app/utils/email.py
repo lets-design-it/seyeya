@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.utils.email_templates import (
     get_welcome_email,
     get_registration_welcome_email,
+    get_account_created_email,
     get_password_reset_email,
     get_password_changed_email
 )
@@ -84,27 +85,24 @@ async def send_email_async(
 def send_immediate_welcome_email(
     email: str, 
     full_name: str, 
-    temp_password: str, 
-    reset_token: str,
+    temp_password: Optional[str] = None, 
+    reset_token: Optional[str] = None,
     role_title: str = "User"
 ) -> bool:
     """
-    Sends a welcome email immediately with initial credentials and setup link.
+    Sends an account created email immediately to the user/customer.
     """
     frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
-    reset_link = f"{frontend_base}/reset-password?token={reset_token}"
     login_link = f"{frontend_base}/login"
-    html = get_welcome_email(
+    html = get_account_created_email(
         full_name=full_name,
         email=email,
-        temp_password=temp_password,
-        reset_link=reset_link,
         role_title=role_title,
         login_link=login_link
     )
     return send_email_sync(
         to_email=email,
-        subject=f"Welcome to SEYEYA Courts - Your Credentials ({role_title})",
+        subject="Welcome to SEYEYA Courts - Account Created",
         html_content=html,
         to_name=full_name
     )
@@ -117,20 +115,19 @@ def send_account_registered_email(
     role_title: Optional[str] = None
 ) -> bool:
     """
-    Sends a welcome email for newly registered accounts with username, password, and login link.
+    Sends an account created email for newly registered accounts with login link.
     """
     frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
     login_link = f"{frontend_base}/login"
-    html = get_registration_welcome_email(
+    html = get_account_created_email(
         full_name=full_name,
         email=email,
-        password=password,
-        login_link=login_link,
-        role_title=role_title
+        role_title=role_title or "Customer",
+        login_link=login_link
     )
     return send_email_sync(
         to_email=email,
-        subject="Welcome to SEYEYA Courts - Your Login Credentials",
+        subject="Welcome to SEYEYA Courts - Account Created",
         html_content=html,
         to_name=full_name
     )

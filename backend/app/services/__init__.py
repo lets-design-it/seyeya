@@ -6,7 +6,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.orm import selectinload
 from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict, Any
 import uuid
 import secrets
 import asyncio
@@ -16,17 +16,20 @@ from app.repositories import (
     UserRepository, CustomerRepository, MenuRepository,
     RestaurantOrderRepository, AccommodationRepository,
     ConferenceRepository, PaymentRepository, ReviewRepository,
-    RoleRepository, PasswordResetRepository
+    RoleRepository, PasswordResetRepository, EmailVerificationRepository
 )
 from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
 from app.models import (
     User, Customer, RestaurantOrder, OrderItem, OrderItemExtra, MenuExtra, MenuChoice, MenuAccompaniment, AccommodationReservation,
     ConferenceReservation, ConferenceResourceBooking, ConferenceMealBooking, Payment,
     UserSession, ActivityLog, LoginLog, PasswordResetToken,
-    Role, Permission, PermissionGroup, UserRole, RolePermission
+    Role, Permission, PermissionGroup, UserRole, RolePermission, EmailVerificationCode
 )
 from app.utils.email import send_email_sync, send_email_async, send_immediate_welcome_email, send_password_reset_email
-from app.utils.email_templates import get_registration_welcome_email, get_welcome_email
+from app.utils.email_templates import (
+    get_registration_welcome_email, get_welcome_email, get_account_created_email,
+    get_email_verification_code_email
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +49,24 @@ class AuthService:
         phone_number: Optional[str] = None,
         role_ids: Optional[List[int]] = None,
         is_staff: bool = False,
-        background_tasks: Optional[Any] = None
+        background_tasks: Optional[Any] = None,
+        verification_token: Optional[str] = None
     ) -> Tuple[User, str, str]:
         """Register a new user"""
+        clean_email = email.lower().strip()
+
+        # Validate verification token if supplied
+        token_record = None
+        if verification_token:
+            verif_repo = EmailVerificationRepository(self.db)
+            token_record = await verif_repo.get_by_token(verification_token)
+            if not token_record or token_record.email.lower() != clean_email or not token_record.is_verified:
+                raise ValueError("Invalid or unverified email verification token.")
+            if token_record.verified_at and (datetime.utcnow() - token_record.verified_at).total_seconds() > 3600:
+                raise ValueError("Verification token has expired. Please verify your email again.")
+
         # Check if user already exists
-        existing_user = await self.user_repo.get_by_email(email)
+        existing_user = await self.user_repo.get_by_email(clean_email)
         if existing_user:
             if not existing_user.is_active:
                 # Previously deleted/inactive user; purge completely so fresh registration succeeds
@@ -64,17 +80,33 @@ class AuthService:
         # Create user
         user = await self.user_repo.create_user(
             full_name=full_name,
-            email=email,
+            email=clean_email,
             password_hash=password_hash,
             phone_number=phone_number,
             is_staff=is_staff
         )
         
-        # Assign roles if provided
+        # Assign roles safely (filter out non-positive IDs and check database existence)
+        role_repo = RoleRepository(self.db)
+        assigned_role_count = 0
         if role_ids:
-            role_repo = RoleRepository(self.db)
-            for role_id in role_ids:
-                await role_repo.assign_role_to_user(user.user_id, role_id)
+            clean_role_ids = [r for r in role_ids if isinstance(r, int) and r > 0]
+            if clean_role_ids:
+                r_res = await self.db.execute(select(Role.role_id).where(Role.role_id.in_(clean_role_ids)))
+                valid_role_ids = r_res.scalars().all()
+                for role_id in valid_role_ids:
+                    await role_repo.assign_role_to_user(user.user_id, role_id)
+                    assigned_role_count += 1
+        
+        # Assign default Customer role if not staff and no valid roles were assigned
+        if not is_staff and assigned_role_count == 0:
+            try:
+                cust_role_res = await self.db.execute(select(Role.role_id).where(Role.role_name == "Customer"))
+                cust_role_id = cust_role_res.scalar_one_or_none()
+                if cust_role_id:
+                    await role_repo.assign_role_to_user(user.user_id, cust_role_id)
+            except Exception:
+                pass
         
         # Generate tokens
         access_token = create_access_token({
@@ -117,8 +149,13 @@ class AuthService:
                 existing_cust.user_id = user.user_id
 
         await self.db.commit()
+
+        # Consume verification token once account creation succeeds
+        if token_record:
+            verif_repo = EmailVerificationRepository(self.db)
+            await verif_repo.consume_token(token_record)
         
-        # Dispatch welcome email with username, password, and login page
+        # Dispatch account created notification email
         try:
             frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
             login_link = f"{frontend_base}/login"
@@ -134,32 +171,25 @@ class AuthService:
                 except Exception:
                     pass
 
-            welcome_html = get_registration_welcome_email(
+            welcome_html = get_account_created_email(
                 full_name=full_name,
                 email=email,
-                password=password,
-                login_link=login_link,
-                role_title=role_name_str or ("Staff Member" if is_staff else "Customer")
+                role_title=role_name_str or ("Staff Member" if is_staff else "Customer"),
+                login_link=login_link
             )
 
-            if background_tasks:
-                background_tasks.add_task(
-                    send_email_sync,
-                    to_email=email,
-                    subject="Welcome to SEYEYA Courts - Your Login Credentials",
-                    html_content=welcome_html,
-                    to_name=full_name
-                )
-            else:
-                asyncio.create_task(send_email_async(
-                    to_email=email,
-                    subject="Welcome to SEYEYA Courts - Your Login Credentials",
-                    html_content=welcome_html,
-                    to_name=full_name
-                ))
-            logger.info(f"Dispatched registration welcome email to {email}")
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.queue_and_send_email(
+                to_email=email,
+                subject="Welcome to SEYEYA Courts - Account Created",
+                body=welcome_html,
+                to_name=full_name,
+                background_tasks=background_tasks
+            )
+            logger.info(f"Dispatched account created email to {email}")
         except Exception as e:
-            logger.error(f"Error dispatching registration welcome email to {email}: {str(e)}")
+            logger.error(f"Error dispatching account created email to {email}: {str(e)}")
 
         # Trigger notification event
         try:
@@ -383,6 +413,106 @@ class AuthService:
             
         return True
 
+    async def request_email_verification(
+        self,
+        email: str,
+        background_tasks: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """Send a 4-digit verification code to the given email for registration verification"""
+        clean_email = email.lower().strip()
+        
+        # Check if active user already exists
+        existing_user = await self.user_repo.get_by_email(clean_email)
+        if existing_user and existing_user.is_active:
+            raise ValueError("An active account with this email already exists. Please log in or reset your password.")
+            
+        verif_repo = EmailVerificationRepository(self.db)
+        latest = await verif_repo.get_latest_by_email(clean_email)
+        
+        # Rate limit / cooldown: 60 seconds
+        if latest and latest.created_at:
+            elapsed = (datetime.utcnow() - latest.created_at).total_seconds()
+            if elapsed < 60:
+                remaining_wait = int(60 - elapsed)
+                raise ValueError(f"Please wait {remaining_wait} seconds before requesting a new verification code.")
+
+        # Generate secure 4-digit random code (1000 - 9999)
+        code = f"{secrets.randbelow(9000) + 1000}"
+        expires_at = datetime.utcnow() + timedelta(minutes=10)
+        
+        await verif_repo.create_code(email=clean_email, code=code, expires_at=expires_at)
+        
+        # Render and send email using SEYEYA Courts theme (#1e3a5f and #d4af37)
+        email_html = get_email_verification_code_email(email=clean_email, code=code)
+        
+        from app.services.notifications import NotificationService
+        notif_service = NotificationService(self.db)
+        await notif_service.queue_and_send_email(
+            to_email=clean_email,
+            subject="SEYEYA Courts - Email Verification Code",
+            body=email_html,
+            to_name="Guest",
+            background_tasks=background_tasks
+        )
+        logger.info(f"Sent 4-digit verification code to {clean_email}")
+        
+        return {
+            "status": "success",
+            "message": "A 4-digit verification code has been sent to your email.",
+            "email": clean_email,
+            "expires_in_seconds": 600,
+            "resend_cooldown_seconds": 60
+        }
+
+    async def verify_email_code(
+        self,
+        email: str,
+        code: str
+    ) -> Dict[str, Any]:
+        """Verify the 4-digit code and issue a short-lived verification token"""
+        clean_email = email.lower().strip()
+        clean_code = code.strip()
+        
+        verif_repo = EmailVerificationRepository(self.db)
+        record = await verif_repo.get_latest_by_email(clean_email)
+        
+        if not record:
+            raise ValueError("No verification code found for this email. Please request a code first.")
+            
+        if record.is_verified:
+            # If already verified and still within 15 minutes, return existing token
+            if record.verification_token and record.verified_at and (datetime.utcnow() - record.verified_at).total_seconds() <= 900:
+                return {
+                    "status": "success",
+                    "message": "Email already verified successfully.",
+                    "email": clean_email,
+                    "verification_token": record.verification_token
+                }
+            raise ValueError("This verification code was already used. Please request a new code if needed.")
+
+        if record.expires_at < datetime.utcnow():
+            raise ValueError("The verification code has expired. Please request a new code.")
+            
+        if record.attempts >= 5:
+            raise ValueError("Too many failed attempts. For security, please request a new verification code.")
+
+        if record.code != clean_code:
+            attempts = await verif_repo.increment_attempts(record)
+            remaining = max(0, 5 - attempts)
+            raise ValueError(f"Invalid verification code. {remaining} attempt(s) remaining.")
+
+        # Successfully verified! Generate registration verification token
+        token = f"ev_{secrets.token_urlsafe(32)}"
+        await verif_repo.mark_verified(record, token)
+        logger.info(f"Email {clean_email} successfully verified with 4-digit code")
+        
+        return {
+            "status": "success",
+            "message": "Email verified successfully.",
+            "email": clean_email,
+            "verification_token": token
+        }
+
 
 class CustomerService:
     """Customer service"""
@@ -410,7 +540,8 @@ class CustomerService:
         loyalty_points: int = 0,
         is_active: bool = True,
         is_child: bool = False,
-        parent_id: Optional[int] = None
+        parent_id: Optional[int] = None,
+        background_tasks: Optional[Any] = None
     ) -> Customer:
         """Create a new customer"""
         existing_customer = await self.repo.get_by_email_or_phone(email=email, phone_number=phone_number)
@@ -418,16 +549,14 @@ class CustomerService:
             raise ValueError("Customer with this email or phone number already exists")
 
         user_id: Optional[int] = None
-        temp_password: Optional[str] = None
-        reset_token: Optional[str] = None
 
         if email:
             existing_user = await self.user_repo.get_by_email(email)
             if existing_user:
                 user_id = existing_user.user_id
             else:
-                temp_password = secrets.token_urlsafe(12)
-                password_hash = hash_password(temp_password)
+                # Store secure random password hash for database non-null integrity
+                password_hash = hash_password(secrets.token_urlsafe(32))
                 new_user = await self.user_repo.create_user(
                     full_name=full_name,
                     email=email,
@@ -438,25 +567,33 @@ class CustomerService:
                 )
                 user_id = new_user.user_id
 
-                reset_token = uuid.uuid4().hex
-                expires_at = datetime.utcnow() + timedelta(days=1)
-                password_reset = PasswordResetToken(
-                    user_id=user_id,
-                    token=reset_token,
-                    expires_at=expires_at
-                )
-                self.db.add(password_reset)
-                await self.db.commit()
-                await self.db.refresh(password_reset)
-
-                # Send the welcome credentials email immediately
-                send_immediate_welcome_email(
-                    email=email,
-                    full_name=full_name,
-                    temp_password=temp_password,
-                    reset_token=reset_token,
-                    role_title="Customer"
-                )
+                # Send welcome email letting customer know their account has been created (no temporary password)
+                try:
+                    from app.services.notifications import NotificationService
+                    notif_service = NotificationService(self.db)
+                    frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+                    welcome_html = get_account_created_email(
+                        full_name=full_name,
+                        email=email,
+                        role_title="Customer",
+                        login_link=f"{frontend_base}/login"
+                    )
+                    await notif_service.queue_and_send_email(
+                        to_email=email,
+                        subject="Welcome to SEYEYA Courts - Account Created",
+                        body=welcome_html,
+                        to_name=full_name,
+                        background_tasks=background_tasks
+                    )
+                    await notif_service.create_event(
+                        event_type="Account Created",
+                        reference_type="User",
+                        reference_id=str(user_id),
+                        triggered_by=user_id,
+                        background_tasks=background_tasks
+                    )
+                except Exception as e:
+                    logger.error(f"Error dispatching welcome account created email to customer {email}: {str(e)}")
 
         customer_code = f"CUST-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(uuid.uuid4())[:8].upper()}"
         customer = await self.repo.create_customer(
@@ -1050,48 +1187,29 @@ class UserService:
             is_active=is_active
         )
 
-        # Generate reset token for account setup
-        reset_token = uuid.uuid4().hex
-        expires_at = datetime.utcnow() + timedelta(days=1)
-        pwd_reset = PasswordResetToken(
-            user_id=user.user_id,
-            token=reset_token,
-            expires_at=expires_at
-        )
-        self.db.add(pwd_reset)
-        await self.db.commit()
-
-        # Send credentials welcome email with username, password, and login link
+        # Send account created email (password is provided by user/admin from the frontend, no temporary password or reset token needed)
         try:
             frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
             login_link = f"{frontend_base}/login"
             role_title = "Staff Member" if is_staff else "User"
-            welcome_html = get_welcome_email(
+            welcome_html = get_account_created_email(
                 full_name=full_name,
                 email=email,
-                temp_password=password,
-                reset_link=f"{frontend_base}/reset-password?token={reset_token}",
                 role_title=role_title,
                 login_link=login_link
             )
-            if background_tasks:
-                background_tasks.add_task(
-                    send_email_sync,
-                    to_email=email,
-                    subject=f"Welcome to SEYEYA Courts - Your Login Credentials ({role_title})",
-                    html_content=welcome_html,
-                    to_name=full_name
-                )
-            else:
-                asyncio.create_task(send_email_async(
-                    to_email=email,
-                    subject=f"Welcome to SEYEYA Courts - Your Login Credentials ({role_title})",
-                    html_content=welcome_html,
-                    to_name=full_name
-                ))
-            logger.info(f"Dispatched user credentials welcome email to {email}")
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.queue_and_send_email(
+                to_email=email,
+                subject="Welcome to SEYEYA Courts - Account Created",
+                body=welcome_html,
+                to_name=full_name,
+                background_tasks=background_tasks
+            )
+            logger.info(f"Dispatched account created email to {email}")
         except Exception as e:
-            logger.error(f"Failed to dispatch user credentials email to {email}: {str(e)}")
+            logger.error(f"Failed to dispatch account created email to {email}: {str(e)}")
 
         # Trigger Account Created notification event
         try:

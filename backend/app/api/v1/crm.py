@@ -1,7 +1,7 @@
 """
 CRM module routes
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.db.database import get_db
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/api/v1/crm", tags=["crm"])
 @router.post("/customers", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
 async def create_customer(
     request: CustomerCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(check_permission("crm.create"))
 ):
@@ -42,7 +43,8 @@ async def create_customer(
             loyalty_points=request.loyalty_points,
             is_active=request.is_active,
             is_child=request.is_child,
-            parent_id=request.parent_id
+            parent_id=request.parent_id,
+            background_tasks=background_tasks
         )
         return customer
     except Exception as e:

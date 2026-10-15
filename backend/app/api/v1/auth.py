@@ -8,7 +8,8 @@ from app.db.database import get_db
 from app.schemas import (
     UserRegisterRequest, UserLoginRequest, TokenResponse, 
     RefreshTokenRequest, LogoutRequest, UserResponse, UserUpdate, UserCreate,
-    ForgotPasswordRequest, ResetPasswordConfirm
+    ForgotPasswordRequest, ResetPasswordConfirm,
+    EmailVerificationRequest, EmailVerificationVerify, EmailVerificationResponse
 )
 from app.services import AuthService, UserService
 from app.core.security import get_current_user, check_permission
@@ -76,13 +77,60 @@ async def build_token_response(user: User, access_token: str, refresh_token: str
     )
 
 
+@router.post("/email-verification/request", response_model=EmailVerificationResponse)
+async def request_email_verification(
+    request: EmailVerificationRequest,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Request a 4-digit verification code to be sent to email before account creation (Mobile & Web).
+    Valid for 10 minutes. Cooldown is 60 seconds between resends.
+    """
+    auth_service = AuthService(db)
+    try:
+        res = await auth_service.request_email_verification(
+            email=request.email,
+            background_tasks=background_tasks
+        )
+        return res
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post("/email-verification/verify", response_model=EmailVerificationResponse)
+async def verify_email_code(
+    request: EmailVerificationVerify,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Verify the 4-digit code sent via email.
+    Returns a one-time verification_token to be supplied during account registration.
+    """
+    auth_service = AuthService(db)
+    try:
+        res = await auth_service.verify_email_code(
+            email=request.email,
+            code=request.code
+        )
+        return res
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
 @router.post("/register", response_model=TokenResponse)
 async def register(
     request: UserRegisterRequest, 
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db)
 ):
-    """Register a new user"""
+    """Register a new user (with optional verification_token from email verification step)"""
     if request.password != request.confirm_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -92,13 +140,14 @@ async def register(
     try:
         auth_service = AuthService(db)
         user, access_token, refresh_token = await auth_service.register_user(
-            request.full_name,
-            request.email,
-            request.password,
-            request.phone_number,
-            request.role_ids,
-            request.is_staff,
-            background_tasks=background_tasks
+            full_name=request.full_name,
+            email=request.email,
+            password=request.password,
+            phone_number=request.phone_number,
+            role_ids=request.role_ids,
+            is_staff=request.is_staff or False,
+            background_tasks=background_tasks,
+            verification_token=request.verification_token
         )
         
         return await build_token_response(user, access_token, refresh_token, db)
@@ -106,6 +155,13 @@ async def register(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
+        )
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error in register: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
         )
 
 
