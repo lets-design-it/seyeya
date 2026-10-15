@@ -552,14 +552,14 @@ class NotificationService:
                 from app.models import RestaurantOrder, OrderItem, MenuItem
                 stmt = select(RestaurantOrder).options(
                     selectinload(RestaurantOrder.customer),
-                    selectinload(RestaurantOrder.order_items).selectinload(OrderItem.menu_item)
+                    selectinload(RestaurantOrder.items).selectinload(OrderItem.menu_item)
                 ).where(RestaurantOrder.order_id == int(ref_id))
                 res = await self.db.execute(stmt)
                 order = res.scalar_one_or_none()
                 if order and order.customer:
                     items_data = []
-                    if order.order_items:
-                        for oi in order.order_items:
+                    if order.items:
+                        for oi in order.items:
                             item_name = oi.menu_item.name if oi.menu_item else "Menu Item"
                             items_data.append({
                                 "name": item_name,

@@ -725,7 +725,9 @@ class RestaurantOrderService:
         special_instr: Optional[str] = None,
         seating_location: Optional[str] = None,
         allergy_info: Optional[str] = None,
-        assigned_waiter: Optional[str] = None
+        assigned_waiter: Optional[int] = None,
+        payment_status: Optional[str] = "Pending",
+        amount_paid: Optional[Decimal] = None
     ) -> RestaurantOrder:
         """Create a new restaurant order"""
         # Generate unique order number
@@ -741,6 +743,10 @@ class RestaurantOrderService:
         order.seating_location = seating_location
         order.allergy_info = allergy_info
         order.assigned_waiter = assigned_waiter
+        if payment_status:
+            order.payment_status = payment_status
+        if amount_paid is not None:
+            order.amount_paid = amount_paid
         
         # Add items to order
         if items_data:
