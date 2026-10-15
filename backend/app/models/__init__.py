@@ -370,9 +370,9 @@ class RestaurantOrder(Base):
     
     order_id = Column(Integer, primary_key=True)
     customer_id = Column(Integer, ForeignKey("customers.customer_id"))
-    order_number = Column(String(20), nullable=False, unique=True)
-    seating_location = Column(String(20))  # Indoor | Garden
-    delivery_option = Column(String(20))  # Premises | Remote
+    order_number = Column(String(50), nullable=False, unique=True)
+    seating_location = Column(String(255))
+    delivery_option = Column(String(50))
     delivery_address = Column(String(300))
     delivery_lat = Column(DECIMAL(9, 6))
     delivery_lng = Column(DECIMAL(9, 6))
@@ -387,9 +387,9 @@ class RestaurantOrder(Base):
     amount_paid = Column(DECIMAL(10, 2), default=0)
     balance_due = Column(DECIMAL(10, 2), default=0)
     tax_amount = Column(DECIMAL(10, 2), default=0)
-    order_status = Column(String(20), default="Pending")
+    order_status = Column(String(50), default="Pending")
     # Pending | Confirmed | Preparing | Ready | Delivered | Cancelled
-    payment_status = Column(String(20), default="Pending")
+    payment_status = Column(String(50), default="Pending")
     # Pending | Partial | Paid | Failed | Refunded
     assigned_waiter = Column(Integer, ForeignKey("users.user_id"))
     tracking_number = Column(String(50), unique=True)
@@ -402,6 +402,10 @@ class RestaurantOrder(Base):
     customer = relationship("Customer", back_populates="orders")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
     status_history = relationship("OrderStatusHistory", back_populates="order", cascade="all, delete-orphan")
+
+    @property
+    def order_items(self):
+        return self.items
     
     __table_args__ = (
         Index('ix_restaurant_orders_customer_id', 'customer_id'),

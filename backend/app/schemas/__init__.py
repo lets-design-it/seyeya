@@ -461,6 +461,8 @@ class RestaurantOrderCreate(BaseModel):
     special_instr: Optional[str] = None
     allergy_info: Optional[str] = None
     assigned_waiter: Optional[int] = None
+    payment_status: Optional[str] = "Pending"
+    amount_paid: Optional[Decimal] = None
     items: List[OrderItemCreate]
 
 

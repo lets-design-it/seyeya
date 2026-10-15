@@ -1,7 +1,7 @@
 """
 Restaurant module routes
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.db.database import get_db
@@ -119,6 +119,16 @@ async def get_all_menu_items(db: AsyncSession = Depends(get_db)):
     repo = MenuRepository(db)
     items = await repo.get_all_items()
     return items
+
+@router.post("/menu/upload")
+async def upload_menu_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload a menu item photo"""
+    from app.utils.upload import validate_and_save_upload
+    photo_url = validate_and_save_upload(file, "menu")
+    return {"photo_url": photo_url, "url": photo_url}
 
 
 @router.post("/menu/items", response_model=MenuItemResponse)
@@ -319,7 +329,9 @@ async def create_order(
             special_instr=request.special_instr,
             seating_location=request.seating_location,
             allergy_info=request.allergy_info,
-            assigned_waiter=request.assigned_waiter
+            assigned_waiter=request.assigned_waiter,
+            payment_status=request.payment_status,
+            amount_paid=request.amount_paid
         )
         
         # Trigger notification event for restaurant order

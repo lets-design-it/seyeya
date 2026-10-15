@@ -33,6 +33,7 @@ export interface MenuItem {
   priceUSD: number;
   description: string;
   image: string;
+  photos?: string[];
   quantity?: number;
   allergen_info?: string;
   preparation_time?: number;
@@ -543,8 +544,21 @@ export const useRestaurant = () => {
     seating_location?: string | null;
     delivery_option: string;
     delivery_address?: string | null;
+    delivery_charge?: number | null;
+    preferred_time?: string | null;
     special_instr?: string | null;
-    items: { menu_item_id: number; quantity: number; special_notes?: string }[];
+    allergy_info?: string | null;
+    assigned_waiter?: number | null;
+    payment_status?: string | null;
+    amount_paid?: number | null;
+    items: {
+      menu_item_id: number;
+      quantity: number;
+      special_notes?: string | null;
+      choice_id?: number | null;
+      accompaniment_id?: number | null;
+      extras?: { extra_id: number; quantity: number }[] | null;
+    }[];
   }) => {
     try {
       await api.post('/restaurant/orders', orderData);

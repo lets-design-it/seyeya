@@ -31,6 +31,7 @@ async def upload_single_image(
     relative_url = validate_and_save_upload(file, subfolder=clean_subfolder)
     return {
         "url": relative_url,
+        "photo_url": relative_url,
         "filename": relative_url.split("/")[-1],
         "subfolder": clean_subfolder
     }

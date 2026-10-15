@@ -65,8 +65,22 @@ import {
   ChevronsRight,
   Sparkles,
   SlidersHorizontal,
-  RotateCcw
+  RotateCcw,
+  Upload,
+  Check
 } from 'lucide-react';
+import api from '../../services/api';
+
+const getImageUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const isLocal = typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const backendBase = isLocal ? 'http://localhost:8000' : 'https://api.seyeyalodge.com';
+  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
+};
 
 export const MenuEditor: React.FC = () => {
   const { formatPrice, currency } = useCurrency();
@@ -96,6 +110,8 @@ export const MenuEditor: React.FC = () => {
   const [includesVat, setIncludesVat] = useState<boolean>(true);
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [quantity, setQuantity] = useState<number>(100);
   const [allergenInfo, setAllergenInfo] = useState('');
   const [prepTime, setPrepTime] = useState<number>(15);
@@ -143,7 +159,8 @@ export const MenuEditor: React.FC = () => {
     setPriceUSD(4);
     setIncludesVat(true);
     setDescription('');
-    setImage('https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200'); // generic food placeholder
+    setImage('');
+    setPhotos([]);
     setQuantity(100);
     setAllergenInfo('');
     setPrepTime(15);
@@ -165,7 +182,12 @@ export const MenuEditor: React.FC = () => {
     setPriceUSD(item.priceUSD);
     setIncludesVat(vatIncl);
     setDescription(item.description);
-    setImage(item.image);
+    setImage(item.image || '');
+    setPhotos(
+      item.photos && item.photos.length > 0
+        ? item.photos
+        : (item.image ? [item.image] : [])
+    );
     setQuantity(item.quantity ?? 100);
     setAllergenInfo(item.allergen_info ?? '');
     setPrepTime(item.preparation_time ?? 15);
@@ -219,6 +241,49 @@ export const MenuEditor: React.FC = () => {
     setExtras(extras.filter((_, i) => i !== index));
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploadingPhoto(true);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const form = new FormData();
+        form.append('file', file);
+
+        let uploadedUrl = '';
+        try {
+          const res = await api.post('/restaurant/menu/upload', form, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          uploadedUrl = res.data?.photo_url || res.data?.url;
+        } catch {
+          const res = await api.post('/uploads/image?subfolder=menu', form, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          uploadedUrl = res.data?.photo_url || res.data?.url;
+        }
+
+        if (uploadedUrl) {
+          setPhotos(prev => [...prev, uploadedUrl]);
+          setImage(prev => {
+            if (!prev || prev.includes('unsplash.com/photo-1546069901-ba9599a7e63c')) {
+              return uploadedUrl;
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Image upload failed. Please try again.");
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+    e.target.value = ''; // allow reselecting same file
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -232,7 +297,8 @@ export const MenuEditor: React.FC = () => {
       priceUSD: Number(priceUSD),
       is_vat_inclusive: includesVat,
       description: description.trim(),
-      image: image.trim() || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200',
+      image: image.trim() || (photos.length > 0 ? photos[0] : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200'),
+      photos,
       quantity: Number(quantity),
       allergen_info: allergenInfo.trim(),
       preparation_time: Number(prepTime),
@@ -293,7 +359,7 @@ export const MenuEditor: React.FC = () => {
       header: 'Image',
       cell: ({ row }) => (
         <img
-          src={row.original.image}
+          src={getImageUrl(row.original.image)}
           alt={row.original.name}
           className="h-10 w-10 rounded-lg object-cover bg-zinc-100 border border-zinc-100"
         />
@@ -696,14 +762,129 @@ export const MenuEditor: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Image URL</label>
-              <input
-                type="url"
-                placeholder="Unsplash image URL..."
-                value={image}
-                onChange={(e) => setImage(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground outline-hidden focus:border-zinc-955"
-              />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-sans">
+                  Item Photos
+                </label>
+                {photos.length > 0 && (
+                  <span className="text-[10px] text-zinc-400 font-medium">
+                    {photos.length} photo{photos.length > 1 ? 's' : ''} added
+                  </span>
+                )}
+              </div>
+
+              {/* Thumbnail grid */}
+              {photos.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {photos.map((photoUrl, idx) => {
+                    const isPrimary = photoUrl === image;
+                    return (
+                      <div
+                        key={idx}
+                        className={`relative group aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                          isPrimary
+                            ? 'border-indigo-500 shadow-md'
+                            : 'border-zinc-200 dark:border-zinc-800'
+                        }`}
+                      >
+                        <img
+                          src={getImageUrl(photoUrl)}
+                          alt={`Thumbnail ${idx}`}
+                          className="h-full w-full object-cover"
+                        />
+
+                        {/* Overlay with options */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-1 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setImage(photoUrl)}
+                            className="bg-indigo-600 text-white rounded-lg px-1.5 py-1 text-[9px] font-bold cursor-pointer hover:bg-indigo-700 transition-colors w-full"
+                          >
+                            Set Primary
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhotos(prev => {
+                                const next = prev.filter(url => url !== photoUrl);
+                                if (isPrimary && next.length > 0) {
+                                  setImage(next[0]);
+                                } else if (isPrimary) {
+                                  setImage('');
+                                }
+                                return next;
+                              });
+                            }}
+                            className="bg-red-600 text-white rounded-lg px-1.5 py-1 text-[9px] font-bold cursor-pointer hover:bg-red-700 transition-colors w-full"
+                          >
+                            Delete
+                          </button>
+                        </div>
+
+                        {/* Primary Badge */}
+                        {isPrimary && (
+                          <div className="absolute top-1 left-1 bg-indigo-600 text-white text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-xs">
+                            <Check className="h-2 w-2" />
+                            Primary
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Upload trigger zone */}
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="menu-photo-file-input"
+                />
+                <label
+                  htmlFor="menu-photo-file-input"
+                  className="flex flex-col items-center justify-center border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 rounded-2xl p-4 bg-zinc-50/50 dark:bg-zinc-950/20 hover:bg-indigo-50/5 dark:hover:bg-indigo-500/5 cursor-pointer transition-all text-center h-28"
+                >
+                  {isUploadingPhoto ? (
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                      <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider animate-pulse">
+                        Uploading Image...
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className="h-5 w-5 text-zinc-450 dark:text-zinc-500 mb-1.5" />
+                      <span className="text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
+                        Upload Photo
+                      </span>
+                      <span className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                        Select image files (PNG, JPG, WEBP)
+                      </span>
+                    </>
+                  )}
+                </label>
+              </div>
+
+              {/* Optional external URL input fallback */}
+              <div className="mt-2.5 flex items-center gap-2">
+                <input
+                  type="url"
+                  placeholder="Or enter/paste image URL..."
+                  value={image.startsWith('http') ? image : ''}
+                  onChange={(e) => {
+                    const val = e.target.value.trim();
+                    setImage(val);
+                    if (val && !photos.includes(val)) {
+                      setPhotos(prev => [val, ...prev]);
+                    }
+                  }}
+                  className="flex-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-1.5 text-[11px] text-foreground outline-hidden focus:border-zinc-955"
+                />
+              </div>
               <p className="mt-1 text-[10px] text-zinc-500 dark:text-zinc-400 leading-normal">
                 Recommended: Landscape 1.6:1 ratio (e.g. 1200×750px). Ensure the subject is centered.
               </p>
@@ -1083,7 +1264,7 @@ export const MenuEditor: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <div className="flex flex-col items-center text-center space-y-4">
                 <img
-                  src={selectedItem.image}
+                  src={getImageUrl(selectedItem.image)}
                   alt={selectedItem.name}
                   className="h-32 w-32 rounded-[24px] object-cover bg-zinc-100 dark:bg-zinc-800 shadow-md border border-zinc-200 dark:border-zinc-800"
                 />
@@ -1205,7 +1386,7 @@ export const MenuEditor: React.FC = () => {
                         <div key={i} className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-900 p-2.5 rounded-xl border border-zinc-150 dark:border-zinc-800 text-xs shadow-2xs">
                           <div className="flex items-center gap-2">
                             {e.image_url && (
-                              <img src={e.image_url} alt={e.extra_name} className="h-6 w-6 rounded-md object-cover bg-zinc-200 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-800" />
+                              <img src={getImageUrl(e.image_url)} alt={e.extra_name} className="h-6 w-6 rounded-md object-cover bg-zinc-200 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-800" />
                             )}
                             <span className="font-semibold text-zinc-700 dark:text-zinc-300">{e.extra_name}</span>
                           </div>

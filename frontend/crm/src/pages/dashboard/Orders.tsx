@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { useRestaurant, RestaurantOrder, MenuItem } from '../../hooks/useRestaurant';
+import React, { useState, useEffect } from 'react';
+import { useRestaurant, RestaurantOrder, MenuItem, MenuChoice, MenuAccompaniment, MenuExtra } from '../../hooks/useRestaurant';
 import { useVatRate } from '../../context/VatContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { api } from '../../services/api';
 import {
   ShoppingBag,
   ChevronRight,
@@ -17,8 +18,65 @@ import {
   ArrowDown,
   ArrowUp,
   Search,
-  Filter
+  Filter,
+  Check,
+  Utensils,
+  User,
+  Phone,
+  MapPin,
+  AlertCircle,
+  Calendar,
+  Sparkles,
+  Trash2,
+  Edit3,
+  Layers,
+  Coffee,
+  BedDouble
 } from 'lucide-react';
+
+const getImageUrl = (url?: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  const isLocal = typeof window !== 'undefined' &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const backendBase = isLocal ? 'http://localhost:8000' : 'https://api.seyeyalodge.com';
+  return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
+export interface CartExtraSelection {
+  extra_id: number;
+  extra_name: string;
+  price: number;
+  quantity: number;
+}
+
+export interface CartChoiceSelection {
+  choice_id: number;
+  choice_name: string;
+  price: number;
+}
+
+export interface CartAccompanimentSelection {
+  accompaniment_id: number;
+  accompaniment_name: string;
+  price: number;
+}
+
+export interface DetailedCartItem {
+  cart_id: string;
+  menu_item_id: number;
+  name: string;
+  category: string;
+  image?: string;
+  base_price: number;
+  quantity: number;
+  special_notes?: string;
+  choice?: CartChoiceSelection | null;
+  accompaniment?: CartAccompanimentSelection | null;
+  extras: CartExtraSelection[];
+}
 
 const COLUMNS: RestaurantOrder['status'][] = ['Pending', 'Preparing', 'Ready'];
 
@@ -96,15 +154,66 @@ export const Orders: React.FC<OrdersProps> = ({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<RestaurantOrder | null>(null);
 
-  // Create Order form states
+  // Lists for dropdown lookups
+  const [customersList, setCustomersList] = useState<any[]>([]);
+  const [waitersList, setWaitersList] = useState<any[]>([]);
+
+  // Create Order Detailed Form states
+  const [orderType, setOrderType] = useState<'Premises' | 'Room Service' | 'Takeaway' | 'Delivery'>('Premises');
+  const [seatingArea, setSeatingArea] = useState('Main Restaurant');
   const [table, setTable] = useState('Table 1');
   const [customTable, setCustomTable] = useState('');
-  const [deliveryOption, setDeliveryOption] = useState('Premises');
+  const [cottageRoom, setCottageRoom] = useState('Cottage 1');
+  const [customRoom, setCustomRoom] = useState('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryCharge, setDeliveryCharge] = useState<number | string>('');
+
+  // Guest details
+  const [customerSource, setCustomerSource] = useState<'walkin' | 'crm'>('walkin');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
+  const [guestName, setGuestName] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+
+  // Staff & Timing
+  const [assignedWaiterId, setAssignedWaiterId] = useState<string>('');
+  const [customWaiterName, setCustomWaiterName] = useState('');
+  const [orderTiming, setOrderTiming] = useState<'asap' | 'scheduled'>('asap');
+  const [scheduledTime, setScheduledTime] = useState('');
+
+  // Allergies & Special Notes
+  const [allergyTags, setAllergyTags] = useState<string[]>([]);
+  const [customAllergy, setCustomAllergy] = useState('');
   const [specialInstr, setSpecialInstr] = useState('');
-  const [cartItems, setCartItems] = useState<{ menu_item_id: number; quantity: number; name: string; price: number }[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+
+  // Payment Options
+  const [paymentStatus, setPaymentStatus] = useState<'Pending' | 'Paid' | 'Partially Paid'>('Pending');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Mobile Money' | 'Room Bill'>('Cash');
+  const [amountPaid, setAmountPaid] = useState<number | string>('');
+
+  // Menu Search & Category Filter inside modal
+  const [menuSearchTerm, setMenuSearchTerm] = useState('');
+  const [selectedMenuCategory, setSelectedMenuCategory] = useState('ALL');
+
+  // Detailed Cart & Active Customizer
+  const [cartItems, setCartItems] = useState<DetailedCartItem[]>([]);
+  const [customizingItem, setCustomizingItem] = useState<{
+    item: MenuItem;
+    choice: CartChoiceSelection | null;
+    accompaniment: CartAccompanimentSelection | null;
+    extras: CartExtraSelection[];
+    quantity: number;
+    notes: string;
+    existingCartId?: string;
+  } | null>(null);
+
   const [createError, setCreateError] = useState<string | null>(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+
+  // Fetch customers & waiters on mount
+  useEffect(() => {
+    api.get('/crm/customers').then(res => setCustomersList(res.data || [])).catch(() => {});
+    api.get('/auth/users').then(res => setWaitersList(res.data || [])).catch(() => {});
+  }, []);
 
   // Edit Order states
   const [editStatus, setEditStatus] = useState<RestaurantOrder['status']>('Pending');
@@ -160,29 +269,165 @@ export const Orders: React.FC<OrdersProps> = ({
     return null;
   };
 
-  // Cart operations
-  const addToCart = (item: MenuItem) => {
-    const itemId = parseInt(item.id);
-    const existing = cartItems.find(c => c.menu_item_id === itemId);
-    if (existing) {
-      setCartItems(cartItems.map(c => c.menu_item_id === itemId ? { ...c, quantity: c.quantity + 1 } : c));
+  // Cart & Customization Operations
+  const removeExtraFromCartItem = (cartId: string, extraId: number) => {
+    setCartItems(prev => prev.map(c => {
+      if (c.cart_id === cartId) {
+        return { ...c, extras: c.extras.filter(e => e.extra_id !== extraId) };
+      }
+      return c;
+    }));
+  };
+
+  const removeAccompanimentFromCartItem = (cartId: string) => {
+    setCartItems(prev => prev.map(c => {
+      if (c.cart_id === cartId) {
+        return { ...c, accompaniment: null };
+      }
+      return c;
+    }));
+  };
+
+  const startCustomizing = (item: MenuItem, existingCartItem?: DetailedCartItem) => {
+    if (existingCartItem) {
+      setCustomizingItem({
+        item,
+        choice: existingCartItem.choice || null,
+        accompaniment: existingCartItem.accompaniment || null,
+        extras: [...existingCartItem.extras],
+        quantity: existingCartItem.quantity,
+        notes: existingCartItem.special_notes || '',
+        existingCartId: existingCartItem.cart_id
+      });
     } else {
-      setCartItems([...cartItems, {
-        menu_item_id: itemId,
+      const defaultChoice = item.choices && item.choices.length > 0 ? {
+        choice_id: item.choices[0].choice_id!,
+        choice_name: item.choices[0].choice_name,
+        price: Number(item.choices[0].price || 0)
+      } : null;
+
+      // Accompaniments are optional by default so the user can deliberately click a side
+      const defaultAccompaniment = null;
+
+      setCustomizingItem({
+        item,
+        choice: defaultChoice,
+        accompaniment: defaultAccompaniment,
+        extras: [],
         quantity: 1,
-        name: item.name,
-        price: item.priceUGX
-      }]);
+        notes: ''
+      });
     }
   };
 
-  const removeFromCart = (itemId: number) => {
-    const existing = cartItems.find(c => c.menu_item_id === itemId);
-    if (existing && existing.quantity > 1) {
-      setCartItems(cartItems.map(c => c.menu_item_id === itemId ? { ...c, quantity: c.quantity - 1 } : c));
+  const saveCustomizedItem = () => {
+    if (!customizingItem) return;
+    const { item, choice, accompaniment, extras, quantity, notes, existingCartId } = customizingItem;
+
+    if (existingCartId) {
+      setCartItems(prev => prev.map(c => c.cart_id === existingCartId ? {
+        ...c,
+        quantity,
+        choice,
+        accompaniment,
+        extras,
+        special_notes: notes.trim() || undefined
+      } : c));
     } else {
-      setCartItems(cartItems.filter(c => c.menu_item_id !== itemId));
+      const newCartItem: DetailedCartItem = {
+        cart_id: `cart-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        menu_item_id: parseInt(item.id),
+        name: item.name,
+        category: item.category,
+        image: item.image,
+        base_price: item.priceUGX,
+        quantity,
+        special_notes: notes.trim() || undefined,
+        choice,
+        accompaniment,
+        extras
+      };
+      setCartItems(prev => [...prev, newCartItem]);
     }
+    setCustomizingItem(null);
+  };
+
+  const handleQuickAdd = (item: MenuItem) => {
+    const hasCustomizations = (item.choices && item.choices.length > 0) ||
+      (item.accompaniments && item.accompaniments.length > 0) ||
+      (item.extras && item.extras.length > 0);
+
+    if (hasCustomizations) {
+      startCustomizing(item);
+    } else {
+      const existing = cartItems.find(c => c.menu_item_id === parseInt(item.id) && !c.choice && !c.accompaniment && c.extras.length === 0 && !c.special_notes);
+      if (existing) {
+        setCartItems(cartItems.map(c => c.cart_id === existing.cart_id ? { ...c, quantity: c.quantity + 1 } : c));
+      } else {
+        const newCartItem: DetailedCartItem = {
+          cart_id: `cart-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          menu_item_id: parseInt(item.id),
+          name: item.name,
+          category: item.category,
+          image: item.image,
+          base_price: item.priceUGX,
+          quantity: 1,
+          choice: null,
+          accompaniment: null,
+          extras: []
+        };
+        setCartItems(prev => [...prev, newCartItem]);
+      }
+    }
+  };
+
+  const updateCartQuantity = (cartId: string, delta: number) => {
+    setCartItems(prev => prev.map(c => {
+      if (c.cart_id === cartId) {
+        const newQty = c.quantity + delta;
+        return newQty > 0 ? { ...c, quantity: newQty } : null;
+      }
+      return c;
+    }).filter(Boolean) as DetailedCartItem[]);
+  };
+
+  const removeFromCart = (cartId: string) => {
+    setCartItems(prev => prev.filter(c => c.cart_id !== cartId));
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+    setCustomizingItem(null);
+  };
+
+  const resetCreateOrderForm = () => {
+    setOrderType('Premises');
+    setSeatingArea('Main Restaurant');
+    setTable('Table 1');
+    setCustomTable('');
+    setCottageRoom('Cottage 1');
+    setCustomRoom('');
+    setDeliveryAddress('');
+    setDeliveryCharge('');
+    setCustomerSource('walkin');
+    setSelectedCustomerId(null);
+    setGuestName('');
+    setGuestPhone('');
+    setAssignedWaiterId('');
+    setCustomWaiterName('');
+    setOrderTiming('asap');
+    setScheduledTime('');
+    setAllergyTags([]);
+    setCustomAllergy('');
+    setSpecialInstr('');
+    setPaymentStatus('Pending');
+    setPaymentMethod('Cash');
+    setAmountPaid('');
+    setMenuSearchTerm('');
+    setSelectedMenuCategory('ALL');
+    setCartItems([]);
+    setCustomizingItem(null);
+    setCreateError(null);
   };
 
   const handleCreateOrder = async (e: React.FormEvent) => {
@@ -190,42 +435,100 @@ export const Orders: React.FC<OrdersProps> = ({
     setCreateError(null);
 
     if (cartItems.length === 0) {
-      setCreateError("Please select at least one menu item.");
+      setCreateError("Please select and add at least one menu item to the order ticket.");
       return;
     }
 
-    const finalTable = deliveryOption === 'Delivery'
-      ? 'Delivery'
-      : (table === 'Other' ? customTable.trim() : table);
-
-    if (deliveryOption === 'Premises' && !finalTable) {
-      setCreateError("Please specify a seating table location.");
-      return;
+    // Determine final seating location
+    let finalLocation = '';
+    if (orderType === 'Premises') {
+      const tableVal = table === 'Other' ? customTable.trim() : table;
+      if (!tableVal) {
+        setCreateError("Please specify a seating table location for Dine-in.");
+        return;
+      }
+      finalLocation = `${seatingArea} - ${tableVal}`;
+    } else if (orderType === 'Room Service') {
+      const roomVal = cottageRoom === 'Other' ? customRoom.trim() : cottageRoom;
+      if (!roomVal) {
+        setCreateError("Please specify a cottage or room number for Room Service.");
+        return;
+      }
+      finalLocation = `Room Service: ${roomVal}`;
+    } else if (orderType === 'Takeaway') {
+      finalLocation = `Takeaway / Pickup`;
+    } else {
+      finalLocation = `Delivery: ${deliveryAddress.trim() || 'Address not specified'}`;
+      if (!deliveryAddress.trim()) {
+        setCreateError("Please enter the delivery address or destination.");
+        return;
+      }
     }
+
+    // Build items payload
+    const itemsPayload = cartItems.map(c => ({
+      menu_item_id: c.menu_item_id,
+      quantity: c.quantity,
+      special_notes: c.special_notes || null,
+      choice_id: c.choice?.choice_id || null,
+      accompaniment_id: c.accompaniment?.accompaniment_id || null,
+      extras: c.extras.map(e => ({
+        extra_id: e.extra_id,
+        quantity: e.quantity
+      }))
+    }));
+
+    // Build combined special notes
+    const specialParts: string[] = [];
+    if (guestName.trim()) specialParts.push(`Guest: ${guestName.trim()}${guestPhone.trim() ? ` (${guestPhone.trim()})` : ''}`);
+    const waiterLabel = waitersList.find(w => String(w.user_id) === assignedWaiterId)?.full_name || customWaiterName.trim();
+    if (waiterLabel) specialParts.push(`Server: ${waiterLabel}`);
+    if (orderTiming === 'scheduled' && scheduledTime) specialParts.push(`Serve Time: ${scheduledTime}`);
+    if (paymentMethod && paymentStatus !== 'Pending') specialParts.push(`Payment: ${paymentStatus} (${paymentMethod})`);
+    if (specialInstr.trim()) specialParts.push(specialInstr.trim());
+
+    // Allergy string
+    const combinedAllergies = [
+      ...allergyTags,
+      customAllergy.trim()
+    ].filter(Boolean).join(', ');
+
+    // Calculate totals for payment
+    const baseItemsTotal = cartItems.reduce((acc, curr) => acc + (curr.base_price * curr.quantity), 0);
+    const customizationsTotal = cartItems.reduce((acc, curr) => {
+      const cPrice = curr.choice?.price || 0;
+      const aPrice = curr.accompaniment?.price || 0;
+      const ePrice = curr.extras.reduce((sum, ex) => sum + (ex.price * ex.quantity), 0);
+      return acc + ((cPrice + aPrice + ePrice) * curr.quantity);
+    }, 0);
+    const itemsSubtotal = baseItemsTotal + customizationsTotal;
+    const deliveryFee = (orderType === 'Delivery' || orderType === 'Room Service') ? Number(deliveryCharge || 0) : 0;
+    const grandTotal = itemsSubtotal + deliveryFee;
 
     const payload = {
-      seating_location: finalTable || null,
-      delivery_option: deliveryOption,
-      delivery_address: deliveryOption === 'Delivery' ? deliveryAddress.trim() : null,
-      special_instr: specialInstr.trim() || null,
-      items: cartItems.map(c => ({
-        menu_item_id: c.menu_item_id,
-        quantity: c.quantity
-      }))
+      customer_id: selectedCustomerId || null,
+      seating_location: finalLocation,
+      delivery_option: orderType === 'Delivery' ? 'Delivery' : (orderType === 'Room Service' ? 'Room Service' : (orderType === 'Takeaway' ? 'Takeaway' : 'Premises')),
+      delivery_address: orderType === 'Delivery' ? deliveryAddress.trim() : (orderType === 'Room Service' ? (cottageRoom === 'Other' ? customRoom.trim() : cottageRoom) : null),
+      delivery_charge: (orderType === 'Delivery' || orderType === 'Room Service') && Number(deliveryCharge) > 0 ? Number(deliveryCharge) : null,
+      preferred_time: orderTiming === 'scheduled' && scheduledTime ? new Date(scheduledTime).toISOString() : null,
+      special_instr: specialParts.length > 0 ? specialParts.join(' | ') : null,
+      allergy_info: combinedAllergies || null,
+      assigned_waiter: assignedWaiterId ? Number(assignedWaiterId) : null,
+      payment_status: paymentStatus,
+      amount_paid: paymentStatus === 'Paid' ? grandTotal : (paymentStatus === 'Partially Paid' ? Number(amountPaid || 0) : 0),
+      items: itemsPayload
     };
 
+    setIsSubmittingOrder(true);
     try {
       await createRestaurantOrder(payload);
       setIsCreateOpen(false);
-      // Reset form
-      setTable('Table 1');
-      setCustomTable('');
-      setDeliveryOption('Premises');
-      setDeliveryAddress('');
-      setSpecialInstr('');
-      setCartItems([]);
+      resetCreateOrderForm();
     } catch (err: any) {
       setCreateError(err.message || 'Failed to create order');
+    } finally {
+      setIsSubmittingOrder(false);
     }
   };
 
@@ -565,214 +868,1313 @@ export const Orders: React.FC<OrdersProps> = ({
 
       {/* Create Order Modal */}
 
-      {/* Create Order Modal */}
+      {/* Modern, Detailed Create Order Modal with Customizations & Live Reflection */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 dark:bg-zinc-955/60 animate-fade-in backdrop-blur-md">
-          <div className="glass-panel w-full max-w-4xl bg-card dark:bg-zinc-900 border border-zinc-150/40 dark:border-zinc-800 rounded-[24px] p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 mb-5 border-b border-zinc-100/60 dark:border-zinc-800 shrink-0">
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">
-                Create New Restaurant Order
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 dark:bg-black/75 animate-fade-in backdrop-blur-md">
+          <div className="glass-panel w-full max-w-7xl h-[94vh] max-h-[94vh] bg-card dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-[28px] shadow-2xl relative flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/80 shrink-0 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-[#0A2540] dark:bg-[#D4AF37]/20 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] shadow-sm">
+                  <Utensils className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight">
+                      New Restaurant Order
+                    </h3>
+                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      Active POS Ticket
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Configure service destination, guest details, culinary customizations, and add-ons.
+                  </p>
+                </div>
+              </div>
+
+              {/* Dining Mode Quick Switcher Pills */}
+              <div className="flex items-center bg-zinc-100 dark:bg-zinc-950 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+                {(['Premises', 'Room Service', 'Takeaway', 'Delivery'] as const).map(mode => {
+                  const isActive = orderType === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setOrderType(mode)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-sm'
+                          : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                      }`}
+                    >
+                      {mode === 'Premises' && <Utensils className="h-3.5 w-3.5" />}
+                      {mode === 'Room Service' && <BedDouble className="h-3.5 w-3.5" />}
+                      {mode === 'Takeaway' && <Coffee className="h-3.5 w-3.5" />}
+                      {mode === 'Delivery' && <MapPin className="h-3.5 w-3.5" />}
+                      <span>{mode === 'Premises' ? 'Dine-in' : mode}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
               <button
                 onClick={() => {
                   setIsCreateOpen(false);
-                  setCreateError(null);
-                  setCartItems([]);
+                  resetCreateOrderForm();
                 }}
-                className="text-zinc-500 dark:text-zinc-400 hover:text-foreground dark:hover:text-zinc-100 rounded-lg p-1 cursor-pointer"
+                className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
+            {/* Error Notification Banner */}
             {createError && (
-              <div className="mb-4 text-xs font-semibold text-red-600 bg-red-50 dark:bg-red-955/20 p-3.5 rounded-xl border border-red-150/50 dark:border-red-900/50 flex items-center gap-2 shrink-0">
-                ⚠️ {createError}
+              <div className="mx-6 mt-3 text-xs font-semibold text-red-600 bg-red-50 dark:bg-red-955/30 p-3 rounded-2xl border border-red-200 dark:border-red-900/50 flex items-center gap-2 shrink-0 animate-in fade-in">
+                <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                <span>{createError}</span>
               </div>
             )}
 
-            <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-12 gap-6 min-h-0">
-              {/* Left Column: Order Settings */}
-              <form onSubmit={handleCreateOrder} className="md:col-span-5 space-y-4 overflow-y-auto pr-2">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Delivery Option</label>
-                  <select
-                    value={deliveryOption}
-                    onChange={(e) => setDeliveryOption(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 cursor-pointer font-semibold"
-                  >
-                    <option value="Premises" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Eat-in (Premises)</option>
-                    <option value="Delivery" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Room Service / Delivery</option>
-                  </select>
+            {/* 3-Column Main Body */}
+            <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-4 p-5 min-h-0 bg-zinc-50/40 dark:bg-zinc-950/20">
+              
+              {/* ======================================================== */}
+              {/* COLUMN 1: Order Settings & Guest Info (4 cols)           */}
+              {/* ======================================================== */}
+              <div className="lg:col-span-4 flex flex-col min-h-0 bg-white dark:bg-zinc-900 rounded-[22px] border border-zinc-200 dark:border-zinc-800 p-4 overflow-y-auto space-y-4 shadow-xs">
+                <div className="flex items-center gap-2 pb-2 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+                  <MapPin className="h-4 w-4 text-[#D4AF37]" />
+                  <h4 className="text-xs font-extrabold text-foreground uppercase tracking-wider">
+                    1. Destination & Service Details
+                  </h4>
                 </div>
 
-                {deliveryOption === 'Premises' ? (
-                  <div className="grid grid-cols-2 gap-3.5">
+                {/* Destination Details Based on Order Type */}
+                {orderType === 'Premises' && (
+                  <div className="space-y-3 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-150 dark:border-zinc-800/80">
                     <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Seating Table</label>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                        Seating Area
+                      </label>
                       <select
-                        value={table}
-                        onChange={(e) => setTable(e.target.value)}
-                        className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 cursor-pointer font-semibold"
+                        value={seatingArea}
+                        onChange={(e) => setSeatingArea(e.target.value)}
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37] cursor-pointer"
                       >
-                        {Array.from({ length: 12 }, (_, i) => `Table ${i + 1}`).map(t => (
-                          <option key={t} value={t} className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">{t}</option>
-                        ))}
-                        <option value="Other" className="bg-white dark:bg-zinc-900 text-foreground dark:text-zinc-50">Other / Custom</option>
+                        <option value="Main Restaurant">Main Restaurant Hall</option>
+                        <option value="Verandah & Terrace">Verandah & Terrace</option>
+                        <option value="Poolside Deck">Poolside Deck & Cabanas</option>
+                        <option value="Garden Gazebos">Garden Gazebos</option>
+                        <option value="VIP Lounge">VIP Lounge</option>
+                        <option value="Executive Bar">Executive Bar Counter</option>
+                        <option value="Custom Area">Custom Area</option>
                       </select>
                     </div>
 
-                    {table === 'Other' && (
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Custom Table Name</label>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
+                        Table Selection
+                      </label>
+                      <div className="grid grid-cols-4 gap-1.5 max-h-28 overflow-y-auto pr-1">
+                        {Array.from({ length: 16 }, (_, i) => `Table ${i + 1}`).map(t => {
+                          const isSelected = table === t;
+                          return (
+                            <button
+                              type="button"
+                              key={t}
+                              onClick={() => setTable(t)}
+                              className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center ${
+                                isSelected
+                                  ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                              }`}
+                            >
+                              {t}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => setTable('Other')}
+                          className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center col-span-2 ${
+                            table === 'Other'
+                              ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F]'
+                              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300'
+                          }`}
+                        >
+                          Custom Table...
+                        </button>
+                      </div>
+
+                      {table === 'Other' && (
                         <input
                           type="text"
                           required
-                          placeholder="e.g. Lounge Area 4"
+                          placeholder="e.g. Pool Gazebo Table 3"
                           value={customTable}
                           onChange={(e) => setCustomTable(e.target.value)}
-                          className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-semibold"
+                          className="mt-2 w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
                         />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Delivery Address / Room Number</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Room 204 or Conference Hall A"
-                      value={deliveryAddress}
-                      onChange={(e) => setDeliveryAddress(e.target.value)}
-                      className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-semibold"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Special Instructions</label>
-                  <textarea
-                    placeholder="e.g. Extra spicy, allergens: peanuts, no salt on fries..."
-                    value={specialInstr}
-                    onChange={(e) => setSpecialInstr(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-150 outline-none focus:border-violet-500 dark:focus:border-violet-650 h-20 resize-none font-medium"
-                  />
-                </div>
-
-                 <div className="pt-4 border-t border-zinc-100/60 dark:border-zinc-800 flex items-center justify-between">
-                  <div className="space-y-1">
-                    {(() => {
-                      const cartEstTotal = cartItems.reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
-                      const cartTax = vatRate > 0 ? Math.round(cartEstTotal * (vatRate / (100 + vatRate))) : 0;
-                      const cartSubTotal = cartEstTotal - cartTax;
-                      return (
-                        <>
-                          <div className="flex gap-4 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
-                            <div>Subtotal (Net): <span className="text-zinc-600 dark:text-zinc-300">UGX {cartSubTotal.toLocaleString()}</span></div>
-                            {vatRate > 0 && (
-                              <div>VAT ({vatRate}% incl.): <span className="text-zinc-600 dark:text-zinc-300">UGX {cartTax.toLocaleString()}</span></div>
-                            )}
-                          </div>
-                          <p className="text-xs font-bold text-violet-550 dark:text-violet-400">
-                            Estimated Total: UGX {cartEstTotal.toLocaleString()}
-                          </p>
-                        </>
-                      );
-                    })()}
-                  </div>
-                  <Button
-                    type="submit"
-                    className="bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-full px-6 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
-                  >
-                    Place Order
-                  </Button>
-                </div>
-              </form>
-
-              {/* Right Column: Menu Selector & Order Summary */}
-              <div className="md:col-span-7 flex flex-col min-h-0 border-l border-zinc-100/60 dark:border-zinc-800 pl-6">
-                <div className="mb-4 shrink-0">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-405 mb-1.5">Search Menu Items</label>
-                  <input
-                    type="text"
-                    placeholder="Search by food name..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-955 border border-zinc-100 dark:border-zinc-850 px-3 py-2.5 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-semibold"
-                  />
-                </div>
-
-                <div className="flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Left inner pane: Menu search results */}
-                  <div className="border border-zinc-100 dark:border-zinc-800 rounded-2xl p-3 flex flex-col min-h-0 bg-white dark:bg-zinc-900">
-                    <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Select Dish</h4>
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                      {menu
-                        .filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()) && item.is_available !== false)
-                        .map(item => (
-                          <div
-                            key={item.id}
-                            onClick={() => addToCart(item)}
-                            className="p-2 rounded-xl border border-zinc-100 dark:border-zinc-800 hover:border-violet-450 dark:hover:border-violet-500 cursor-pointer transition-colors flex items-center justify-between gap-2 bg-zinc-50/10 dark:bg-zinc-950/20"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate leading-snug">{item.name}</p>
-                              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold">UGX {item.priceUGX.toLocaleString()}</p>
-                            </div>
-                            <span className="text-xs font-bold text-violet-550 dark:text-violet-400 bg-violet-50 dark:bg-violet-955/20 border border-violet-100/40 dark:border-violet-900/50 px-2 py-0.5 rounded-lg shrink-0">
-                              + Add
-                            </span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-
-                  {/* Right inner pane: Order items in cart */}
-                  <div className="border border-zinc-100 dark:border-zinc-800 rounded-2xl p-3 flex flex-col min-h-0 bg-zinc-50/20 dark:bg-zinc-955/10">
-                    <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Order Items</h4>
-                    <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-                      {cartItems.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-center p-4">
-                          <ShoppingBag className="h-6 w-6 text-zinc-300 dark:text-zinc-650 mb-2" />
-                          <p className="text-[10px] text-zinc-405 font-bold uppercase tracking-wider">Empty Order Cart</p>
-                        </div>
-                      ) : (
-                        cartItems.map(item => (
-                          <div
-                            key={item.menu_item_id}
-                            className="p-2 rounded-xl border border-zinc-100/60 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center justify-between gap-2"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate leading-snug">{item.name}</p>
-                              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 font-bold mt-0.5">UGX {(item.price * item.quantity).toLocaleString()}</p>
-                            </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <button
-                                type="button"
-                                onClick={() => removeFromCart(item.menu_item_id)}
-                                className="w-5 h-5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750 cursor-pointer"
-                              >
-                                -
-                              </button>
-                              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 min-w-[12px] text-center font-sans">
-                                {item.quantity}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => addToCart({ id: String(item.menu_item_id), name: item.name, priceUGX: item.price } as MenuItem)}
-                                className="w-5 h-5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-500 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-750 cursor-pointer"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-                        ))
                       )}
                     </div>
                   </div>
+                )}
+
+                {orderType === 'Room Service' && (
+                  <div className="space-y-3 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-955/60 border border-zinc-150 dark:border-zinc-800/80">
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Select Cottage / Room Unit
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                      {['Cottage 1', 'Cottage 2', 'Cottage 3', 'Cottage 4', 'Cottage 5', 'Cottage 6', 'Cottage 7', 'Cottage 8', 'Cottage 9', 'Cottage 10', 'Royal Suite', 'Deluxe Villa 1', 'Deluxe Villa 2', 'Family Villa'].map(c => {
+                        const isSelected = cottageRoom === c;
+                        return (
+                          <button
+                            type="button"
+                            key={c}
+                            onClick={() => setCottageRoom(c)}
+                            className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center truncate ${
+                              isSelected
+                                ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                            }`}
+                          >
+                            {c}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => setCottageRoom('Other')}
+                        className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center ${
+                          cottageRoom === 'Other'
+                            ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F]'
+                            : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300'
+                        }`}
+                      >
+                        Custom...
+                      </button>
+                    </div>
+
+                    {cottageRoom === 'Other' && (
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Room 204 or Honeymoon Cottage"
+                        value={customRoom}
+                        onChange={(e) => setCustomRoom(e.target.value)}
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
+                      />
+                    )}
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+                        Room Service Tray Charge (Optional UGX)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 5000"
+                        value={deliveryCharge}
+                        onChange={(e) => setDeliveryCharge(e.target.value)}
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {orderType === 'Delivery' && (
+                  <div className="space-y-3 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-150 dark:border-zinc-800/80">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                        Delivery Address / Destination *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Plot 14 Makindye Hill Road or Gate 2"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
+                        Delivery Fee (UGX)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 10000"
+                        value={deliveryCharge}
+                        onChange={(e) => setDeliveryCharge(e.target.value)}
+                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {orderType === 'Takeaway' && (
+                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
+                    <p className="font-semibold">Takeaway / Pickup Order</p>
+                    <p className="text-[11px] opacity-80 mt-0.5">Order will be packaged in biodegradable takeaway containers for pickup at restaurant dispatch.</p>
+                  </div>
+                )}
+
+                {/* Guest / Customer Details */}
+                <div className="space-y-2 pt-2 border-t border-zinc-150 dark:border-zinc-800">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-extrabold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-[#D4AF37]" />
+                      Guest & Customer
+                    </label>
+                    <div className="flex items-center gap-1 text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomerSource('walkin');
+                          setSelectedCustomerId(null);
+                        }}
+                        className={`px-2 py-0.5 rounded-lg font-bold cursor-pointer transition-colors ${
+                          customerSource === 'walkin'
+                            ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                            : 'text-zinc-500 hover:text-foreground'
+                        }`}
+                      >
+                        Walk-in
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCustomerSource('crm')}
+                        className={`px-2 py-0.5 rounded-lg font-bold cursor-pointer transition-colors ${
+                          customerSource === 'crm'
+                            ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                            : 'text-zinc-500 hover:text-foreground'
+                        }`}
+                      >
+                        CRM Client
+                      </button>
+                    </div>
+                  </div>
+
+                  {customerSource === 'crm' && (
+                    <select
+                      value={selectedCustomerId ? String(selectedCustomerId) : ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) {
+                          setSelectedCustomerId(null);
+                        } else {
+                          const found = customersList.find(c => String(c.customer_id) === val);
+                          if (found) {
+                            setSelectedCustomerId(found.customer_id);
+                            setGuestName(found.full_name || '');
+                            setGuestPhone(found.phone_number || '');
+                          }
+                        }
+                      }}
+                      className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37] cursor-pointer mb-2"
+                    >
+                      <option value="">-- Choose Registered Customer --</option>
+                      {customersList.map(cust => (
+                        <option key={cust.customer_id} value={cust.customer_id}>
+                          {cust.full_name} {cust.phone_number ? `(${cust.phone_number})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Guest Name (e.g. John)"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37]"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="tel"
+                        placeholder="Phone Number"
+                        value={guestPhone}
+                        onChange={(e) => setGuestPhone(e.target.value)}
+                        className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Staff & Timing */}
+                <div className="space-y-2 pt-2 border-t border-zinc-150 dark:border-zinc-800">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+                        Assigned Waiter / Server
+                      </label>
+                      <select
+                        value={assignedWaiterId}
+                        onChange={(e) => setAssignedWaiterId(e.target.value)}
+                        className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37] cursor-pointer"
+                      >
+                        <option value="">-- Unassigned Server --</option>
+                        {waitersList.map(w => (
+                          <option key={w.user_id} value={w.user_id}>
+                            {w.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
+                        Order Timing
+                      </label>
+                      <div className="flex rounded-xl bg-zinc-100 dark:bg-zinc-950 p-0.5 border border-zinc-200 dark:border-zinc-800">
+                        <button
+                          type="button"
+                          onClick={() => setOrderTiming('asap')}
+                          className={`flex-1 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                            orderTiming === 'asap'
+                              ? 'bg-white dark:bg-zinc-800 text-foreground shadow-xs'
+                              : 'text-zinc-500'
+                          }`}
+                        >
+                          ASAP
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setOrderTiming('scheduled')}
+                          className={`flex-1 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                            orderTiming === 'scheduled'
+                              ? 'bg-white dark:bg-zinc-800 text-foreground shadow-xs'
+                              : 'text-zinc-500'
+                          }`}
+                        >
+                          Schedule
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {orderTiming === 'scheduled' && (
+                    <input
+                      type="datetime-local"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37]"
+                    />
+                  )}
+                </div>
+
+                {/* Dietary & Allergy Alerts */}
+                <div className="space-y-2 pt-2 border-t border-zinc-150 dark:border-zinc-800">
+                  <label className="text-[11px] font-extrabold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                    Allergies & Dietary Restrictions
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['No Peanuts', 'Gluten-Free', 'Dairy-Free', 'Halal', 'Vegetarian', 'Vegan', 'No Seafood'].map(tag => {
+                      const isChecked = allergyTags.includes(tag);
+                      return (
+                        <button
+                          type="button"
+                          key={tag}
+                          onClick={() => {
+                            setAllergyTags(prev => isChecked ? prev.filter(t => t !== tag) : [...prev, tag]);
+                          }}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                            isChecked
+                              ? 'bg-amber-500/15 border-amber-500/40 text-amber-900 dark:text-amber-200'
+                              : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400'
+                          }`}
+                        >
+                          {isChecked ? `✓ ${tag}` : `+ ${tag}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Other specific allergies or dietary notes..."
+                    value={customAllergy}
+                    onChange={(e) => setCustomAllergy(e.target.value)}
+                    className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37]"
+                  />
+                </div>
+
+                {/* General Special Instructions */}
+                <div className="space-y-1 pt-2 border-t border-zinc-150 dark:border-zinc-800">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Kitchen / Chef Instructions
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="e.g. Serve drinks immediately, prepare main course after 20 mins..."
+                    value={specialInstr}
+                    onChange={(e) => setSpecialInstr(e.target.value)}
+                    className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37] resize-none"
+                  />
+                </div>
+
+                {/* Payment Option Setup */}
+                <div className="space-y-2 pt-2 border-t border-zinc-150 dark:border-zinc-800">
+                  <label className="text-[11px] font-extrabold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <DollarSign className="h-3.5 w-3.5 text-emerald-500" />
+                    Payment Preference
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {(['Pending', 'Paid', 'Partially Paid'] as const).map(p => {
+                      const isSel = paymentStatus === p;
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPaymentStatus(p)}
+                          className={`py-1 rounded-xl text-[10px] font-bold border transition-colors cursor-pointer text-center ${
+                            isSel
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
+                          }`}
+                        >
+                          {p === 'Pending' ? 'Pay Later' : p}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {paymentStatus !== 'Pending' && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div>
+                        <select
+                          value={paymentMethod}
+                          onChange={(e: any) => setPaymentMethod(e.target.value)}
+                          className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37] cursor-pointer"
+                        >
+                          <option value="Cash">Cash</option>
+                          <option value="Card">Card (POS)</option>
+                          <option value="Mobile Money">Mobile Money (MTN/Airtel)</option>
+                          <option value="Room Bill">Bill to Room</option>
+                        </select>
+                      </div>
+                      {paymentStatus === 'Partially Paid' && (
+                        <div>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Amount Paid (UGX)"
+                            value={amountPaid}
+                            onChange={(e) => setAmountPaid(e.target.value)}
+                            className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37]"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
+
+
+              {/* ======================================================== */}
+              {/* COLUMN 2: Menu Dishes Browser & Interactive Customizer   */}
+              {/* ======================================================== */}
+              <div className="lg:col-span-4 flex flex-col min-h-0 bg-white dark:bg-zinc-900 rounded-[22px] border border-zinc-200 dark:border-zinc-800 p-4 shadow-xs relative overflow-hidden">
+                {customizingItem ? (
+                  /* ======================================= */
+                  /* ACTIVE DISH CUSTOMIZER VIEW             */
+                  /* ======================================= */
+                  <div className="flex-1 flex flex-col min-h-0 overflow-y-auto space-y-4 animate-in fade-in">
+                    <div className="flex items-center justify-between pb-2 border-b border-zinc-150 dark:border-zinc-800 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setCustomizingItem(null)}
+                        className="text-xs font-bold text-zinc-500 hover:text-foreground flex items-center gap-1.5 cursor-pointer py-1"
+                      >
+                        ← Back to Menu
+                      </button>
+                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20">
+                        Customize Dish
+                      </span>
+                    </div>
+
+                    {/* Dish Hero Card */}
+                    <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-150 dark:border-zinc-800">
+                      <img
+                        src={getImageUrl(customizingItem.item.image)}
+                        alt={customizingItem.item.name}
+                        className="h-16 w-16 rounded-xl object-cover bg-zinc-200 dark:bg-zinc-800 shrink-0 border border-zinc-200 dark:border-zinc-800"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">
+                          {customizingItem.item.category}
+                        </span>
+                        <h4 className="text-sm font-extrabold text-foreground leading-tight truncate">
+                          {customizingItem.item.name}
+                        </h4>
+                        <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                          Base: UGX {customizingItem.item.priceUGX.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 1. Choices / Preparation Selection */}
+                    {customizingItem.item.choices && customizingItem.item.choices.length > 0 && (
+                      <div className="space-y-2 p-3 rounded-2xl bg-zinc-50/70 dark:bg-zinc-950/40 border border-zinc-150 dark:border-zinc-800/80">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1">
+                            <span>🎯</span> Choices / Preparation
+                          </label>
+                          <span className="text-[9px] uppercase font-bold text-amber-600 dark:text-amber-400">Required</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {customizingItem.item.choices.map(c => {
+                            const isSelected = customizingItem.choice?.choice_id === c.choice_id;
+                            const cPrice = Number(c.price || 0);
+                            return (
+                              <button
+                                type="button"
+                                key={c.choice_id}
+                                onClick={() => setCustomizingItem(prev => prev ? {
+                                  ...prev,
+                                  choice: {
+                                    choice_id: c.choice_id!,
+                                    choice_name: c.choice_name,
+                                    price: cPrice
+                                  }
+                                } : null)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                  isSelected
+                                    ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                    : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                                }`}
+                              >
+                                <span className={`h-2 w-2 rounded-full ${isSelected ? 'bg-[#D4AF37] dark:bg-[#0A192F]' : 'border border-zinc-400'}`} />
+                                <span>{c.choice_name}</span>
+                                {cPrice > 0 ? (
+                                  <span className="text-[10px] font-bold opacity-90">+UGX {cPrice.toLocaleString()}</span>
+                                ) : (
+                                  <span className="text-[10px] opacity-60">(Included)</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. Accompaniments / Sides Selection */}
+                    {customizingItem.item.accompaniments && customizingItem.item.accompaniments.length > 0 && (
+                      <div className="space-y-2 p-3 rounded-2xl bg-zinc-50/70 dark:bg-zinc-950/40 border border-zinc-150 dark:border-zinc-800/80">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1">
+                            <span>🍟</span> Accompaniments (Sides)
+                          </label>
+                          <span className="text-[9px] uppercase font-bold text-zinc-400">Optional • Click to toggle</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCustomizingItem(prev => prev ? { ...prev, accompaniment: null } : null)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                              !customizingItem.accompaniment
+                                ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F]'
+                                : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500'
+                            }`}
+                          >
+                            No Side
+                          </button>
+                          {customizingItem.item.accompaniments.map(a => {
+                            const isSelected = customizingItem.accompaniment?.accompaniment_id === a.accompaniment_id;
+                            const aPrice = Number(a.price || 0);
+                            return (
+                              <button
+                                type="button"
+                                key={a.accompaniment_id}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setCustomizingItem(prev => prev ? { ...prev, accompaniment: null } : null);
+                                  } else {
+                                    setCustomizingItem(prev => prev ? {
+                                      ...prev,
+                                      accompaniment: {
+                                        accompaniment_id: a.accompaniment_id!,
+                                        accompaniment_name: a.accompaniment_name,
+                                        price: aPrice
+                                      }
+                                    } : null);
+                                  }
+                                }}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                  isSelected
+                                    ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                    : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                                }`}
+                              >
+                                <span>{a.accompaniment_name}</span>
+                                {aPrice > 0 ? (
+                                  <span className="text-[10px] font-bold opacity-90">+UGX {aPrice.toLocaleString()}</span>
+                                ) : (
+                                  <span className="text-[10px] opacity-60">(Included)</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3. Extras & Add-ons Selection */}
+                    {customizingItem.item.extras && customizingItem.item.extras.length > 0 && (
+                      <div className="space-y-2 p-3 rounded-2xl bg-zinc-50/70 dark:bg-zinc-950/40 border border-zinc-150 dark:border-zinc-800/80">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1">
+                            <span>➕</span> Extras & Add-ons
+                          </label>
+                          <span className="text-[9px] uppercase font-bold text-zinc-400">Multiple allowed • Click to select</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {customizingItem.item.extras.map(ex => {
+                            const found = customizingItem.extras.find(e => e.extra_id === ex.extra_id);
+                            const isChecked = !!found;
+                            const ePrice = Number(ex.price || 0);
+                            const extraQty = found?.quantity || 1;
+                            return (
+                              <div
+                                key={ex.extra_id}
+                                onClick={() => {
+                                  setCustomizingItem(prev => {
+                                    if (!prev) return null;
+                                    if (isChecked) {
+                                      return { ...prev, extras: prev.extras.filter(e => e.extra_id !== ex.extra_id) };
+                                    } else {
+                                      return {
+                                        ...prev,
+                                        extras: [...prev.extras, {
+                                          extra_id: ex.extra_id!,
+                                          extra_name: ex.extra_name,
+                                          price: ePrice,
+                                          quantity: 1
+                                        }]
+                                      };
+                                    }
+                                  });
+                                }}
+                                className={`p-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-between ${
+                                  isChecked
+                                    ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-amber-200 shadow-2xs'
+                                    : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className={`h-4 w-4 rounded-md flex items-center justify-center border text-[9px] shrink-0 font-bold ${
+                                    isChecked
+                                      ? 'bg-[#D4AF37] border-[#D4AF37] text-zinc-900'
+                                      : 'border-zinc-300 dark:border-zinc-700'
+                                  }`}>
+                                    {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
+                                  </span>
+                                  <span className="truncate">{ex.extra_name}</span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                                  <span className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100">
+                                    +UGX {(ePrice * extraQty).toLocaleString()}
+                                  </span>
+                                  {isChecked && (
+                                    <div
+                                      className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5 ml-1"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCustomizingItem(prev => {
+                                            if (!prev) return null;
+                                            if (extraQty <= 1) {
+                                              return { ...prev, extras: prev.extras.filter(e => e.extra_id !== ex.extra_id) };
+                                            }
+                                            return {
+                                              ...prev,
+                                              extras: prev.extras.map(e => e.extra_id === ex.extra_id ? { ...e, quantity: e.quantity - 1 } : e)
+                                            };
+                                          });
+                                        }}
+                                        className="h-5 w-5 rounded bg-white dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold hover:bg-zinc-200 cursor-pointer shadow-2xs"
+                                      >
+                                        -
+                                      </button>
+                                      <span className="w-4 text-center text-[10px] font-extrabold">{extraQty}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setCustomizingItem(prev => {
+                                            if (!prev) return null;
+                                            return {
+                                              ...prev,
+                                              extras: prev.extras.map(e => e.extra_id === ex.extra_id ? { ...e, quantity: e.quantity + 1 } : e)
+                                            };
+                                          });
+                                        }}
+                                        className="h-5 w-5 rounded bg-white dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold hover:bg-zinc-200 cursor-pointer shadow-2xs"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Item Notes */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                        Item Special Preparation
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Mild spice, gravy on side, extra lemon..."
+                        value={customizingItem.notes}
+                        onChange={(e) => setCustomizingItem(prev => prev ? { ...prev, notes: e.target.value } : null)}
+                        className="w-full rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37]"
+                      />
+                    </div>
+
+                    {/* Bottom Action Bar for Customizer */}
+                    <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-3 mt-auto shrink-0 bg-white dark:bg-zinc-900">
+                      <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-950 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                        <button
+                          type="button"
+                          onClick={() => setCustomizingItem(prev => prev ? { ...prev, quantity: Math.max(1, prev.quantity - 1) } : null)}
+                          className="h-7 w-7 rounded-lg bg-white dark:bg-zinc-800 flex items-center justify-center text-xs font-bold hover:bg-zinc-200 cursor-pointer shadow-2xs"
+                        >
+                          -
+                        </button>
+                        <span className="w-5 text-center text-xs font-extrabold text-foreground">{customizingItem.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => setCustomizingItem(prev => prev ? { ...prev, quantity: prev.quantity + 1 } : null)}
+                          className="h-7 w-7 rounded-lg bg-white dark:bg-zinc-800 flex items-center justify-center text-xs font-bold hover:bg-zinc-200 cursor-pointer shadow-2xs"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {(() => {
+                        const basePrice = customizingItem.item.priceUGX;
+                        const cPrice = customizingItem.choice?.price || 0;
+                        const aPrice = customizingItem.accompaniment?.price || 0;
+                        const ePrice = customizingItem.extras.reduce((sum, ex) => sum + (ex.price * ex.quantity), 0);
+                        const unitTotal = basePrice + cPrice + aPrice + ePrice;
+                        const lineTotal = unitTotal * customizingItem.quantity;
+                        return (
+                          <button
+                            type="button"
+                            onClick={saveCustomizedItem}
+                            className="px-4 py-2.5 rounded-xl bg-[#0A2540] text-[#D4AF37] hover:bg-[#07192C] border border-[#D4AF37]/30 dark:bg-[#D4AF37] dark:text-[#0A192F] text-xs font-bold shadow-sm cursor-pointer flex items-center gap-2"
+                          >
+                            <span>{customizingItem.existingCartId ? 'Update Item Ticket' : '✓ Add to Order Ticket'}</span>
+                            <span>•</span>
+                            <span className="font-extrabold">UGX {lineTotal.toLocaleString()}</span>
+                          </button>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ) : (
+                  /* ======================================= */
+                  /* MENU DISHES BROWSER VIEW                */
+                  /* ======================================= */
+                  <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                    <div className="space-y-2 pb-3 border-b border-zinc-150 dark:border-zinc-800 shrink-0">
+                      <div className="relative">
+                        <Search className="h-4 w-4 text-zinc-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          placeholder="Search menu dishes, drinks, desserts..."
+                          value={menuSearchTerm}
+                          onChange={(e) => setMenuSearchTerm(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 rounded-xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-foreground font-medium outline-none focus:border-[#D4AF37]"
+                        />
+                      </div>
+
+                      {/* Horizontal Category Filter Pills */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+                        {['ALL', ...Array.from(new Set(menu.map(m => m.category).filter(Boolean)))].map(cat => {
+                          const isSel = selectedMenuCategory === cat;
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => setSelectedMenuCategory(cat)}
+                              className={`px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                                isSel
+                                  ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                  : 'bg-zinc-100 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                              }`}
+                            >
+                              {cat}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Dish Cards Grid */}
+                    <div className="flex-1 overflow-y-auto space-y-2 pt-3 pr-1">
+                      {menu
+                        .filter(item => {
+                          const matchSearch = item.name.toLowerCase().includes(menuSearchTerm.toLowerCase()) ||
+                            item.category.toLowerCase().includes(menuSearchTerm.toLowerCase());
+                          const matchCategory = selectedMenuCategory === 'ALL' || item.category === selectedMenuCategory;
+                          return matchSearch && matchCategory && item.is_available !== false;
+                        })
+                        .map(item => {
+                          const choicesCount = item.choices?.length || 0;
+                          const accompanimentsCount = item.accompaniments?.length || 0;
+                          const extrasCount = item.extras?.length || 0;
+                          const hasAnyCustomization = choicesCount > 0 || accompanimentsCount > 0 || extrasCount > 0;
+
+                          return (
+                            <div
+                              key={item.id}
+                              className="p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-[#D4AF37]/50 transition-all flex items-center justify-between gap-3 bg-zinc-50/30 dark:bg-zinc-950/20 group hover:shadow-xs"
+                            >
+                              <div
+                                onClick={() => startCustomizing(item)}
+                                className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                              >
+                                <img
+                                  src={getImageUrl(item.image)}
+                                  alt={item.name}
+                                  className="h-12 w-12 rounded-xl object-cover bg-zinc-100 dark:bg-zinc-800 shrink-0 border border-zinc-200 dark:border-zinc-800"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-[#D4AF37] transition-colors">
+                                      {item.name}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className="text-[11px] font-extrabold text-zinc-900 dark:text-zinc-100">
+                                      UGX {item.priceUGX.toLocaleString()}
+                                    </span>
+                                    <span className="text-[10px] text-zinc-400">•</span>
+                                    <span className="text-[10px] font-semibold text-zinc-400 truncate">
+                                      {item.category}
+                                    </span>
+                                  </div>
+
+                                  {/* Customization Feature Badges */}
+                                  {hasAnyCustomization && (
+                                    <div className="flex flex-wrap items-center gap-1 mt-1">
+                                      {choicesCount > 0 && (
+                                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20">
+                                          Choices ({choicesCount})
+                                        </span>
+                                      )}
+                                      {accompanimentsCount > 0 && (
+                                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                          Sides ({accompanimentsCount})
+                                        </span>
+                                      )}
+                                      {extrasCount > 0 && (
+                                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                          Add-ons ({extrasCount})
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleQuickAdd(item)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                                  hasAnyCustomization
+                                    ? 'bg-[#0A2540] text-[#D4AF37] hover:bg-[#07192C] border border-[#D4AF37]/30 dark:bg-[#D4AF37] dark:text-[#0A192F]'
+                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-200'
+                                }`}
+                              >
+                                {hasAnyCustomization ? '+ Customize' : '+ Add'}
+                              </button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
+              {/* ======================================================== */}
+              {/* COLUMN 3: Live Order Ticket & Financial Summary (4 cols) */}
+              {/* ======================================================== */}
+              <div className="lg:col-span-4 flex flex-col min-h-0 bg-white dark:bg-zinc-900 rounded-[22px] border border-zinc-200 dark:border-zinc-800 p-4 shadow-xs">
+                {/* Cart Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-zinc-150 dark:border-zinc-800 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="h-4 w-4 text-[#D4AF37]" />
+                    <h4 className="text-xs font-extrabold text-foreground uppercase tracking-wider">
+                      Order Ticket ({cartItems.reduce((acc, c) => acc + c.quantity, 0)})
+                    </h4>
+                  </div>
+                  {cartItems.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      className="text-[11px] font-bold text-red-500 hover:text-red-700 cursor-pointer transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                {/* Cart Items List with Live Preview Card */}
+                <div className="flex-1 overflow-y-auto space-y-2.5 py-3 pr-1 min-h-0">
+                  {/* Live Active Customizing Dish Preview Card */}
+                  {customizingItem && (
+                    <div className="p-3 rounded-2xl border-2 border-dashed border-[#D4AF37] bg-[#D4AF37]/5 dark:bg-[#D4AF37]/10 space-y-2 animate-in fade-in">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-[#D4AF37] animate-ping" />
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#D4AF37]">
+                            {customizingItem.existingCartId ? 'Editing In Ticket' : 'Configuring Selection'}
+                          </span>
+                        </div>
+                        {(() => {
+                          const cPrice = customizingItem.choice?.price || 0;
+                          const aPrice = customizingItem.accompaniment?.price || 0;
+                          const ePrice = customizingItem.extras.reduce((sum, ex) => sum + (ex.price * ex.quantity), 0);
+                          const itemLineTotal = (customizingItem.item.priceUGX + cPrice + aPrice + ePrice) * customizingItem.quantity;
+                          return (
+                            <span className="text-xs font-extrabold text-[#D4AF37]">
+                              UGX {itemLineTotal.toLocaleString()}
+                            </span>
+                          );
+                        })()}
+                      </div>
+
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h5 className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                            {customizingItem.item.name} <span className="text-[11px] font-normal text-zinc-500">×{customizingItem.quantity}</span>
+                          </h5>
+                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-semibold">
+                            Base: UGX {customizingItem.item.priceUGX.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Live customized additions breakdown */}
+                      <div className="space-y-1 text-[11px] bg-white/80 dark:bg-zinc-900/80 p-2 rounded-xl border border-[#D4AF37]/20">
+                        {customizingItem.choice && (
+                          <div className="flex justify-between items-center text-zinc-700 dark:text-zinc-200">
+                            <span>• Choice: {customizingItem.choice.choice_name}</span>
+                            <span className="font-semibold text-[#D4AF37]">
+                              {customizingItem.choice.price > 0 ? `+UGX ${customizingItem.choice.price.toLocaleString()}` : '(Included)'}
+                            </span>
+                          </div>
+                        )}
+                        {customizingItem.accompaniment && (
+                          <div className="flex justify-between items-center text-zinc-700 dark:text-zinc-200">
+                            <span>• Side: {customizingItem.accompaniment.accompaniment_name}</span>
+                            <span className="font-semibold text-[#D4AF37]">
+                              {customizingItem.accompaniment.price > 0 ? `+UGX ${customizingItem.accompaniment.price.toLocaleString()}` : '(Included)'}
+                            </span>
+                          </div>
+                        )}
+                        {customizingItem.extras.map(ex => (
+                          <div key={ex.extra_id} className="flex justify-between items-center text-zinc-700 dark:text-zinc-200">
+                            <span>• Extra: {ex.extra_name} x{ex.quantity}</span>
+                            <span className="font-semibold text-[#D4AF37]">+UGX {(ex.price * ex.quantity).toLocaleString()}</span>
+                          </div>
+                        ))}
+                        {customizingItem.notes && (
+                          <div className="text-amber-600 dark:text-amber-400 font-medium italic pt-0.5">
+                            Note: {customizingItem.notes}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {cartItems.length === 0 && !customizingItem ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-400">
+                      <div className="h-12 w-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-3">
+                        <ShoppingBag className="h-6 w-6 text-zinc-300 dark:text-zinc-600" />
+                      </div>
+                      <p className="text-xs font-extrabold uppercase tracking-wider text-zinc-400">Order Cart is Empty</p>
+                      <p className="text-[11px] text-zinc-400 mt-1 max-w-[200px]">
+                        Select dishes from the menu and customize your choices, sides & extras.
+                      </p>
+                    </div>
+                  ) : (
+                    cartItems.map((item) => {
+                      const choicePrice = item.choice?.price || 0;
+                      const accomPrice = item.accompaniment?.price || 0;
+                      const extrasPrice = item.extras.reduce((sum, ex) => sum + (ex.price * ex.quantity), 0);
+                      const unitPrice = item.base_price + choicePrice + accomPrice + extrasPrice;
+                      const lineTotal = unitPrice * item.quantity;
+
+                      const menuItemOriginal = menu.find(m => m.id === String(item.menu_item_id));
+
+                      return (
+                        <div
+                          key={item.cart_id}
+                          className="p-3 rounded-2xl border border-zinc-150 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/40 space-y-2 transition-all hover:border-zinc-300 dark:hover:border-zinc-700"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <h5 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
+                                {item.name}
+                              </h5>
+                              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-semibold mt-0.5">
+                                UGX {unitPrice.toLocaleString()} each
+                              </p>
+                            </div>
+                            <span className="text-xs font-extrabold text-foreground shrink-0">
+                              UGX {lineTotal.toLocaleString()}
+                            </span>
+                          </div>
+
+                          {/* Customizations tags with interactive remove options */}
+                          <div className="space-y-1 text-[11px] bg-white dark:bg-zinc-900 p-2 rounded-xl border border-zinc-150/70 dark:border-zinc-800/80">
+                            {item.choice && (
+                              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-300">
+                                <span>• Choice: {item.choice.choice_name}</span>
+                                {item.choice.price > 0 && <span className="font-semibold text-zinc-900 dark:text-zinc-100">+UGX {item.choice.price.toLocaleString()}</span>}
+                              </div>
+                            )}
+
+                            {item.accompaniment && (
+                              <div className="flex justify-between items-center text-zinc-600 dark:text-zinc-300">
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeAccompanimentFromCartItem(item.cart_id)}
+                                    className="text-zinc-400 hover:text-red-500 cursor-pointer"
+                                    title="Remove side"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                  <span>• Side: {item.accompaniment.accompaniment_name}</span>
+                                </div>
+                                {item.accompaniment.price > 0 && <span className="font-semibold text-zinc-900 dark:text-zinc-100">+UGX {item.accompaniment.price.toLocaleString()}</span>}
+                              </div>
+                            )}
+
+                            {item.extras.map(ex => (
+                              <div key={ex.extra_id} className="flex justify-between items-center text-zinc-600 dark:text-zinc-300">
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeExtraFromCartItem(item.cart_id, ex.extra_id)}
+                                    className="text-zinc-400 hover:text-red-500 cursor-pointer"
+                                    title="Remove extra"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                  <span>• Extra: {ex.extra_name} x{ex.quantity}</span>
+                                </div>
+                                <span className="font-semibold text-zinc-900 dark:text-zinc-100">+UGX {(ex.price * ex.quantity).toLocaleString()}</span>
+                              </div>
+                            ))}
+
+                            {item.special_notes && (
+                              <div className="text-amber-600 dark:text-amber-400 font-medium italic pt-0.5">
+                                Note: {item.special_notes}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Item Quantity and Actions */}
+                          <div className="flex items-center justify-between pt-1">
+                            {menuItemOriginal && (
+                              <button
+                                type="button"
+                                onClick={() => startCustomizing(menuItemOriginal, item)}
+                                className="text-[11px] font-bold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit3 className="h-3 w-3" />
+                                Edit Options
+                              </button>
+                            )}
+
+                            <div className="flex items-center gap-2 ml-auto">
+                              <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => updateCartQuantity(item.cart_id, -1)}
+                                  className="h-6 w-6 rounded-md bg-white dark:bg-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 cursor-pointer shadow-2xs"
+                                >
+                                  -
+                                </button>
+                                <span className="w-6 text-center text-xs font-bold text-foreground">
+                                  {item.quantity}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => updateCartQuantity(item.cart_id, 1)}
+                                  className="h-6 w-6 rounded-md bg-white dark:bg-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-200 cursor-pointer shadow-2xs"
+                                >
+                                  +
+                                </button>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => removeFromCart(item.cart_id)}
+                                className="h-7 w-7 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-955/30 flex items-center justify-center transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Live Order Summary & Totals reflecting choices, accompaniments, and extras live */}
+                <div className="pt-3 border-t border-dashed border-zinc-200 dark:border-zinc-800 space-y-2 shrink-0 bg-white dark:bg-zinc-900">
+                  {(() => {
+                    const baseItemsTotal = cartItems.reduce((acc, curr) => acc + (curr.base_price * curr.quantity), 0);
+                    const choicesTotal = cartItems.reduce((acc, curr) => acc + ((curr.choice?.price || 0) * curr.quantity), 0);
+                    const accompanimentsTotal = cartItems.reduce((acc, curr) => acc + ((curr.accompaniment?.price || 0) * curr.quantity), 0);
+                    const extrasTotal = cartItems.reduce((acc, curr) => acc + (curr.extras.reduce((sum, ex) => sum + (ex.price * ex.quantity), 0) * curr.quantity), 0);
+
+                    // If currently customizing a new dish (not editing existing in cart), reflect its totals live too!
+                    const isNewDish = customizingItem && !customizingItem.existingCartId;
+                    const pendingBase = isNewDish ? (customizingItem.item.priceUGX * customizingItem.quantity) : 0;
+                    const pendingChoice = isNewDish ? ((customizingItem.choice?.price || 0) * customizingItem.quantity) : 0;
+                    const pendingAccompaniment = isNewDish ? ((customizingItem.accompaniment?.price || 0) * customizingItem.quantity) : 0;
+                    const pendingExtras = isNewDish ? (customizingItem.extras.reduce((sum, ex) => sum + (ex.price * ex.quantity), 0) * customizingItem.quantity) : 0;
+
+                    const effectiveBaseTotal = baseItemsTotal + pendingBase;
+                    const effectiveChoicesTotal = choicesTotal + pendingChoice;
+                    const effectiveAccompanimentsTotal = accompanimentsTotal + pendingAccompaniment;
+                    const effectiveExtrasTotal = extrasTotal + pendingExtras;
+                    const effectiveCustomizationsTotal = effectiveChoicesTotal + effectiveAccompanimentsTotal + effectiveExtrasTotal;
+
+                    const foodBeverageSubtotal = effectiveBaseTotal + effectiveCustomizationsTotal;
+                    const deliveryFee = (orderType === 'Delivery' || orderType === 'Room Service') ? Number(deliveryCharge || 0) : 0;
+                    
+                    const taxAmount = vatRate > 0 ? Math.round(foodBeverageSubtotal * (vatRate / (100 + vatRate))) : 0;
+                    const netSubtotal = Math.max(0, foodBeverageSubtotal - taxAmount);
+                    const grandTotal = foodBeverageSubtotal + deliveryFee;
+
+                    return (
+                      <>
+                        {isNewDish && (
+                          <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[10px] font-bold text-amber-800 dark:text-amber-300">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            <span>Live preview includes active selection (+UGX {(pendingBase + pendingChoice + pendingAccompaniment + pendingExtras).toLocaleString()})</span>
+                          </div>
+                        )}
+
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-medium">
+                            <span>Base Items Subtotal:</span>
+                            <span className="font-semibold text-zinc-800 dark:text-zinc-200">UGX {effectiveBaseTotal.toLocaleString()}</span>
+                          </div>
+
+                          {/* Specific Customization Breakdowns */}
+                          {effectiveChoicesTotal > 0 && (
+                            <div className="flex justify-between items-center text-violet-600 dark:text-violet-400 text-[11px] font-medium pl-2">
+                              <span>• Choice Adjustments:</span>
+                              <span className="font-semibold">+UGX {effectiveChoicesTotal.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          {effectiveAccompanimentsTotal > 0 && (
+                            <div className="flex justify-between items-center text-amber-600 dark:text-amber-400 text-[11px] font-medium pl-2">
+                              <span>• Accompaniments (Sides):</span>
+                              <span className="font-semibold">+UGX {effectiveAccompanimentsTotal.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          {effectiveExtrasTotal > 0 && (
+                            <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 text-[11px] font-medium pl-2">
+                              <span>• Extras & Add-ons:</span>
+                              <span className="font-semibold">+UGX {effectiveExtrasTotal.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          {effectiveCustomizationsTotal > 0 && (
+                            <div className="flex justify-between items-center text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/5 px-2 py-0.5 rounded-lg border border-amber-500/10">
+                              <span>Total Customizations:</span>
+                              <span>+UGX {effectiveCustomizationsTotal.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          {deliveryFee > 0 && (
+                            <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-medium">
+                              <span>{orderType === 'Room Service' ? 'Room Service Fee:' : 'Delivery Fee:'}</span>
+                              <span className="font-semibold text-zinc-800 dark:text-zinc-200">+UGX {deliveryFee.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          {taxAmount > 0 && (
+                            <div className="flex justify-between items-center text-zinc-400 dark:text-zinc-500 text-[11px]">
+                              <span>VAT ({vatRate}% inclusive):</span>
+                              <span>UGX {taxAmount.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center text-zinc-400 dark:text-zinc-500 text-[11px]">
+                            <span>Net Subtotal:</span>
+                            <span>UGX {netSubtotal.toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        {/* Grand Total Bar */}
+                        <div className="p-3 rounded-2xl bg-zinc-900 text-white dark:bg-zinc-950 border border-zinc-800 flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 block">Total Payable</span>
+                            <span className="text-base font-extrabold text-[#D4AF37]">
+                              UGX {grandTotal.toLocaleString()}
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-zinc-400 bg-zinc-800 px-2 py-0.5 rounded-md">
+                            {cartItems.reduce((acc, c) => acc + c.quantity, 0) + (isNewDish ? customizingItem.quantity : 0)} Items
+                          </span>
+                        </div>
+
+                        {/* Place Order Primary Action Button */}
+                        <Button
+                          type="button"
+                          disabled={cartItems.length === 0 || isSubmittingOrder}
+                          onClick={handleCreateOrder}
+                          className="w-full bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-2xl py-3 text-xs font-extrabold shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {isSubmittingOrder ? (
+                            <>
+                              <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#D4AF37] dark:border-[#0A192F] border-t-transparent" />
+                              <span>Submitting Ticket...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Utensils className="h-4 w-4" />
+                              <span>Place Order • UGX {grandTotal.toLocaleString()}</span>
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
