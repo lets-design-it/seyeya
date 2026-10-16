@@ -42,6 +42,12 @@ export const OrderPopup: React.FC = () => {
           icon: <CalendarRange className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />,
           badge: 'Conference Planner'
         };
+      default:
+        return {
+          bg: 'border-emerald-500/20 bg-card/90 shadow-emerald-500/5',
+          icon: <Bell className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />,
+          badge: 'System Notification'
+        };
     }
   };
 

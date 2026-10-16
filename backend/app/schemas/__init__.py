@@ -2185,6 +2185,16 @@ class NotificationStatistics(BaseModel):
     category_counts: dict
 
 
+class DeviceTokenRegister(BaseModel):
+    token: str
+    platform: Optional[str] = "android"  # ios, android, web
+
+
+class DeviceTokenResponse(BaseModel):
+    message: str
+    status: str = "success"
+
+
 # =====================================================================
 # REPORT SCHEMAS
 # =====================================================================

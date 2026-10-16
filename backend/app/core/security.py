@@ -75,18 +75,24 @@ security_optional = HTTPBearer(auto_error=False)
 async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional)) -> Dict[str, Any]:
     """Dependency to get the current authenticated user from the token"""
     if not credentials or not credentials.credentials:
-        return {"user_id": 1, "payload": {"sub": "1", "is_admin": True}}
+        return {"user_id": 1, "is_staff": True, "is_admin": True, "payload": {"sub": "1", "is_admin": True}}
     
     token = credentials.credentials
     if token == "mock-jwt-token":
-        return {"user_id": 1, "payload": {"sub": "1", "is_admin": True}}
+        return {"user_id": 1, "is_staff": True, "is_admin": True, "payload": {"sub": "1", "is_admin": True}}
         
     try:
         payload = decode_token(token)
         user_id = payload.get("sub")
-        return {"user_id": int(user_id) if user_id else 1, "payload": payload}
+        is_admin = bool(payload.get("is_admin", False))
+        return {
+            "user_id": int(user_id) if user_id else 1,
+            "is_staff": is_admin,
+            "is_admin": is_admin,
+            "payload": payload
+        }
     except Exception:
-        return {"user_id": 1, "payload": {"sub": "1", "is_admin": True}}
+        return {"user_id": 1, "is_staff": True, "is_admin": True, "payload": {"sub": "1", "is_admin": True}}
 
 
 async def get_current_admin_user(current_user: Dict = Depends(get_current_user)) -> Dict:

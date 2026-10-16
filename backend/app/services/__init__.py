@@ -727,7 +727,8 @@ class RestaurantOrderService:
         allergy_info: Optional[str] = None,
         assigned_waiter: Optional[int] = None,
         payment_status: Optional[str] = "Pending",
-        amount_paid: Optional[Decimal] = None
+        amount_paid: Optional[Decimal] = None,
+        created_by: Optional[int] = None
     ) -> RestaurantOrder:
         """Create a new restaurant order"""
         # Generate unique order number
@@ -873,7 +874,8 @@ class RestaurantOrderService:
             await notif_service.create_event(
                 event_type="Order Placed",
                 reference_type="RestaurantOrder",
-                reference_id=str(order.order_id)
+                reference_id=str(order.order_id),
+                triggered_by=created_by
             )
         except Exception as e:
             pass
@@ -884,7 +886,7 @@ class RestaurantOrderService:
         """Get order details"""
         return await self.order_repo.get_by_id(order_id)
     
-    async def update_order_status(self, order_id: int, new_status: str) -> Optional[RestaurantOrder]:
+    async def update_order_status(self, order_id: int, new_status: str, triggered_by: Optional[int] = None) -> Optional[RestaurantOrder]:
         """Update order status"""
         order = await self.order_repo.get_by_id(order_id)
         if not order:
@@ -898,20 +900,23 @@ class RestaurantOrderService:
         try:
             from app.services.notifications import NotificationService
             notif_service = NotificationService(self.db)
-            event_type = f"Order {new_status}"
-            if new_status == "Processing":
+            status_lower = (new_status or "").strip().lower()
+            if status_lower in ["preparing", "processing", "in progress", "being prepared", "prepared"]:
                 event_type = "Order Being Prepared"
-            elif new_status == "Ready":
+            elif status_lower in ["ready", "order ready"]:
                 event_type = "Order Ready"
-            elif new_status in ["Completed", "Delivered"]:
+            elif status_lower in ["completed", "delivered", "done"]:
                 event_type = "Order Delivered"
-            elif new_status == "Cancelled":
+            elif status_lower in ["cancelled", "canceled"]:
                 event_type = "Order Cancelled"
+            else:
+                event_type = f"Order {new_status}"
                 
             await notif_service.create_event(
                 event_type=event_type,
                 reference_type="RestaurantOrder",
-                reference_id=str(order_id)
+                reference_id=str(order_id),
+                triggered_by=triggered_by
             )
         except Exception as e:
             pass
@@ -931,6 +936,19 @@ class RestaurantOrderService:
             
         self.db.add(order)
         await self.db.commit()
+
+        # Trigger notification event
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(self.db)
+            await notif_service.create_event(
+                event_type="Order Cancelled",
+                reference_type="RestaurantOrder",
+                reference_id=str(order_id)
+            )
+        except Exception:
+            pass
+
         return await self.get_order(order_id)
 
     async def get_customer_orders(self, customer_id: int, skip: int = 0, limit: Optional[int] = None) -> List[RestaurantOrder]:

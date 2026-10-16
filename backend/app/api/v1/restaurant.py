@@ -331,7 +331,8 @@ async def create_order(
             allergy_info=request.allergy_info,
             assigned_waiter=request.assigned_waiter,
             payment_status=request.payment_status,
-            amount_paid=request.amount_paid
+            amount_paid=request.amount_paid,
+            created_by=current_user.get("user_id")
         )
         
         return await service.get_order(order.order_id)
@@ -396,6 +397,7 @@ async def update_order(
                 detail="Order not found"
             )
         
+        old_status = order.order_status
         if request.order_status:
             order.order_status = request.order_status
         
@@ -419,6 +421,33 @@ async def update_order(
         
         db.add(order)
         await db.commit()
+        
+        # Trigger notification event if status changed
+        if request.order_status and request.order_status != old_status:
+            try:
+                from app.services.notifications import NotificationService
+                notif_service = NotificationService(db)
+                status_lower = request.order_status.strip().lower()
+                
+                if status_lower in ["preparing", "processing", "in progress", "being prepared", "prepared"]:
+                    event_type = "Order Being Prepared"
+                elif status_lower in ["ready", "order ready"]:
+                    event_type = "Order Ready"
+                elif status_lower in ["completed", "delivered", "done"]:
+                    event_type = "Order Delivered"
+                elif status_lower in ["cancelled", "canceled"]:
+                    event_type = "Order Cancelled"
+                else:
+                    event_type = f"Order {request.order_status}"
+                    
+                await notif_service.create_event(
+                    event_type=event_type,
+                    reference_type="RestaurantOrder",
+                    reference_id=str(order_id),
+                    triggered_by=current_user.get("user_id")
+                )
+            except Exception:
+                pass
         
         return await service.get_order(order.order_id)
     except Exception as e:
