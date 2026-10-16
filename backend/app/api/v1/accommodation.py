@@ -312,6 +312,7 @@ async def update_reservation(
     
     if request.room_id is not None:
         reservation.room_id = request.room_id
+    old_status = reservation.reservation_status
     cat_id = request.category_id if request.category_id is not None else request.room_category_id
     if cat_id is not None:
         reservation.room_category_id = cat_id
@@ -343,6 +344,19 @@ async def update_reservation(
                 r_obj.room_status = "Available"
             db.add(r_obj)
             await db.commit()
+
+    # Trigger notification if cancelled
+    if request.reservation_status in ["Cancelled", "Canceled"] and old_status not in ["Cancelled", "Canceled"]:
+        try:
+            from app.services.notifications import NotificationService
+            notif_service = NotificationService(db)
+            await notif_service.create_event(
+                event_type="Reservation Cancelled",
+                reference_type="AccommodationReservation",
+                reference_id=str(reservation.reservation_id)
+            )
+        except Exception:
+            pass
     
     # Reload with customer
     result = await db.execute(
@@ -1014,6 +1028,18 @@ async def delete_reservation(
             room.room_status = "Available"
             db.add(room)
             
+    # Trigger cancellation notification event
+    try:
+        from app.services.notifications import NotificationService
+        notif_service = NotificationService(db)
+        await notif_service.create_event(
+            event_type="Reservation Cancelled",
+            reference_type="AccommodationReservation",
+            reference_id=str(res.reservation_id)
+        )
+    except Exception:
+        pass
+
     await db.delete(res)
     await db.commit()
     return {"message": "Reservation deleted successfully"}

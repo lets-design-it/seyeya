@@ -423,10 +423,25 @@ class NotificationService:
                                 background_tasks=background_tasks
                             )
 
-                        # Notify Hotel Managers / Receptionists
+                        # Notify Hotel Managers, Receptionists & Super Admin
                         mgr_msg = f"New room reservation {resv.reservation_code} received from guest {cust_name} for {room_label}."
+                        await notify_role("Super Admin", "New Reservation Received", mgr_msg, "Reservation")
                         await notify_role("Hotel Manager", "New Reservation Received", mgr_msg, "Reservation")
                         await notify_role("Receptionist", "New Reservation Received", mgr_msg, "Reservation")
+
+                        if event.triggered_by and event.triggered_by != cust_uid:
+                            await self.create_notification(
+                                recipient_id=event.triggered_by,
+                                title="Reservation Created",
+                                message=f"Room reservation {resv.reservation_code} for {cust_name} created successfully.",
+                                category="Reservation",
+                                notification_type=event_type,
+                                channel="IN_APP",
+                                reference_type=ref_type,
+                                reference_id=ref_id,
+                                event_id=event.id,
+                                background_tasks=background_tasks
+                            )
 
                 elif ref_type == "ConferenceReservation":
                     from app.models import ConferenceReservation, ConferenceHall, ConferenceBookingFacility, ConferenceFacility
@@ -479,7 +494,23 @@ class NotificationService:
                             )
 
                         mgr_msg = f"New conference reservation {resv.reservation_code} received from customer {resv.customer.full_name} for {hall_name}."
+                        await notify_role("Super Admin", "New Conference Reservation", mgr_msg, "Reservation")
                         await notify_role("Hotel Manager", "New Conference Reservation", mgr_msg, "Reservation")
+                        await notify_role("Receptionist", "New Conference Reservation", mgr_msg, "Reservation")
+
+                        if event.triggered_by and event.triggered_by != resv.customer.user_id:
+                            await self.create_notification(
+                                recipient_id=event.triggered_by,
+                                title="Conference Reservation Created",
+                                message=f"Conference reservation {resv.reservation_code} for {resv.customer.full_name} created successfully.",
+                                category="Reservation",
+                                notification_type=event_type,
+                                channel="IN_APP",
+                                reference_type=ref_type,
+                                reference_id=ref_id,
+                                event_id=event.id,
+                                background_tasks=background_tasks
+                            )
 
             elif event_type == "Reservation Cancelled":
                 if ref_type == "AccommodationReservation":
@@ -506,6 +537,7 @@ class NotificationService:
                             )
 
                         mgr_msg = f"Room Reservation {resv.reservation_code} has been cancelled."
+                        await notify_role("Super Admin", "Reservation Cancelled", mgr_msg, "Reservation", priority="HIGH")
                         await notify_role("Hotel Manager", "Reservation Cancelled", mgr_msg, "Reservation", priority="HIGH")
 
                 elif ref_type == "ConferenceReservation":
@@ -526,6 +558,9 @@ class NotificationService:
                                 to_name=resv.customer.full_name,
                                 background_tasks=background_tasks
                             )
+                        conf_msg = f"Conference Reservation {resv.reservation_code} has been cancelled."
+                        await notify_role("Super Admin", "Conference Reservation Cancelled", conf_msg, "Reservation", priority="HIGH")
+                        await notify_role("Hotel Manager", "Conference Reservation Cancelled", conf_msg, "Reservation", priority="HIGH")
 
             elif event_type == "Reservation Reminder":
                 if ref_type == "AccommodationReservation":
@@ -556,7 +591,7 @@ class NotificationService:
                 ).where(RestaurantOrder.order_id == int(ref_id))
                 res = await self.db.execute(stmt)
                 order = res.scalar_one_or_none()
-                if order and order.customer:
+                if order:
                     items_data = []
                     if order.items:
                         for oi in order.items:
@@ -568,7 +603,7 @@ class NotificationService:
                                 "total_price": str(oi.total_price or "0.00"),
                                 "extras_text": oi.special_notes or ""
                             })
-                    loc = order.delivery_address or order.seating_location or order.delivery_option
+                    loc = order.delivery_address or order.seating_location or order.delivery_option or "Premises"
                     details_html = format_order_items_html(
                         items=items_data,
                         subtotal=str(order.sub_total or "0.00"),
@@ -579,48 +614,53 @@ class NotificationService:
                         location_details=str(loc or ""),
                         special_instr=order.special_instr or ""
                     )
-                    confirm_body = get_order_confirmation_email(
-                        full_name=order.customer.full_name,
-                        order_num=order.order_number,
-                        items_html=details_html,
-                        total_amount=str(order.total_amount or "0.00")
-                    )
+                    cust_name = order.customer.full_name if order.customer else "Walk-in Guest"
+                    cust_email = order.customer.email if order.customer else None
+                    cust_uid = order.customer.user_id if order.customer else None
 
-                    # Notify Customer across BOTH IN_APP and EMAIL
-                    if order.customer.user_id:
+                    # Notify Customer across BOTH IN_APP and EMAIL if account exists
+                    if cust_uid:
+                        confirm_body = get_order_confirmation_email(
+                            full_name=cust_name,
+                            order_num=order.order_number,
+                            items_html=details_html,
+                            total_amount=str(order.total_amount or "0.00")
+                        )
                         await notify_user(
-                            order.customer.user_id,
+                            cust_uid,
                             f"Order Confirmed - {order.order_number}",
                             confirm_body,
                             "Orders"
                         )
-                    elif order.customer.email:
+                    elif cust_email:
+                        confirm_body = get_order_confirmation_email(
+                            full_name=cust_name,
+                            order_num=order.order_number,
+                            items_html=details_html,
+                            total_amount=str(order.total_amount or "0.00")
+                        )
                         await self.queue_and_send_email(
-                            to_email=order.customer.email,
+                            to_email=cust_email,
                             subject=f"Restaurant Order Confirmed - {order.order_number}",
                             body=confirm_body,
-                            to_name=order.customer.full_name,
+                            to_name=cust_name,
                             background_tasks=background_tasks
                         )
 
-                    # Notify Chef and Waiters
-                    staff_msg = f"New restaurant order {order.order_number} placed for preparation. Amount: UGX {order.total_amount}."
+                    # Notify Staff Roles: Super Admin, Restaurant Manager, Receptionist, Kitchen Staff, Waiter
+                    staff_msg = f"New restaurant order #{order.order_number} ({cust_name} - {loc}) placed for preparation. Amount: UGX {order.total_amount}."
+                    await notify_role("Super Admin", "New Order Placed", staff_msg, "Orders")
                     await notify_role("Restaurant Manager", "New Order Placed", staff_msg, "Orders")
+                    await notify_role("Receptionist", "New Order Placed", staff_msg, "Orders")
                     await notify_role("Kitchen Staff", "New Order Placed", staff_msg, "Orders")
                     await notify_role("Waiter", "New Order Placed", staff_msg, "Orders")
- 
-            elif event_type in ["Order Accepted", "Order Being Prepared", "Order Ready", "Order Delivered", "Order Cancelled"]:
-                from app.models import RestaurantOrder
-                stmt = select(RestaurantOrder).options(selectinload(RestaurantOrder.customer)).where(RestaurantOrder.order_id == int(ref_id))
-                res = await self.db.execute(stmt)
-                order = res.scalar_one_or_none()
-                if order and order.customer:
-                    msg = f"Your order {order.order_number} status changed to: {event_type.replace('Order ', '')}."
-                    if order.customer.user_id:
+
+                    # If created by a specific staff member (e.g. receptionist or waiter), notify them directly
+                    if event.triggered_by and event.triggered_by != cust_uid:
                         await self.create_notification(
-                            recipient_id=order.customer.user_id,
-                            title=f"Order {event_type.replace('Order ', '')}",
-                            message=msg,
+                            recipient_id=event.triggered_by,
+                            title="Order Placed",
+                            message=f"Order #{order.order_number} for {cust_name} ({loc}) created successfully.",
                             category="Orders",
                             notification_type=event_type,
                             channel="IN_APP",
@@ -629,11 +669,117 @@ class NotificationService:
                             event_id=event.id,
                             background_tasks=background_tasks
                         )
+                    if order.assigned_waiter and order.assigned_waiter != event.triggered_by:
+                        await self.create_notification(
+                            recipient_id=order.assigned_waiter,
+                            title="Order Assigned",
+                            message=f"You are assigned to order #{order.order_number} ({loc}).",
+                            category="Orders",
+                            notification_type=event_type,
+                            channel="IN_APP",
+                            reference_type=ref_type,
+                            reference_id=ref_id,
+                            event_id=event.id,
+                            background_tasks=background_tasks
+                        )
+ 
+            elif event_type in [
+                "Order Accepted", "Order Being Prepared", "Order Preparing", "Order Prepared",
+                "Order Ready", "Order Delivered", "Order Completed", "Order Done", "Order Cancelled"
+            ]:
+                from app.models import RestaurantOrder
+                stmt = select(RestaurantOrder).options(selectinload(RestaurantOrder.customer)).where(RestaurantOrder.order_id == int(ref_id))
+                res = await self.db.execute(stmt)
+                order = res.scalar_one_or_none()
+                if order:
+                    loc = order.seating_location or order.delivery_address or order.delivery_option or "Premises"
+                    cust_name = order.customer.full_name if order.customer else "Walk-in Guest"
                     
-                    if event_type == "Order Ready":
-                        # Notify Waiter to pickup
-                        waiter_msg = f"Order {order.order_number} is ready. Please deliver to premises."
-                        await notify_role("Waiter", "Order Ready for Pickup", waiter_msg, "Orders")
+                    if event_type in ["Order Being Prepared", "Order Preparing", "Order Prepared"]:
+                        status_label = "Being Prepared"
+                        staff_title = "Order Being Prepared"
+                        staff_msg = f"Order #{order.order_number} ({cust_name} - {loc}) is now being prepared in the kitchen."
+                        await notify_role("Super Admin", staff_title, staff_msg, "Orders")
+                        await notify_role("Restaurant Manager", staff_title, staff_msg, "Orders")
+                        await notify_role("Receptionist", staff_title, staff_msg, "Orders")
+                        await notify_role("Kitchen Staff", staff_title, staff_msg, "Orders")
+                    elif event_type in ["Order Ready", "Order ready"]:
+                        status_label = "Ready"
+                        staff_title = "Order Ready for Pickup"
+                        staff_msg = f"Order #{order.order_number} ({cust_name} - {loc}) is ready! Please deliver to premises."
+                        await notify_role("Super Admin", staff_title, staff_msg, "Orders", priority="HIGH")
+                        await notify_role("Restaurant Manager", staff_title, staff_msg, "Orders", priority="HIGH")
+                        await notify_role("Receptionist", staff_title, staff_msg, "Orders", priority="HIGH")
+                        await notify_role("Waiter", staff_title, staff_msg, "Orders", priority="HIGH")
+                    elif event_type in ["Order Delivered", "Order Completed", "Order Done"]:
+                        status_label = "Completed"
+                        staff_title = "Order Completed"
+                        staff_msg = f"Order #{order.order_number} ({cust_name} - {loc}) has been completed and served."
+                        await notify_role("Super Admin", staff_title, staff_msg, "Orders")
+                        await notify_role("Restaurant Manager", staff_title, staff_msg, "Orders")
+                        await notify_role("Receptionist", staff_title, staff_msg, "Orders")
+                        await notify_role("Cashier", staff_title, staff_msg, "Orders")
+                    elif event_type == "Order Cancelled":
+                        status_label = "Cancelled"
+                        staff_title = "Order Cancelled"
+                        staff_msg = f"Order #{order.order_number} ({cust_name} - {loc}) was cancelled."
+                        await notify_role("Super Admin", staff_title, staff_msg, "Orders", priority="HIGH")
+                        await notify_role("Restaurant Manager", staff_title, staff_msg, "Orders", priority="HIGH")
+                        await notify_role("Receptionist", staff_title, staff_msg, "Orders", priority="HIGH")
+                        await notify_role("Kitchen Staff", staff_title, staff_msg, "Orders", priority="HIGH")
+                    else:
+                        status_label = event_type.replace("Order ", "")
+                        staff_title = f"Order {status_label}"
+                        staff_msg = f"Order #{order.order_number} ({cust_name} - {loc}) status changed to: {status_label}."
+                        await notify_role("Super Admin", staff_title, staff_msg, "Orders")
+                        await notify_role("Restaurant Manager", staff_title, staff_msg, "Orders")
+                        await notify_role("Receptionist", staff_title, staff_msg, "Orders")
+
+                    # Also notify customer if linked
+                    if order.customer and order.customer.user_id:
+                        cust_msg = f"Your order #{order.order_number} status changed to: {status_label}."
+                        await self.create_notification(
+                            recipient_id=order.customer.user_id,
+                            title=f"Order {status_label}",
+                            message=cust_msg,
+                            category="Orders",
+                            notification_type=event_type,
+                            channel="IN_APP",
+                            reference_type=ref_type,
+                            reference_id=ref_id,
+                            event_id=event.id,
+                            background_tasks=background_tasks
+                        )
+                    else:
+                        # GUEST ORDER (Walk-in without customer mobile account)
+                        # Notify the staff member who created the order or assigned waiter
+                        guest_note = f"Guest order #{order.order_number} ({loc}) is {status_label}."
+                        if event.triggered_by:
+                            await self.create_notification(
+                                recipient_id=event.triggered_by,
+                                title=f"Guest Order {status_label}",
+                                message=guest_note,
+                                category="Orders",
+                                notification_type=event_type,
+                                channel="IN_APP",
+                                reference_type=ref_type,
+                                reference_id=ref_id,
+                                event_id=event.id,
+                                background_tasks=background_tasks
+                            )
+                        if order.assigned_waiter and order.assigned_waiter != event.triggered_by:
+                            await self.create_notification(
+                                recipient_id=order.assigned_waiter,
+                                title=f"Guest Order {status_label}",
+                                message=guest_note,
+                                category="Orders",
+                                notification_type=event_type,
+                                channel="IN_APP",
+                                reference_type=ref_type,
+                                reference_id=ref_id,
+                                event_id=event.id,
+                                background_tasks=background_tasks
+                            )
 
             # 4. Payment Triggers
             elif event_type in ["Payment Successful", "Payment Failed", "Refund Processed"]:
@@ -702,8 +848,9 @@ class NotificationService:
                                 to_name=cust_name,
                                 background_tasks=background_tasks
                             )
-                        # Notify Cashier & Managers
+                        # Notify Cashier, Managers & Super Admin
                         cashier_msg = f"Payment of UGX {payment.amount_paid} verified for reference {payment.payment_reference}."
+                        await notify_role("Super Admin", "Payment Verified", cashier_msg, "Payments")
                         await notify_role("Cashier", "Payment Verified", cashier_msg, "Payments")
                         await notify_role("Restaurant Manager", "Payment Verified", cashier_msg, "Payments")
                         await notify_role("Hotel Manager", "Payment Verified", cashier_msg, "Payments")
@@ -855,15 +1002,17 @@ class NotificationService:
 
     async def get_notifications(
         self,
-        user_id: int,
+        user_id: Optional[int] = None,
         status: Optional[str] = None,
         category: Optional[str] = None,
         priority: Optional[str] = None,
-        limit: int = 20,
+        limit: int = 50,
         offset: int = 0
     ) -> List[Notification]:
-        """Query user notifications"""
-        conditions = [Notification.recipient_id == user_id]
+        """Query user notifications, or system-wide notifications if user_id is None"""
+        conditions = []
+        if user_id is not None:
+            conditions.append(Notification.recipient_id == user_id)
         if status:
             conditions.append(Notification.status == status)
         else:
@@ -875,17 +1024,22 @@ class NotificationService:
         if priority:
             conditions.append(Notification.priority == priority)
             
-        stmt = select(Notification).where(and_(*conditions)).order_by(desc(Notification.created_at)).offset(offset).limit(limit)
+        stmt = select(Notification)
+        if conditions:
+            stmt = stmt.where(and_(*conditions))
+        stmt = stmt.order_by(desc(Notification.created_at)).offset(offset).limit(limit)
         res = await self.db.execute(stmt)
         return res.scalars().all()
 
-    async def get_unread_count(self, user_id: int) -> int:
-        """Get the count of unread notifications for a user"""
-        stmt = select(func.count(Notification.id)).where(and_(
-            Notification.recipient_id == user_id,
+    async def get_unread_count(self, user_id: Optional[int] = None) -> int:
+        """Get the count of unread notifications for a user, or system-wide if user_id is None"""
+        conditions = [
             Notification.is_read == False,
             Notification.status == "UNREAD"
-        ))
+        ]
+        if user_id is not None:
+            conditions.append(Notification.recipient_id == user_id)
+        stmt = select(func.count(Notification.id)).where(and_(*conditions))
         res = await self.db.execute(stmt)
         return int(res.scalar_one())
 

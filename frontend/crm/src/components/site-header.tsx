@@ -5,6 +5,7 @@ import { useCurrency } from "@/context/CurrencyContext"
 import { Sun, Moon, Coins, ChevronDown } from "lucide-react"
 import { useEffect, useState } from "react"
 import { EATClock } from "./EATClock"
+import { NotificationBell } from "./NotificationBell"
 
 interface SiteHeaderProps {
   activeTab: string;
@@ -74,7 +75,7 @@ export function SiteHeader({ activeTab }: SiteHeaderProps) {
           </div>
         </div>
 
-        {/* Right Section - Clock, Currency Switcher & Theme Switcher */}
+        {/* Right Section - Clock, Currency Switcher, Notification Bell & Theme Switcher */}
         <div className="flex items-center gap-2 sm:gap-3">
           <EATClock />
 
@@ -131,6 +132,9 @@ export function SiteHeader({ activeTab }: SiteHeaderProps) {
               </>
             )}
           </div>
+
+          {/* Header Notification Bell connected to backend */}
+          <NotificationBell />
 
           <button
             onClick={toggleTheme}
