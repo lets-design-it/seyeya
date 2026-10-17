@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/card";
 import { Input as ShadcnInput } from "@/components/ui/input";
 import { Button as ShadcnButton } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -2943,12 +2944,11 @@ export const Conferences: React.FC<ConferencesProps> = ({
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">Event Date *</label>
-                        <input
-                          type="date"
-                          required
+                        <DatePicker
                           value={resEventDate}
-                          onChange={(e) => setResEventDate(e.target.value)}
-                          className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-900 dark:focus:border-zinc-700 font-semibold"
+                          onChange={setResEventDate}
+                          placeholder="Select event date..."
+                          required
                         />
                       </div>
                       <div>
@@ -3677,11 +3677,10 @@ export const Conferences: React.FC<ConferencesProps> = ({
                   <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
                     Event Date
                   </label>
-                  <ShadcnInput
-                    type="date"
+                  <DatePicker
                     value={eventFormDate}
-                    onChange={(e) => setEventFormDate(e.target.value)}
-                    className="w-full rounded-xl border-zinc-200 dark:border-zinc-800 text-xs h-10 text-zinc-900 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 [color-scheme:dark]"
+                    onChange={setEventFormDate}
+                    placeholder="Select event date..."
                   />
                 </div>
 

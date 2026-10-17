@@ -17,6 +17,7 @@ export interface EventHall {
   hourly_rate: number;
   half_day_rate: number;
   full_day_rate: number;
+  standard_price?: number;
 }
 
 export interface ConferenceQuote {
