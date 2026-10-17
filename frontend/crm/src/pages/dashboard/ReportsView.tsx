@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Guest360DossierSheet } from '../../components/Guest360DossierSheet';
 
 interface ReportsViewProps {
@@ -283,27 +284,28 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground">From:</span>
-              <Input
-                type="date"
+              <span className="text-muted-foreground font-medium">From:</span>
+              <DatePicker
                 value={startDate}
-                onChange={(e) => {
+                onChange={(val) => {
                   setDateFilterPreset('custom');
-                  setStartDate(e.target.value);
+                  setStartDate(val);
                 }}
-                className="w-36 text-xs h-8"
+                className="w-38 h-8 py-1 px-2.5 text-xs rounded-lg"
+                placeholder="Start date"
               />
             </div>
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-muted-foreground">To:</span>
-              <Input
-                type="date"
+              <span className="text-muted-foreground font-medium">To:</span>
+              <DatePicker
                 value={endDate}
-                onChange={(e) => {
+                onChange={(val) => {
                   setDateFilterPreset('custom');
-                  setEndDate(e.target.value);
+                  setEndDate(val);
                 }}
-                className="w-36 text-xs h-8"
+                className="w-38 h-8 py-1 px-2.5 text-xs rounded-lg"
+                placeholder="End date"
+                min={startDate}
               />
             </div>
           </div>

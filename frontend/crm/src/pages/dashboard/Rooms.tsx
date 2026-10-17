@@ -1,5 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../services/api';
+import { toast } from 'sonner';
+import { RegisterGuestModal } from '../../components/RegisterGuestModal';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useAccommodation, RoomType, RoomUnit, BookingRecord } from '../../hooks/useAccommodation';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useRoomAssets, autoDetectAmenityIcon, autoDetectPolicyIcon, renderAssetIcon } from '@/hooks/useRoomAssets.tsx';
@@ -74,6 +77,7 @@ import {
   Grid,
   CheckCircle,
   User,
+  UserPlus,
   AlertCircle,
   UserCheck,
   ShieldAlert,
@@ -130,6 +134,7 @@ export const Rooms: React.FC<RoomsProps> = ({
     addCategory,
     updateCategory,
     deleteCategory,
+    deleteCategoryRate,
     addRoomUnit,
     updateRoomUnit,
     deleteRoomUnit,
@@ -271,8 +276,22 @@ export const Rooms: React.FC<RoomsProps> = ({
     setCatRateOptions(prev => prev.map(r => r.id === id ? { ...r, ...data } : r));
   };
 
-  const removeRateOption = (id: string) => {
+  const removeRateOption = async (id: string) => {
+    // 1. Instantly remove from local drawer state for real-time UI response
     setCatRateOptions(prev => prev.filter(r => r.id !== id));
+
+    // 2. If editing an existing category, delete from database in real time
+    if (editCategoryItem?.id) {
+      try {
+        await deleteCategoryRate(editCategoryItem.id, id);
+        toast.success("Rate option deleted in real time.");
+      } catch (err: any) {
+        console.error("Failed to delete rate option:", err);
+        toast.error("Failed to delete rate option from database.");
+      }
+    } else {
+      toast.success("Rate option removed.");
+    }
   };
 
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -502,20 +521,69 @@ export const Rooms: React.FC<RoomsProps> = ({
   const [selectedGuests, setSelectedGuests] = useState<{ id: number; name: string; isChild: boolean }[]>([]);
   const [guestSearchTerm, setGuestSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isRegisterGuestModalOpen, setIsRegisterGuestModalOpen] = useState(false);
+
+  const fetchClients = useCallback(async () => {
+    try {
+      const res = await api.get('/crm/customers?limit=500');
+      const data = res.data || [];
+      const sorted = [...data].sort((a, b) => (b.customer_id || 0) - (a.customer_id || 0));
+      setAllClients(sorted);
+      return sorted;
+    } catch (err) {
+      console.error('Failed to fetch clients for reservation dropdown:', err);
+      return [];
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchClients = async () => {
-      try {
-        const res = await api.get('/crm/customers');
-        setAllClients(res.data || []);
-      } catch (err) {
-        console.error('Failed to fetch clients for reservation dropdown:', err);
-      }
-    };
     if (isBookingDrawerOpen || isDetailsOpen) {
       fetchClients();
     }
-  }, [isBookingDrawerOpen, isDetailsOpen]);
+  }, [isBookingDrawerOpen, isDetailsOpen, fetchClients]);
+
+  const handleGuestCreated = async (newGuest: any) => {
+    // 1. Immediately close the register new guest modal
+    setIsRegisterGuestModalOpen(false);
+
+    // 2. Clear search term & close dropdown so the drawer is clean and ready
+    setGuestSearchTerm('');
+    setIsDropdownOpen(false);
+
+    // 3. Immediately update allClients locally with the new guest at the top
+    setAllClients(prev => {
+      const filtered = prev.filter(c => String(c.customer_id) !== String(newGuest.customer_id));
+      return [newGuest, ...filtered];
+    });
+
+    // 4. Auto-attach the newly registered guest to the reservation
+    const isChild = !!newGuest.is_child;
+    setSelectedGuests(prev => {
+      const exists = prev.some(
+        sg => String(sg.id) === String(newGuest.customer_id) ||
+              sg.name.toLowerCase() === (newGuest.full_name || '').toLowerCase()
+      );
+      if (exists) return prev;
+      return [...prev, { id: newGuest.customer_id, name: newGuest.full_name, isChild }];
+    });
+
+    setBookGuestName(newGuest.full_name);
+    setBookGuestEmail(newGuest.email || '');
+
+    toast.success(`Guest "${newGuest.full_name}" registered & attached to reservation.`);
+
+    // 5. In background, refresh clients list from database and ensure new guest stays at top
+    try {
+      const updatedClients = await fetchClients();
+      const guestRecord = updatedClients.find((c: any) => String(c.customer_id) === String(newGuest.customer_id)) || newGuest;
+      setAllClients(prev => {
+        const filtered = prev.filter(c => String(c.customer_id) !== String(guestRecord.customer_id));
+        return [guestRecord, ...filtered];
+      });
+    } catch (err) {
+      console.error('Error refreshing clients in background:', err);
+    }
+  };
 
   const activeBookCat = useMemo(() => {
     return categories.find(c => c.id === bookCatId);
@@ -706,6 +774,16 @@ export const Rooms: React.FC<RoomsProps> = ({
   const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookCatId) return;
+
+    if (!bookCheckIn || !bookCheckOut) {
+      toast.error("Please select both Check-In and Check-Out dates.");
+      return;
+    }
+
+    if (bookCheckOut <= bookCheckIn) {
+      toast.error("Check-Out date must be after Check-In date.");
+      return;
+    }
 
     if (selectedGuests.length === 0) {
       alert("Please select at least one guest for the reservation.");
@@ -2092,6 +2170,212 @@ export const Rooms: React.FC<RoomsProps> = ({
             </DrawerDescription>
           </DrawerHeader>
           <form onSubmit={handleBookingSubmit} className="space-y-4 p-5 bg-white dark:bg-zinc-900">
+            {/* 1. GUEST SELECTION DROPDOWN FIRST AT THE TOP */}
+            <div className="relative">
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">
+                Search and Select Guests *
+              </label>
+              <div className="relative z-50">
+                <input
+                  type="text"
+                  placeholder="Type guest name to search..."
+                  value={guestSearchTerm}
+                  onChange={(e) => {
+                    setGuestSearchTerm(e.target.value);
+                    setIsDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
+                />
+                {guestSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setGuestSearchTerm('')}
+                    className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-250 cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+
+              {isDropdownOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => setIsDropdownOpen(false)}
+                  />
+                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                    {(() => {
+                      const { maxAdults, maxChildren } = getCategoryCapacity(bookCatId);
+                      const currentAdults = selectedGuests.filter(g => !g.isChild).length;
+                      const currentChildren = selectedGuests.filter(g => g.isChild).length;
+
+                      const term = (guestSearchTerm || '').trim().toLowerCase();
+                      const eligible = allClients.filter(c => {
+                        if (!term) return true;
+                        const matchName = (c.full_name || '').toLowerCase().includes(term);
+                        const matchPhone = (c.phone_number || '').includes(term);
+                        const matchEmail = (c.email || '').toLowerCase().includes(term);
+                        return matchName || matchPhone || matchEmail;
+                      });
+
+                      if (eligible.length === 0) {
+                        return (
+                          <div className="p-3 text-xs text-zinc-450 dark:text-zinc-400 text-center font-medium">
+                            {guestSearchTerm
+                              ? `No guests found matching "${guestSearchTerm}"`
+                              : "No registered guests found in CRM database"}
+                          </div>
+                        );
+                      }
+
+                      return eligible.map(c => {
+                        const isAlreadySelected = selectedGuests.some(sg =>
+                          String(sg.id) === String(c.customer_id) ||
+                          sg.name.toLowerCase() === (c.full_name || '').toLowerCase()
+                        );
+
+                        return (
+                          <div
+                            key={c.customer_id}
+                            onClick={() => {
+                              if (isAlreadySelected) {
+                                setSelectedGuests(selectedGuests.filter(sg =>
+                                  String(sg.id) !== String(c.customer_id) &&
+                                  sg.name.toLowerCase() !== (c.full_name || '').toLowerCase()
+                                ));
+                                return;
+                              }
+
+                              const roomUnitObj = roomUnits.find(ru => ru.id === bookRoomUnitId);
+                              const maxOccupancy = roomUnitObj?.maxOccupancy || maxAdults;
+                              const adultsCount = selectedGuests.filter(g => !g.isChild).length;
+                              const isGuestChild = !!c.is_child;
+
+                              if (!isGuestChild && adultsCount >= maxOccupancy) {
+                                const confirmChild = window.confirm(`This room's maximum capacity is ${maxOccupancy} adults, and this guest is registered as an Adult. Do you want to add them as a Child for this reservation?`);
+                                if (confirmChild) {
+                                  setSelectedGuests([...selectedGuests, { id: c.customer_id, name: c.full_name, isChild: true }]);
+                                } else {
+                                  alert(`Cannot add another adult. The room capacity is capped at ${maxOccupancy} adults.`);
+                                }
+                              } else {
+                                setSelectedGuests([...selectedGuests, { id: c.customer_id, name: c.full_name, isChild: isGuestChild }]);
+                              }
+                              setGuestSearchTerm('');
+                              setIsDropdownOpen(false);
+                            }}
+                            className={`px-3 py-2.5 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer font-medium flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 transition-colors ${
+                              isAlreadySelected ? 'bg-violet-50/60 dark:bg-violet-950/20' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-zinc-900 dark:text-zinc-100">{c.full_name}</span>
+                              {c.is_child && (
+                                <span className="text-[9px] bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50 px-1.5 rounded-sm font-bold">
+                                  Child
+                                </span>
+                              )}
+                              {isAlreadySelected && (
+                                <span className="text-[9px] bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded-md font-bold flex items-center gap-1">
+                                  <Check className="h-2.5 w-2.5" /> Selected
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal">
+                              {c.phone_number || c.email || ""}
+                            </span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </>
+              )}
+
+              {/* Register Option BELOW the Drop Down */}
+              <div className="mt-2.5 flex items-center justify-between p-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-950/40 border border-zinc-200/70 dark:border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-violet-600 dark:text-violet-400 shrink-0" />
+                  <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">
+                    Guest not found in database?
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsRegisterGuestModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-violet-600 hover:bg-violet-700 text-white cursor-pointer transition-colors shadow-2xs"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Register New Guest</span>
+                </button>
+              </div>
+            </div>
+
+            {selectedGuests.length > 0 && (
+              <div className="space-y-2.5 bg-zinc-50/70 dark:bg-zinc-950/20 p-3 rounded-2xl border border-zinc-200/50 dark:border-zinc-800 shadow-2xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1">Selected Occupying Guests</span>
+                <div className="space-y-2">
+                  {selectedGuests.map((guest, idx) => (
+                    <div key={`${guest.id}-${idx}`} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/40 dark:border-zinc-800 shadow-3xs">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-foreground dark:text-zinc-150">
+                          {guest.name}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const { maxAdults, maxChildren } = getCategoryCapacity(bookCatId);
+                            const roomUnitObj = roomUnits.find(ru => ru.id === bookRoomUnitId);
+                            const maxOccupancy = roomUnitObj?.maxOccupancy || maxAdults;
+
+                            if (guest.isChild) {
+                              const newAdultsCount = selectedGuests.filter(g => !g.isChild).length + 1;
+                              if (newAdultsCount > maxOccupancy) {
+                                alert(`Cannot change to Adult. The maximum capacity of this room is ${maxOccupancy} adults.`);
+                                return;
+                              }
+                              if (newAdultsCount > maxAdults) {
+                                alert(`Cannot change to Adult. This category only allows a maximum of ${maxAdults} adults.`);
+                                return;
+                              }
+                            } else {
+                              const newChildrenCount = selectedGuests.filter(g => g.isChild).length + 1;
+                              if (newChildrenCount > maxChildren) {
+                                alert(`Cannot change to Child. This category only allows a maximum of ${maxChildren} children.`);
+                                return;
+                              }
+                            }
+
+                            setSelectedGuests(selectedGuests.map(g =>
+                              g.id === guest.id ? { ...g, isChild: !g.isChild } : g
+                            ));
+                          }}
+                          className={`text-[9px] font-extrabold px-2 py-1 rounded-lg border uppercase tracking-wider cursor-pointer ${guest.isChild
+                            ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
+                            : 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
+                            }`}
+                        >
+                          {guest.isChild ? 'Child' : 'Adult'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedGuests(selectedGuests.filter(g => g.id !== guest.id))}
+                          className="text-zinc-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50/50 dark:hover:bg-red-950/20 p-1 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Cottage Category *</label>
               <select
@@ -2226,199 +2510,30 @@ export const Rooms: React.FC<RoomsProps> = ({
               </div>
             </div>
 
-            <div className="relative">
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 font-sans">Search and Select Guests *</label>
-              <div className="relative z-50">
-                <input
-                  type="text"
-                  placeholder="Type guest name to search..."
-                  value={guestSearchTerm}
-                  onChange={(e) => {
-                    setGuestSearchTerm(e.target.value);
-                    setIsDropdownOpen(true);
-                  }}
-                  onFocus={() => setIsDropdownOpen(true)}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
-                />
-                {guestSearchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setGuestSearchTerm('')}
-                    className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-650 dark:hover:text-zinc-250 cursor-pointer"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-
-              {isDropdownOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40 bg-transparent"
-                    onClick={() => setIsDropdownOpen(false)}
-                  />
-                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                    {(() => {
-                      const { maxAdults, maxChildren } = getCategoryCapacity(bookCatId);
-                      const currentAdults = selectedGuests.filter(g => !g.isChild).length;
-                      const currentChildren = selectedGuests.filter(g => g.isChild).length;
-                      const onlyChildrenAllowed = currentAdults >= maxAdults;
-
-                      const eligible = allClients.filter(c => {
-                        const matchesSearch = c.full_name.toLowerCase().includes(guestSearchTerm.toLowerCase());
-                        const notSelectedYet = !selectedGuests.some(sg =>
-                          String(sg.id) === String(c.customer_id) ||
-                          sg.name.toLowerCase() === c.full_name.toLowerCase()
-                        );
-                        if (!matchesSearch || !notSelectedYet) return false;
-
-                        if (onlyChildrenAllowed) {
-                          return !!c.is_child;
-                        }
-                        if (currentChildren >= maxChildren) {
-                          return !c.is_child;
-                        }
-                        return true;
-                      });
-
-                      if (eligible.length === 0) {
-                        return (
-                          <div className="p-3 text-xs text-zinc-450 dark:text-zinc-400 text-center font-medium">
-                            No unregistered matching guests found
-                          </div>
-                        );
-                      }
-
-                      return eligible.map(c => (
-                        <div
-                          key={c.customer_id}
-                          onClick={() => {
-                            if (selectedGuests.some(sg =>
-                              String(sg.id) === String(c.customer_id) ||
-                              sg.name.toLowerCase() === c.full_name.toLowerCase()
-                            )) {
-                              alert("This guest is already selected.");
-                              return;
-                            }
-                            const roomUnitObj = roomUnits.find(ru => ru.id === bookRoomUnitId);
-                            const maxOccupancy = roomUnitObj?.maxOccupancy || maxAdults;
-                            const adultsCount = selectedGuests.filter(g => !g.isChild).length;
-                            const isGuestChild = !!c.is_child;
-
-                            if (!isGuestChild && adultsCount >= maxOccupancy) {
-                              const confirmChild = window.confirm(`This room's maximum capacity is ${maxOccupancy} adults, and this guest is registered as an Adult. Do you want to add them as a Child for this reservation?`);
-                              if (confirmChild) {
-                                setSelectedGuests([...selectedGuests, { id: c.customer_id, name: c.full_name, isChild: true }]);
-                              } else {
-                                alert(`Cannot add another adult. The room capacity is capped at ${maxOccupancy} adults.`);
-                              }
-                            } else {
-                              setSelectedGuests([...selectedGuests, { id: c.customer_id, name: c.full_name, isChild: isGuestChild }]);
-                            }
-                            setGuestSearchTerm('');
-                            setIsDropdownOpen(false);
-                          }}
-                          className="px-3 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer font-medium flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 text-zinc-800 dark:text-zinc-200"
-                        >
-                          <span>{c.full_name} {c.is_child && <span className="text-[9px] bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50 px-1 rounded-sm ml-1 font-bold">Child</span>}</span>
-                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">{c.phone_number || c.email || ""}</span>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {selectedGuests.length > 0 && (
-              <div className="space-y-2.5 bg-zinc-50/70 dark:bg-zinc-950/20 p-3 rounded-2xl border border-zinc-200/50 dark:border-zinc-800 shadow-2xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block mb-1">Selected Occupying Guests</span>
-                <div className="space-y-2">
-                  {selectedGuests.map((guest, idx) => (
-                    <div key={`${guest.id}-${idx}`} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/40 dark:border-zinc-800 shadow-3xs">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-foreground dark:text-zinc-150">
-                          {guest.name}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const { maxAdults, maxChildren } = getCategoryCapacity(bookCatId);
-                            const roomUnitObj = roomUnits.find(ru => ru.id === bookRoomUnitId);
-                            const maxOccupancy = roomUnitObj?.maxOccupancy || maxAdults;
-
-                            if (guest.isChild) {
-                              const newAdultsCount = selectedGuests.filter(g => !g.isChild).length + 1;
-                              if (newAdultsCount > maxOccupancy) {
-                                alert(`Cannot change to Adult. The maximum capacity of this room is ${maxOccupancy} adults.`);
-                                return;
-                              }
-                              if (newAdultsCount > maxAdults) {
-                                alert(`Cannot change to Adult. This category only allows a maximum of ${maxAdults} adults.`);
-                                return;
-                              }
-                            } else {
-                              const newChildrenCount = selectedGuests.filter(g => g.isChild).length + 1;
-                              if (newChildrenCount > maxChildren) {
-                                alert(`Cannot change to Child. This category only allows a maximum of ${maxChildren} children.`);
-                                return;
-                              }
-                            }
-
-                            setSelectedGuests(selectedGuests.map(g =>
-                              g.id === guest.id ? { ...g, isChild: !g.isChild } : g
-                            ));
-                          }}
-                          className={`text-[9px] font-extrabold px-2 py-1 rounded-lg border uppercase tracking-wider cursor-pointer ${guest.isChild
-                            ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50'
-                            : 'bg-indigo-50 dark:bg-indigo-950/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/50'
-                            }`}
-                        >
-                          {guest.isChild ? 'Child' : 'Adult'}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setSelectedGuests(selectedGuests.filter(g => g.id !== guest.id))}
-                          className="text-zinc-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50/50 dark:hover:bg-red-950/20 p-1 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5 font-sans">Check-In Date *</label>
-                <input
-                  type="date"
-                  required
+                <DatePicker
                   value={bookCheckIn}
-                  onChange={(e) => {
-                    setBookCheckIn(e.target.value);
-                    handleBookingDateOrCatChange(bookCatId, e.target.value, bookCheckOut);
+                  onChange={(val) => {
+                    setBookCheckIn(val);
+                    handleBookingDateOrCatChange(bookCatId, val, bookCheckOut);
                   }}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
+                  placeholder="Select check-in date..."
+                  required
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-zinc-555 dark:text-zinc-400 mb-1.5 font-sans">Check-Out Date *</label>
-                <input
-                  type="date"
-                  required
+                <DatePicker
                   value={bookCheckOut}
-                  onChange={(e) => {
-                    setBookCheckOut(e.target.value);
-                    handleBookingDateOrCatChange(bookCatId, bookCheckIn, e.target.value);
+                  onChange={(val) => {
+                    setBookCheckOut(val);
+                    handleBookingDateOrCatChange(bookCatId, bookCheckIn, val);
                   }}
-                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2.5 text-xs text-foreground dark:text-zinc-50 outline-hidden focus:border-zinc-955 dark:focus:border-zinc-700 font-semibold"
+                  placeholder="Select check-out date..."
+                  min={bookCheckIn}
+                  required
                 />
               </div>
             </div>
@@ -2468,6 +2583,15 @@ export const Rooms: React.FC<RoomsProps> = ({
               </ShadcnButton>
             </div>
           </form>
+
+          {/* Modal: Register New Guest Profile (nested in DrawerContent for Radix layer hierarchy) */}
+          <RegisterGuestModal
+            isOpen={isRegisterGuestModalOpen}
+            onClose={() => setIsRegisterGuestModalOpen(false)}
+            onGuestCreated={handleGuestCreated}
+            initialName={guestSearchTerm}
+            existingGuests={allClients}
+          />
         </DrawerContent>
       </Drawer>
 

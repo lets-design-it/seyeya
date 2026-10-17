@@ -32,7 +32,7 @@ interface NavMainProps {
   items: NavItem[]
   activeTab: string
   setActiveTab: (tab: string) => void
-  userRole: string
+  userRole?: string
 }
 
 export function NavMain({ items, activeTab, setActiveTab }: NavMainProps) {

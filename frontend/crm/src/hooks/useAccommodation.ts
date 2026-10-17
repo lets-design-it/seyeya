@@ -39,7 +39,7 @@ export interface BookingRecord {
   email: string;
   checkIn: string;
   checkOut: string;
-  status: 'Reserved' | 'Checked In' | 'Checked Out' | 'Cancelled';
+  status: 'Reserved' | 'Checked In' | 'Checked Out' | 'Cancelled' | 'Confirmed' | 'Pending';
   totalPaid: number; // in UGX
   customerId?: number;
   guests?: { customer_id: number; is_child: boolean }[];
@@ -313,20 +313,55 @@ export const useAccommodation = () => {
         }
       }
 
-      // 2. Sync Rate Options / Rate Plans
+      // 2. Sync Rate Options / Rate Plans with Database Reconcile
       if (updatedCat.rateOptions && Array.isArray(updatedCat.rateOptions)) {
-        for (const rateOpt of updatedCat.rateOptions) {
-          try {
-            await api.post(`/accommodation/categories/${categoryId}/rates`, {
+        try {
+          const existingRatesRes = await api.get(`/accommodation/categories/${categoryId}/rates`);
+          const dbRates: any[] = existingRatesRes.data || [];
+          const keptRateIds = new Set(
+            updatedCat.rateOptions
+              .map(r => String(r.id))
+              .filter(id => !id.startsWith('ro-') && !isNaN(Number(id)))
+          );
+
+          // A. Delete any rates in DB that were removed from rateOptions in the drawer
+          for (const dbRate of dbRates) {
+            if (!keptRateIds.has(String(dbRate.rate_id))) {
+              try {
+                await api.delete(`/accommodation/categories/${categoryId}/rates/${dbRate.rate_id}`);
+              } catch (dErr) {
+                console.warn(`Failed to delete removed rate plan ${dbRate.rate_id}:`, dErr);
+              }
+            }
+          }
+
+          // B. Update existing rates or create new rates
+          for (const rateOpt of updatedCat.rateOptions) {
+            const isExisting = !String(rateOpt.id).startsWith('ro-') && !isNaN(Number(rateOpt.id));
+            const ratePayload = {
               rate_name: rateOpt.name,
               price: Number(rateOpt.priceUGX) || Number(rateOpt.priceUSD) || updatedCat.priceUGX || updatedCat.priceUSD,
               currency: 'USD',
               description: rateOpt.description || '',
               is_active: rateOpt.isActive !== false
-            });
-          } catch (rErr) {
-            console.warn("Category rate plan update error:", rErr);
+            };
+
+            if (isExisting) {
+              try {
+                await api.put(`/accommodation/categories/${categoryId}/rates/${rateOpt.id}`, ratePayload);
+              } catch (uErr) {
+                console.warn(`Failed to update rate plan ${rateOpt.id}:`, uErr);
+              }
+            } else {
+              try {
+                await api.post(`/accommodation/categories/${categoryId}/rates`, ratePayload);
+              } catch (cErr) {
+                console.warn(`Failed to create new rate plan:`, cErr);
+              }
+            }
           }
+        } catch (ratesErr) {
+          console.warn("Category rate plan reconcile error:", ratesErr);
         }
       }
 
@@ -578,6 +613,29 @@ export const useAccommodation = () => {
     }
   };
 
+  const deleteCategoryRate = async (categoryId: string, rateId: string) => {
+    try {
+      // 1. Optimistically update local categories state immediately
+      setCategories(prevCats => prevCats.map(cat => {
+        if (cat.id === categoryId) {
+          const updatedRates = (cat.rateOptions || []).filter(r => String(r.id) !== String(rateId));
+          return { ...cat, rateOptions: updatedRates };
+        }
+        return cat;
+      }));
+
+      // 2. Call backend DELETE endpoint if it's a persisted rate (numeric ID)
+      if (!String(rateId).startsWith('ro-') && !isNaN(Number(rateId))) {
+        await api.delete(`/accommodation/categories/${categoryId}/rates/${rateId}`);
+      }
+      return true;
+    } catch (err: any) {
+      console.error('Failed to delete category rate plan:', err);
+      await fetchAccommodationData();
+      throw err;
+    }
+  };
+
   return {
     rooms: categories, // client Accommodation compatibility
     categories,
@@ -591,6 +649,7 @@ export const useAccommodation = () => {
     addCategory,
     updateCategory,
     deleteCategory,
+    deleteCategoryRate,
     addRoomUnit,
     updateRoomUnit,
     deleteRoomUnit,

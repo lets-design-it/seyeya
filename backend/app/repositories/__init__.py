@@ -450,7 +450,7 @@ class CustomerRepository:
     async def get_all_customers(self, skip: int = 0, limit: int = 100) -> List[Customer]:
         """Get all customers"""
         result = await self.db.execute(
-            select(Customer).offset(skip).limit(limit)
+            select(Customer).order_by(Customer.customer_id.desc()).offset(skip).limit(limit)
         )
         return result.scalars().all()
 
@@ -466,7 +466,7 @@ class CustomerRepository:
                     Customer.nin.ilike(q),
                     Customer.passport_number.ilike(q)
                 )
-            ).offset(skip).limit(limit)
+            ).order_by(Customer.customer_id.desc()).offset(skip).limit(limit)
         )
         return result.scalars().all()
 
