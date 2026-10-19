@@ -106,9 +106,7 @@ const getImageUrl = (url: string) => {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
   }
-  const isLocal = typeof window !== 'undefined' &&
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  const backendBase = isLocal ? 'http://localhost:8000' : 'https://api.seyeyalodge.com';
+  const backendBase = 'http://139.59.134.181';
   return `${backendBase}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 

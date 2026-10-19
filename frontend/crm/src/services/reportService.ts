@@ -140,7 +140,7 @@ export const reportService = {
   },
 
   exportCSV(reportType: 'executive' | 'staff' | 'guests' | 'channels' | 'vat', startDate?: string, endDate?: string) {
-    const baseURL = api.defaults.baseURL || 'http://localhost:8000/api/v1';
+    const baseURL = api.defaults.baseURL || 'http://139.59.134.181/api/v1';
     let url = `${baseURL}/reports/export/csv?report_type=${reportType}`;
     if (startDate) url += `&start_date=${encodeURIComponent(startDate)}`;
     if (endDate) url += `&end_date=${encodeURIComponent(endDate)}`;

@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-const isLocal = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+export const BACKEND_URL = 'http://139.59.134.181';
+export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 
-// Global Axios client instance ready for backend connection
+// Global Axios client instance pointing to cloud backend on DigitalOcean
 export const api = axios.create({
-  baseURL: isLocal ? 'http://localhost:8000/api/v1' : 'https://api.seyeyalodge.com/v1',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
