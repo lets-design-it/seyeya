@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: seyeya_redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: seyeya_backend
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: seyeya_celery
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: celery -A app.tasks.celery_app worker -l info -c 2
+
+volumes:
+  redis_data:
