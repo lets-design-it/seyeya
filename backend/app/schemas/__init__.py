@@ -660,6 +660,41 @@ class CustomerOrdersResponse(BaseModel):
 
 
 # =====================================================================
+# RESTAURANT TABLES SCHEMAS
+# =====================================================================
+
+class RestaurantTableCreate(BaseModel):
+    table_number: str
+    location: str = "Main Restaurant"
+    capacity: Optional[int] = 4
+    status: Optional[str] = "Available"
+    is_active: Optional[bool] = True
+
+
+class RestaurantTableUpdate(BaseModel):
+    table_number: Optional[str] = None
+    location: Optional[str] = None
+    capacity: Optional[int] = None
+    status: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class RestaurantTableResponse(BaseModel):
+    table_id: int
+    table_number: str
+    location: str
+    capacity: int
+    status: str
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+
+# =====================================================================
 # ACCOMMODATION SCHEMAS
 # =====================================================================
 
@@ -1947,6 +1982,7 @@ class HotelDetailsResponse(BaseModel):
     currency: str
     timezone: str
     vat_rate: Optional[Decimal] = Decimal("18.00")
+    order_hold_duration_minutes: Optional[int] = 60
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -1981,6 +2017,7 @@ class HotelDetailsCreate(BaseModel):
     currency: str = "USD"
     timezone: str = "UTC"
     vat_rate: Optional[Decimal] = Decimal("18.00")
+    order_hold_duration_minutes: Optional[int] = Field(60, ge=20, le=1440)
     is_active: bool = True
 
     @field_validator("latitude")
@@ -2044,6 +2081,7 @@ class HotelDetailsUpdate(BaseModel):
     currency: Optional[str] = None
     timezone: Optional[str] = None
     vat_rate: Optional[Decimal] = None
+    order_hold_duration_minutes: Optional[int] = Field(None, ge=20, le=1440)
     is_active: Optional[bool] = None
 
     @field_validator("latitude")

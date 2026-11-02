@@ -31,7 +31,15 @@ import {
   Edit3,
   Layers,
   Coffee,
-  BedDouble
+  BedDouble,
+  LayoutGrid,
+  LayoutList,
+  PauseCircle,
+  Play,
+  Timer,
+  RotateCcw,
+  Settings2,
+  RefreshCw
 } from 'lucide-react';
 
 const getImageUrl = (url?: string) => {
@@ -76,6 +84,77 @@ export interface DetailedCartItem {
   extras: CartExtraSelection[];
 }
 
+export interface HeldOrderSession {
+  id: string;
+  heldAt: number;
+  label: string;
+  orderType: 'Premises' | 'Room Service' | 'Takeaway' | 'Delivery';
+  seatingArea: string;
+  table: string;
+  customTable: string;
+  cottageRoom: string;
+  customRoom: string;
+  deliveryAddress: string;
+  deliveryCharge: number | string;
+  customerSource: 'walkin' | 'crm';
+  selectedCustomerId: number | null;
+  guestName: string;
+  guestPhone: string;
+  assignedWaiterId: string;
+  customWaiterName: string;
+  orderTiming: 'asap' | 'scheduled';
+  scheduledTime: string;
+  allergyTags: string[];
+  customAllergy: string;
+  specialInstr: string;
+  paymentStatus: 'Pending' | 'Paid' | 'Partially Paid';
+  paymentMethod: 'Cash' | 'Card' | 'Mobile Money' | 'Room Bill';
+  amountPaid: number | string;
+  cartItems: DetailedCartItem[];
+  customizingItem?: any | null;
+  totalAmount: number;
+}
+
+export interface RestaurantTable {
+  table_id: number;
+  table_number: string;
+  location: string;
+  capacity: number;
+  status: string;
+  is_active: boolean;
+}
+
+export interface CheckedInRoom {
+  room_id: number;
+  room_number: string;
+  room_name?: string;
+  building?: string;
+  category_name?: string;
+  reservation_id?: number | null;
+  customer_id?: number | null;
+  guest_name?: string | null;
+  guest_phone?: string | null;
+  display_label?: string;
+}
+
+const DEFAULT_TABLES: RestaurantTable[] = [
+  { table_id: 1, table_number: 'Table 1', location: 'Main Restaurant', capacity: 4, status: 'Available', is_active: true },
+  { table_id: 2, table_number: 'Table 2', location: 'Main Restaurant', capacity: 4, status: 'Available', is_active: true },
+  { table_id: 3, table_number: 'Table 3', location: 'Main Restaurant', capacity: 2, status: 'Available', is_active: true },
+  { table_id: 4, table_number: 'Table 4', location: 'Main Restaurant', capacity: 6, status: 'Available', is_active: true },
+  { table_id: 5, table_number: 'Table 5', location: 'Main Restaurant', capacity: 4, status: 'Available', is_active: true },
+  { table_id: 6, table_number: 'Table 6', location: 'Main Restaurant', capacity: 8, status: 'Available', is_active: true },
+  { table_id: 7, table_number: 'Table 7', location: 'Verandah & Terrace', capacity: 4, status: 'Available', is_active: true },
+  { table_id: 8, table_number: 'Table 8', location: 'Verandah & Terrace', capacity: 4, status: 'Available', is_active: true },
+  { table_id: 9, table_number: 'Table 9', location: 'Verandah & Terrace', capacity: 2, status: 'Available', is_active: true },
+  { table_id: 10, table_number: 'Cabana 1', location: 'Poolside Deck', capacity: 6, status: 'Available', is_active: true },
+  { table_id: 11, table_number: 'Cabana 2', location: 'Poolside Deck', capacity: 6, status: 'Available', is_active: true },
+  { table_id: 12, table_number: 'Gazebo A', location: 'Garden Gazebos', capacity: 8, status: 'Available', is_active: true },
+  { table_id: 13, table_number: 'Gazebo B', location: 'Garden Gazebos', capacity: 8, status: 'Available', is_active: true },
+  { table_id: 14, table_number: 'VIP Table 1', location: 'VIP Lounge', capacity: 4, status: 'Available', is_active: true },
+  { table_id: 15, table_number: 'VIP Table 2', location: 'VIP Lounge', capacity: 6, status: 'Available', is_active: true },
+];
+
 const COLUMNS: RestaurantOrder['status'][] = ['Pending', 'Preparing', 'Ready'];
 
 interface OrdersProps {
@@ -101,6 +180,55 @@ export const Orders: React.FC<OrdersProps> = ({
   // Dynamic age evaluation states
   const [now, setNow] = useState(new Date());
   const [archiveSearch, setArchiveSearch] = useState('');
+
+  // History view mode: 'list' (table) or 'grid' (cards)
+  const [historyViewMode, setHistoryViewMode] = useState<'list' | 'grid'>(() => {
+    try {
+      const saved = localStorage.getItem('seyeya_order_history_view_mode');
+      return saved === 'grid' || saved === 'list' ? saved : 'list';
+    } catch {
+      return 'list';
+    }
+  });
+
+  const handleSetHistoryViewMode = (mode: 'list' | 'grid') => {
+    setHistoryViewMode(mode);
+    try {
+      localStorage.setItem('seyeya_order_history_view_mode', mode);
+    } catch {
+      // ignore
+    }
+  };
+
+  const formatOrderCompletedTime = (order: RestaurantOrder): string => {
+    let completedTimeStr = order.timestamp;
+    if (order.updatedAt) {
+      const rawStr = String(order.updatedAt).trim();
+      const isoStr = (rawStr.endsWith('Z') || rawStr.includes('+'))
+        ? rawStr
+        : `${rawStr.replace(' ', 'T')}Z`;
+      const d = new Date(isoStr);
+      if (!isNaN(d.getTime())) {
+        completedTimeStr = d.toLocaleString('en-US', {
+          timeZone: 'Africa/Nairobi',
+          dateStyle: 'short',
+          timeStyle: 'short'
+        });
+      }
+    }
+    return completedTimeStr;
+  };
+
+  const getPaymentBadgeClass = (paymentStatus?: string) => {
+    const s = (paymentStatus || '').toLowerCase();
+    if (s === 'paid') {
+      return 'border-emerald-500/20 text-emerald-600 bg-emerald-500/5 dark:text-emerald-400 dark:bg-emerald-500/10';
+    }
+    if (s === 'partially paid' || s === 'partial') {
+      return 'border-amber-500/20 text-amber-600 bg-amber-500/5 dark:text-amber-400 dark:bg-amber-500/10';
+    }
+    return 'border-amber-500/20 text-amber-600 bg-amber-500/5 dark:text-amber-400 dark:bg-amber-500/10';
+  };
 
   // Active orders search & sort states (defaults to Most Recent First)
   const [activeSearch, setActiveSearch] = useState('');
@@ -138,9 +266,9 @@ export const Orders: React.FC<OrdersProps> = ({
     .filter(o => {
       if (!archiveSearch) return true;
       const term = archiveSearch.toLowerCase();
-      return o.orderNumber.toLowerCase().includes(term) || 
-             o.table.toLowerCase().includes(term) || 
-             o.items.toLowerCase().includes(term);
+      return o.orderNumber.toLowerCase().includes(term) ||
+        o.table.toLowerCase().includes(term) ||
+        o.items.toLowerCase().includes(term);
     })
     .sort((a, b) => {
       const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
@@ -207,11 +335,257 @@ export const Orders: React.FC<OrdersProps> = ({
   const [createError, setCreateError] = useState<string | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
-  // Fetch customers & waiters on mount
+  // Held Order Sessions State
+  const [heldSessions, setHeldSessions] = useState<HeldOrderSession[]>(() => {
+    try {
+      const stored = localStorage.getItem('seyeya_held_order_sessions');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isHeldSessionsOpen, setIsHeldSessionsOpen] = useState(false);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const [holdSuccessMessage, setHoldSuccessMessage] = useState<string | null>(null);
+
+  // Configured Order Hold Duration (synced with Hotel Details settings)
+  const [orderHoldDurationMinutes, setOrderHoldDurationMinutes] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('seyeya_order_hold_duration_minutes');
+      return stored ? Math.max(20, Math.min(1440, Number(stored))) : 60;
+    } catch {
+      return 60;
+    }
+  });
+
+  // Listen to hold duration updates and fetch hotel details limit
   useEffect(() => {
-    api.get('/crm/customers').then(res => setCustomersList(res.data || [])).catch(() => {});
-    api.get('/auth/users').then(res => setWaitersList(res.data || [])).catch(() => {});
+    const handleHoldDurationChanged = (e: any) => {
+      const val = e?.detail ?? localStorage.getItem('seyeya_order_hold_duration_minutes');
+      if (val) {
+        setOrderHoldDurationMinutes(Math.max(20, Math.min(1440, Number(val))));
+      }
+    };
+    window.addEventListener('seyeya_hold_duration_changed', handleHoldDurationChanged);
+
+    api.get('/hotel-details')
+      .then(res => {
+        if (res.data?.success && res.data?.data?.order_hold_duration_minutes) {
+          const val = Math.max(20, Math.min(1440, Number(res.data.data.order_hold_duration_minutes)));
+          setOrderHoldDurationMinutes(val);
+          localStorage.setItem('seyeya_order_hold_duration_minutes', String(val));
+        }
+      })
+      .catch(() => { });
+
+    return () => {
+      window.removeEventListener('seyeya_hold_duration_changed', handleHoldDurationChanged);
+    };
   }, []);
+
+  // 1-second active ticker for live countdowns
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const saveHeldSessions = (sessions: HeldOrderSession[]) => {
+    setHeldSessions(sessions);
+    try {
+      localStorage.setItem('seyeya_held_order_sessions', JSON.stringify(sessions));
+    } catch {
+      // ignore
+    }
+  };
+
+  // Dynamic Restaurant Tables state
+  const [tablesList, setTablesList] = useState<RestaurantTable[]>(() => {
+    try {
+      const stored = localStorage.getItem('seyeya_restaurant_tables');
+      return stored ? JSON.parse(stored) : DEFAULT_TABLES;
+    } catch {
+      return DEFAULT_TABLES;
+    }
+  });
+  const [tableLocationFilter, setTableLocationFilter] = useState<string>('ALL');
+  const [isManageTablesMode, setIsManageTablesMode] = useState<boolean>(false);
+  const [isAddTableOpen, setIsAddTableOpen] = useState<boolean>(false);
+  const [newTableNumber, setNewTableNumber] = useState<string>('');
+  const [newTableLocation, setNewTableLocation] = useState<string>('Main Restaurant');
+  const [customNewLocation, setCustomNewLocation] = useState<string>('');
+  const [newTableCapacity, setNewTableCapacity] = useState<number>(4);
+  const [isSavingTable, setIsSavingTable] = useState<boolean>(false);
+
+  // Dynamic Checked-In Rooms state
+  const [checkedInRooms, setCheckedInRooms] = useState<CheckedInRoom[]>([]);
+  const [allRoomsList, setAllRoomsList] = useState<any[]>([]);
+  const [isLoadingRooms, setIsLoadingRooms] = useState<boolean>(false);
+  const [showAllRoomsMode, setShowAllRoomsMode] = useState<boolean>(false);
+
+  // Fetch tables from API
+  const fetchTables = async () => {
+    try {
+      const res = await api.get('/restaurant/tables');
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setTablesList(res.data);
+        localStorage.setItem('seyeya_restaurant_tables', JSON.stringify(res.data));
+      }
+    } catch (err) {
+      console.warn('Could not fetch tables from API, using cached/default tables', err);
+    }
+  };
+
+  // Create new table
+  const handleCreateNewTable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalLocation = (newTableLocation === 'NEW' ? customNewLocation.trim() : newTableLocation.trim()) || 'Main Restaurant';
+    const finalNumber = newTableNumber.trim();
+    if (!finalNumber) return;
+
+    setIsSavingTable(true);
+    try {
+      let createdTable: RestaurantTable;
+      try {
+        const res = await api.post('/restaurant/tables', {
+          table_number: finalNumber,
+          location: finalLocation,
+          capacity: Number(newTableCapacity) || 4,
+          status: 'Available',
+          is_active: true
+        });
+        createdTable = res.data;
+      } catch (err) {
+        createdTable = {
+          table_id: Date.now(),
+          table_number: finalNumber,
+          location: finalLocation,
+          capacity: Number(newTableCapacity) || 4,
+          status: 'Available',
+          is_active: true
+        };
+      }
+      const updated = [...tablesList.filter(t => t.table_id !== createdTable.table_id), createdTable];
+      setTablesList(updated);
+      localStorage.setItem('seyeya_restaurant_tables', JSON.stringify(updated));
+      setTable(createdTable.table_number);
+      setSeatingArea(createdTable.location);
+      setNewTableNumber('');
+      setCustomNewLocation('');
+      setIsAddTableOpen(false);
+    } finally {
+      setIsSavingTable(false);
+    }
+  };
+
+  // Delete table
+  const handleDeleteTable = async (tableId: number, tableNum: string) => {
+    if (!window.confirm(`Are you sure you want to remove "${tableNum}" from the premises?`)) return;
+    try {
+      await api.delete(`/restaurant/tables/${tableId}`).catch(() => { });
+    } catch {
+      // ignore
+    }
+    const updated = tablesList.filter(t => t.table_id !== tableId);
+    setTablesList(updated);
+    localStorage.setItem('seyeya_restaurant_tables', JSON.stringify(updated));
+    if (table === tableNum) {
+      setTable(updated[0]?.table_number || 'Table 1');
+    }
+  };
+
+  // Fetch checked-in rooms from API with resilient fallback
+  const fetchCheckedInRooms = async () => {
+    setIsLoadingRooms(true);
+    try {
+      const res = await api.get('/accommodation/rooms/checked-in');
+      if (Array.isArray(res.data)) {
+        setCheckedInRooms(res.data);
+        setIsLoadingRooms(false);
+        return;
+      }
+    } catch (err) {
+      console.warn('Dedicated /rooms/checked-in endpoint fallback check', err);
+    }
+
+    try {
+      const [roomsRes, resRes, custRes] = await Promise.allSettled([
+        api.get('/accommodation/rooms/all'),
+        api.get('/accommodation/reservations'),
+        api.get('/crm/customers')
+      ]);
+
+      const rooms = roomsRes.status === 'fulfilled' && Array.isArray(roomsRes.value.data) ? roomsRes.value.data : [];
+      const reservations = resRes.status === 'fulfilled' && Array.isArray(resRes.value.data) ? resRes.value.data : [];
+      const customers = custRes.status === 'fulfilled' && Array.isArray(custRes.value.data) ? custRes.value.data : [];
+
+      setAllRoomsList(rooms);
+
+      const computedCheckedIn: CheckedInRoom[] = [];
+      rooms.forEach((r: any) => {
+        const activeRes = reservations.find((res: any) =>
+          Number(res.room_id) === Number(r.room_id) &&
+          (res.reservation_status === 'CheckedIn' || res.reservation_status === 'Checked In')
+        );
+        if (activeRes || r.room_status === 'Occupied') {
+          const cust = activeRes ? customers.find((c: any) => Number(c.customer_id) === Number(activeRes.customer_id)) : null;
+          const guestName = cust?.full_name || activeRes?.guest_name || (r.room_status === 'Occupied' ? 'Occupied Guest' : null);
+          const guestPhone = cust?.phone_number || activeRes?.phone_number || null;
+          const categoryName = r.category?.category_name || r.category_name || '';
+
+          computedCheckedIn.push({
+            room_id: r.room_id,
+            room_number: String(r.room_number),
+            room_name: r.room_name,
+            building: r.building,
+            category_name: categoryName,
+            reservation_id: activeRes?.reservation_id || null,
+            customer_id: cust?.customer_id || activeRes?.customer_id || null,
+            guest_name: guestName,
+            guest_phone: guestPhone,
+            display_label: `Room ${r.room_number}${guestName ? ` - ${guestName}` : ''}`
+          });
+        }
+      });
+
+      setCheckedInRooms(computedCheckedIn);
+    } catch (err2) {
+      console.error('Error fetching fallback checked in rooms', err2);
+    } finally {
+      setIsLoadingRooms(false);
+    }
+  };
+
+  const handleSelectCheckedInRoom = (room: CheckedInRoom) => {
+    setCottageRoom(`Room ${room.room_number}`);
+    if (room.guest_name) {
+      setGuestName(room.guest_name);
+    }
+    if (room.guest_phone) {
+      setGuestPhone(room.guest_phone);
+    }
+    if (room.customer_id) {
+      setSelectedCustomerId(room.customer_id);
+      setCustomerSource('crm');
+    }
+  };
+
+  // Fetch customers, waiters, tables & checked-in rooms on mount
+  useEffect(() => {
+    api.get('/crm/customers').then(res => setCustomersList(res.data || [])).catch(() => { });
+    api.get('/auth/users').then(res => setWaitersList(res.data || [])).catch(() => { });
+    fetchTables();
+    fetchCheckedInRooms();
+  }, []);
+
+  // Refresh tables and checked-in rooms whenever the create modal opens
+  useEffect(() => {
+    if (isCreateOpen) {
+      fetchTables();
+      fetchCheckedInRooms();
+    }
+  }, [isCreateOpen]);
 
   // Edit Order states
   const [editStatus, setEditStatus] = useState<RestaurantOrder['status']>('Pending');
@@ -400,11 +774,14 @@ export const Orders: React.FC<OrdersProps> = ({
 
   const resetCreateOrderForm = () => {
     setOrderType('Premises');
-    setSeatingArea('Main Restaurant');
-    setTable('Table 1');
+    setSeatingArea(tablesList[0]?.location || 'Main Restaurant');
+    setTable(tablesList[0]?.table_number || 'Table 1');
     setCustomTable('');
-    setCottageRoom('Cottage 1');
+    setCottageRoom(checkedInRooms[0] ? `Room ${checkedInRooms[0].room_number}` : 'Room 101');
     setCustomRoom('');
+    setIsManageTablesMode(false);
+    setIsAddTableOpen(false);
+    setShowAllRoomsMode(false);
     setDeliveryAddress('');
     setDeliveryCharge('');
     setCustomerSource('walkin');
@@ -426,6 +803,198 @@ export const Orders: React.FC<OrdersProps> = ({
     setCartItems([]);
     setCustomizingItem(null);
     setCreateError(null);
+  };
+
+  const handleHoldCurrentSession = () => {
+    const hasItems = cartItems.length > 0;
+    const hasDetails = guestName.trim() !== '' || customTable.trim() !== '' || specialInstr.trim() !== '';
+
+    if (!hasItems && !hasDetails) {
+      setCreateError("Please select items or enter details before placing the order on hold.");
+      return;
+    }
+
+    let target = '';
+    if (orderType === 'Premises') {
+      target = `${seatingArea} - ${table === 'Other' ? (customTable || 'Custom Table') : table}`;
+    } else if (orderType === 'Room Service') {
+      target = `Room Service: ${cottageRoom === 'Other' ? (customRoom || 'Room') : cottageRoom}`;
+    } else if (orderType === 'Takeaway') {
+      target = 'Takeaway / Pickup';
+    } else {
+      target = `Delivery: ${deliveryAddress || 'Address'}`;
+    }
+
+    const baseTotal = cartItems.reduce((acc, curr) => acc + (curr.base_price * curr.quantity), 0);
+    const custTotal = cartItems.reduce((acc, curr) => {
+      const cPrice = curr.choice?.price || 0;
+      const aPrice = curr.accompaniment?.price || 0;
+      const ePrice = curr.extras.reduce((sum, ex) => sum + (ex.price * ex.quantity), 0);
+      return acc + ((cPrice + aPrice + ePrice) * curr.quantity);
+    }, 0);
+
+    const newSession: HeldOrderSession = {
+      id: `held_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      heldAt: Date.now(),
+      label: `${target}${guestName ? ` (${guestName})` : ''}`,
+      orderType,
+      seatingArea,
+      table,
+      customTable,
+      cottageRoom,
+      customRoom,
+      deliveryAddress,
+      deliveryCharge,
+      customerSource,
+      selectedCustomerId,
+      guestName,
+      guestPhone,
+      assignedWaiterId,
+      customWaiterName,
+      orderTiming,
+      scheduledTime,
+      allergyTags,
+      customAllergy,
+      specialInstr,
+      paymentStatus,
+      paymentMethod,
+      amountPaid,
+      cartItems,
+      customizingItem,
+      totalAmount: baseTotal + custTotal
+    };
+
+    saveHeldSessions([newSession, ...heldSessions]);
+    resetCreateOrderForm();
+    setHoldSuccessMessage(`Order session for "${newSession.label}" placed on hold. Ready for your next order.`);
+    setTimeout(() => setHoldSuccessMessage(null), 4000);
+  };
+
+  const handleResumeSession = (session: HeldOrderSession) => {
+    // If current form has unsaved work, automatically park it as another held session
+    const hasCurrentWork = cartItems.length > 0 || guestName.trim() !== '';
+    let updatedList = heldSessions.filter(s => s.id !== session.id);
+
+    if (hasCurrentWork) {
+      let curTarget = orderType === 'Premises' ? `${table}` : orderType;
+      const currentDraft: HeldOrderSession = {
+        id: `held_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        heldAt: Date.now(),
+        label: `${curTarget}${guestName ? ` (${guestName})` : ''}`,
+        orderType,
+        seatingArea,
+        table,
+        customTable,
+        cottageRoom,
+        customRoom,
+        deliveryAddress,
+        deliveryCharge,
+        customerSource,
+        selectedCustomerId,
+        guestName,
+        guestPhone,
+        assignedWaiterId,
+        customWaiterName,
+        orderTiming,
+        scheduledTime,
+        allergyTags,
+        customAllergy,
+        specialInstr,
+        paymentStatus,
+        paymentMethod,
+        amountPaid,
+        cartItems,
+        customizingItem,
+        totalAmount: cartItems.reduce((acc, curr) => acc + (curr.base_price * curr.quantity), 0)
+      };
+      updatedList = [currentDraft, ...updatedList];
+    }
+
+    setOrderType(session.orderType);
+    setSeatingArea(session.seatingArea);
+    setTable(session.table);
+    setCustomTable(session.customTable);
+    setCottageRoom(session.cottageRoom);
+    setCustomRoom(session.customRoom);
+    setDeliveryAddress(session.deliveryAddress);
+    setDeliveryCharge(session.deliveryCharge);
+    setCustomerSource(session.customerSource);
+    setSelectedCustomerId(session.selectedCustomerId);
+    setGuestName(session.guestName);
+    setGuestPhone(session.guestPhone);
+    setAssignedWaiterId(session.assignedWaiterId);
+    setCustomWaiterName(session.customWaiterName);
+    setOrderTiming(session.orderTiming);
+    setScheduledTime(session.scheduledTime);
+    setAllergyTags(session.allergyTags);
+    setCustomAllergy(session.customAllergy);
+    setSpecialInstr(session.specialInstr);
+    setPaymentStatus(session.paymentStatus);
+    setPaymentMethod(session.paymentMethod);
+    setAmountPaid(session.amountPaid);
+    setCartItems(session.cartItems);
+    setCustomizingItem(session.customizingItem || null);
+
+    saveHeldSessions(updatedList);
+    setIsHeldSessionsOpen(false);
+    setCreateError(null);
+    setHoldSuccessMessage(`Resumed order for "${session.label}".`);
+    setTimeout(() => setHoldSuccessMessage(null), 3500);
+  };
+
+  const handleDeleteHeldSession = (sessionId: string) => {
+    const updated = heldSessions.filter(s => s.id !== sessionId);
+    saveHeldSessions(updated);
+  };
+
+  const handleStartNewOrder = () => {
+    const hasItems = cartItems.length > 0;
+    const hasDetails = guestName.trim() !== '';
+
+    if (hasItems || hasDetails) {
+      handleHoldCurrentSession();
+    } else {
+      resetCreateOrderForm();
+      setHoldSuccessMessage("Fresh order ticket started.");
+      setTimeout(() => setHoldSuccessMessage(null), 3000);
+    }
+  };
+
+  const formatCountdown = (heldAt: number, currentNow: number) => {
+    const holdMins = orderHoldDurationMinutes && orderHoldDurationMinutes >= 20 ? orderHoldDurationMinutes : 60;
+    const HOLD_DURATION_MS = holdMins * 60 * 1000;
+    const elapsed = Math.max(0, currentNow - heldAt);
+    const remaining = Math.max(0, HOLD_DURATION_MS - elapsed);
+
+    const remTotalSec = Math.floor(remaining / 1000);
+    const remHours = Math.floor(remTotalSec / 3600);
+    const remMinutes = Math.floor((remTotalSec % 3600) / 60);
+    const remSeconds = remTotalSec % 60;
+
+    const elapTotalSec = Math.floor(elapsed / 1000);
+    const elapHours = Math.floor(elapTotalSec / 3600);
+    const elapMinutes = Math.floor((elapTotalSec % 3600) / 60);
+    const elapSeconds = elapTotalSec % 60;
+
+    const isExpired = remaining <= 0;
+    const warningThreshold = Math.min(15 * 60 * 1000, Math.max(5 * 60 * 1000, HOLD_DURATION_MS * 0.15));
+
+    const countdownStr = isExpired
+      ? '00:00 (Expired)'
+      : (remHours > 0
+          ? `${remHours}h ${String(remMinutes).padStart(2, '0')}m ${String(remSeconds).padStart(2, '0')}s`
+          : `${String(remMinutes).padStart(2, '0')}:${String(remSeconds).padStart(2, '0')}`);
+
+    const elapsedStr = elapHours > 0
+      ? `${elapHours}h ${String(elapMinutes).padStart(2, '0')}m`
+      : `${String(elapMinutes).padStart(2, '0')}:${String(elapSeconds).padStart(2, '0')}`;
+
+    return {
+      countdownStr,
+      elapsedStr,
+      isExpiring: isExpired || remaining <= warningThreshold,
+      isExpired
+    };
   };
 
   const handleCreateOrder = async (e: React.FormEvent) => {
@@ -576,12 +1145,26 @@ export const Orders: React.FC<OrdersProps> = ({
             {activeTab === 'active' ? 'Active Orders' : 'Order History'}
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {activeTab === 'active' 
-              ? 'Monitor and progress culinary ticket orders submitted by guests.' 
+            {activeTab === 'active'
+              ? 'Monitor and progress culinary ticket orders submitted by guests.'
               : 'View past completed restaurant orders that have been archived.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {heldSessions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsCreateOpen(true);
+                setIsHeldSessionsOpen(true);
+              }}
+              className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 rounded-full px-4 py-2 text-xs font-bold hover:bg-amber-500/20 transition-all cursor-pointer shadow-xs animate-in fade-in"
+              title="Open held order sessions with active countdowns"
+            >
+              <Clock className="h-4 w-4 text-amber-500 animate-pulse" />
+              <span>Held Orders: {heldSessions.length}</span>
+            </button>
+          )}
           <Button
             onClick={() => setIsCreateOpen(true)}
             className="flex items-center gap-2 bg-[#0A2540]! text-[#D4AF37]! hover:bg-[#07192C]! border border-[#D4AF37]/30 dark:bg-[#D4AF37]! dark:text-[#0A192F]! dark:hover:bg-[#B89320]! rounded-full px-5 py-2.5 text-xs font-bold shadow-sm cursor-pointer animate-in fade-in"
@@ -628,11 +1211,10 @@ export const Orders: React.FC<OrdersProps> = ({
               <button
                 type="button"
                 onClick={() => setSortOrder('newest')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  sortOrder === 'newest'
-                    ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${sortOrder === 'newest'
+                  ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                  }`}
               >
                 <ArrowDown className="h-3 w-3" />
                 Most Recent First
@@ -640,11 +1222,10 @@ export const Orders: React.FC<OrdersProps> = ({
               <button
                 type="button"
                 onClick={() => setSortOrder('oldest')}
-                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  sortOrder === 'oldest'
-                    ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
-                }`}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${sortOrder === 'oldest'
+                  ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                  }`}
               >
                 <ArrowUp className="h-3 w-3" />
                 Oldest First
@@ -658,104 +1239,104 @@ export const Orders: React.FC<OrdersProps> = ({
       {activeTab === 'active' && (
         <div className="flex-1 pb-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full h-full items-start">
-          {COLUMNS.map((col) => {
-            const columnOrders = orders
-              .filter(o => {
-                if (o.status !== col || !o.rawItems || o.rawItems.length === 0) return false;
-                if (activeSearch) {
-                  const term = activeSearch.toLowerCase();
-                  return (
-                    o.orderNumber.toLowerCase().includes(term) ||
-                    o.table.toLowerCase().includes(term) ||
-                    o.items.toLowerCase().includes(term)
-                  );
-                }
-                return true;
-              })
-              .sort((a, b) => {
-                const timeA = getOrderTimestamp(a);
-                const timeB = getOrderTimestamp(b);
-                return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
-              });
-            return (
-              <div
-                key={col}
-                className="flex flex-col w-full bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-150/40 dark:border-zinc-800 rounded-2xl p-3 max-h-[70vh]"
-              >
-                {/* Column Title */}
-                <div className="flex items-center justify-between pb-2 mb-3 shrink-0">
-                  <span className="text-xs font-bold text-zinc-900 dark:text-zinc-355 uppercase tracking-wide">{col}</span>
-                  <span className={`px-2 py-0.5 rounded-md border text-xs font-bold ${getStatusColor(col)}`}>
-                    {columnOrders.length}
-                  </span>
-                </div>
+            {COLUMNS.map((col) => {
+              const columnOrders = orders
+                .filter(o => {
+                  if (o.status !== col || !o.rawItems || o.rawItems.length === 0) return false;
+                  if (activeSearch) {
+                    const term = activeSearch.toLowerCase();
+                    return (
+                      o.orderNumber.toLowerCase().includes(term) ||
+                      o.table.toLowerCase().includes(term) ||
+                      o.items.toLowerCase().includes(term)
+                    );
+                  }
+                  return true;
+                })
+                .sort((a, b) => {
+                  const timeA = getOrderTimestamp(a);
+                  const timeB = getOrderTimestamp(b);
+                  return sortOrder === 'newest' ? timeB - timeA : timeA - timeB;
+                });
+              return (
+                <div
+                  key={col}
+                  className="flex flex-col w-full bg-zinc-50 dark:bg-zinc-900/40 border border-zinc-150/40 dark:border-zinc-800 rounded-2xl p-3 max-h-[70vh]"
+                >
+                  {/* Column Title */}
+                  <div className="flex items-center justify-between pb-2 mb-3 shrink-0">
+                    <span className="text-xs font-bold text-zinc-900 dark:text-zinc-355 uppercase tracking-wide">{col}</span>
+                    <span className={`px-2 py-0.5 rounded-md border text-xs font-bold ${getStatusColor(col)}`}>
+                      {columnOrders.length}
+                    </span>
+                  </div>
 
-                {/* Tickets list */}
-                <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 py-1">
-                  {columnOrders.length === 0 ? (
-                    <div className="h-16 flex items-center justify-center rounded-xl border border-dashed border-zinc-200 dark:border-zinc-850 text-xs text-zinc-400 dark:text-zinc-500 text-center font-medium">
-                      No tickets
-                    </div>
-                  ) : (
-                    columnOrders.map((order) => {
-                      const next = getNextStatus(order.status);
-                      return (
-                        <Card
-                          key={order.id}
-                          variant="glass"
-                          className="p-3.5 shadow-md flex flex-col gap-2.5 border-zinc-150/40 dark:border-zinc-800 hover:border-zinc-800 dark:hover:border-zinc-650 transition-colors group cursor-pointer"
-                          onClick={() => openDetails(order)}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex flex-col gap-1 min-w-0 pr-2">
-                              <span className="text-xs font-bold text-violet-600 dark:text-violet-400 leading-none truncate">{order.table}</span>
-                              <span className="text-[9px] text-zinc-405 dark:text-zinc-500 font-bold font-mono tracking-tight">{order.orderNumber}</span>
+                  {/* Tickets list */}
+                  <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 py-1">
+                    {columnOrders.length === 0 ? (
+                      <div className="h-16 flex items-center justify-center rounded-xl border border-dashed border-zinc-200 dark:border-zinc-850 text-xs text-zinc-400 dark:text-zinc-500 text-center font-medium">
+                        No tickets
+                      </div>
+                    ) : (
+                      columnOrders.map((order) => {
+                        const next = getNextStatus(order.status);
+                        return (
+                          <Card
+                            key={order.id}
+                            variant="glass"
+                            className="p-3.5 shadow-md flex flex-col gap-2.5 border-zinc-150/40 dark:border-zinc-800 hover:border-zinc-800 dark:hover:border-zinc-650 transition-colors group cursor-pointer"
+                            onClick={() => openDetails(order)}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex flex-col gap-1 min-w-0 pr-2">
+                                <span className="text-xs font-bold text-violet-600 dark:text-violet-400 leading-none truncate">{order.table}</span>
+                                <span className="text-[9px] text-zinc-405 dark:text-zinc-500 font-bold font-mono tracking-tight">{order.orderNumber}</span>
+                              </div>
+                              <span className="text-xs text-zinc-900 dark:text-zinc-100 font-bold shrink-0">
+                                {formatPrice(order.value)}
+                              </span>
                             </div>
-                            <span className="text-xs text-zinc-900 dark:text-zinc-100 font-bold shrink-0">
-                              {formatPrice(order.value)}
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-normal font-semibold line-clamp-2">
-                            {order.items}
-                          </p>
+                            <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-normal font-semibold line-clamp-2">
+                              {order.items}
+                            </p>
 
-                          {/* Footer with actions */}
-                          <div className="flex items-center justify-between pt-2.5 mt-0.5 shrink-0 border-t border-zinc-100/50 dark:border-zinc-800/40">
-                            <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 font-semibold">
-                              <Clock className="h-3 w-3 text-zinc-450" />
-                              <span>{order.timestamp}</span>
+                            {/* Footer with actions */}
+                            <div className="flex items-center justify-between pt-2.5 mt-0.5 shrink-0 border-t border-zinc-100/50 dark:border-zinc-800/40">
+                              <div className="flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 font-semibold">
+                                <Clock className="h-3 w-3 text-zinc-450" />
+                                <span>{order.timestamp}</span>
+                              </div>
+
+                              {/* Ticket Shift Button */}
+                              {next && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateOrderStatus(order.id, next);
+                                  }}
+                                  className="flex items-center gap-1 rounded-lg bg-violet-600/10 dark:bg-violet-500/10 border border-violet-500/20 dark:border-violet-900/50 hover:bg-violet-650 dark:hover:bg-violet-600 hover:text-white dark:hover:text-white! px-2 py-1 text-[10px] font-bold text-violet-555 dark:text-violet-400 transition-colors focus:outline-none cursor-pointer"
+                                >
+                                  <span>
+                                    {next === 'Preparing' ? 'Start Preparing' : next === 'Ready' ? 'Mark Ready' : next === 'Completed' ? 'Complete' : next}
+                                  </span>
+                                  <ChevronRight className="h-3 w-3" />
+                                </button>
+                              )}
+
+                              {order.status === 'Completed' && (
+                                <CheckSquare className="h-3.5 w-3.5 text-zinc-450 dark:text-zinc-400" />
+                              )}
                             </div>
-
-                            {/* Ticket Shift Button */}
-                            {next && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  updateOrderStatus(order.id, next);
-                                }}
-                                className="flex items-center gap-1 rounded-lg bg-violet-600/10 dark:bg-violet-500/10 border border-violet-500/20 dark:border-violet-900/50 hover:bg-violet-650 dark:hover:bg-violet-600 hover:text-white dark:hover:text-white! px-2 py-1 text-[10px] font-bold text-violet-555 dark:text-violet-400 transition-colors focus:outline-none cursor-pointer"
-                              >
-                                <span>
-                                  {next === 'Preparing' ? 'Start Preparing' : next === 'Ready' ? 'Mark Ready' : next === 'Completed' ? 'Complete' : next}
-                                </span>
-                                <ChevronRight className="h-3 w-3" />
-                              </button>
-                            )}
-
-                            {order.status === 'Completed' && (
-                              <CheckSquare className="h-3.5 w-3.5 text-zinc-450 dark:text-zinc-400" />
-                            )}
-                          </div>
-                        </Card>
-                      );
-                    })
-                  )}
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
       )}
 
       {/* Completed Orders History Section */}
@@ -763,104 +1344,241 @@ export const Orders: React.FC<OrdersProps> = ({
         <div className="pt-6 border-t border-zinc-200 dark:border-zinc-800">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <div>
-              <h4 className="text-lg font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">Completed Orders History</h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">Archived list of culinary tickets completed more than 30 minutes ago.</p>
+              <div className="flex items-center gap-2.5">
+                <h4 className="text-lg font-bold text-zinc-900 dark:text-zinc-50 tracking-tight">
+                  Completed Orders History
+                </h4>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
+                  {archivedOrders.length}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Archived list of culinary tickets completed more than 30 minutes ago.
+              </p>
             </div>
-            <div className="w-full sm:w-64">
-              <input
-                type="text"
-                placeholder="Search history by order, table..."
-                value={archiveSearch}
-                onChange={(e) => setArchiveSearch(e.target.value)}
-                className="w-full rounded-xl bg-white dark:bg-zinc-955 border border-zinc-150/40 dark:border-zinc-850 px-3.5 py-2 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-semibold shadow-2xs"
-              />
+
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              {/* Search Bar */}
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search history by order, table..."
+                  value={archiveSearch}
+                  onChange={(e) => setArchiveSearch(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 rounded-xl bg-white dark:bg-zinc-955 border border-zinc-150/40 dark:border-zinc-850 text-xs text-foreground dark:text-zinc-100 outline-none focus:border-violet-500 dark:focus:border-violet-650 font-semibold shadow-2xs"
+                />
+                {archiveSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setArchiveSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-foreground cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* View Switcher Toggle: List vs Grid */}
+              <div className="flex items-center bg-white dark:bg-zinc-950 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xs shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleSetHistoryViewMode('list')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${historyViewMode === 'list'
+                    ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                    }`}
+                  title="List View"
+                >
+                  <LayoutList className="h-3.5 w-3.5" />
+                  <span className="hidden xs:inline">List</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSetHistoryViewMode('grid')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${historyViewMode === 'grid'
+                    ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                    }`}
+                  title="Grid View (Cards)"
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  <span className="hidden xs:inline">Grid</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="border border-zinc-150/40 dark:border-zinc-800 rounded-2xl overflow-hidden bg-card text-card-foreground shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-zinc-150/40 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 text-[10px] uppercase font-bold tracking-wider text-zinc-450 dark:text-zinc-550">
-                    <th className="py-3.5 px-4">Order #</th>
-                    <th className="py-3.5 px-4">Seating / Table</th>
-                    <th className="py-3.5 px-4">Items</th>
-                    <th className="py-3.5 px-4">Completed At</th>
-                    <th className="py-3.5 px-4">Payment</th>
-                    <th className="py-3.5 px-4">Amount</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-150/30 dark:divide-zinc-800/40">
-                  {archivedOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-xs text-zinc-405 dark:text-zinc-500 font-medium">
-                        No completed orders in archive history.
-                      </td>
+          {/* List (Table) View */}
+          {historyViewMode === 'list' && (
+            <div className="border border-zinc-150/40 dark:border-zinc-800 rounded-2xl overflow-hidden bg-card text-card-foreground shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-zinc-150/40 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 text-[10px] uppercase font-bold tracking-wider text-zinc-450 dark:text-zinc-550">
+                      <th className="py-3.5 px-4">Order #</th>
+                      <th className="py-3.5 px-4">Seating / Table</th>
+                      <th className="py-3.5 px-4">Items</th>
+                      <th className="py-3.5 px-4">Completed At</th>
+                      <th className="py-3.5 px-4">Payment</th>
+                      <th className="py-3.5 px-4">Amount</th>
+                      <th className="py-3.5 px-4 text-right">Actions</th>
                     </tr>
-                  ) : (
-                    archivedOrders.map((order) => {
-                      let completedTimeStr = order.timestamp;
-                      if (order.updatedAt) {
-                        const rawStr = String(order.updatedAt).trim();
-                        const isoStr = (rawStr.endsWith('Z') || rawStr.includes('+'))
-                          ? rawStr
-                          : `${rawStr.replace(' ', 'T')}Z`;
-                        const d = new Date(isoStr);
-                        if (!isNaN(d.getTime())) {
-                          completedTimeStr = d.toLocaleString('en-US', {
-                            timeZone: 'Africa/Nairobi',
-                            dateStyle: 'short',
-                            timeStyle: 'short'
-                          });
-                        }
-                      }
+                  </thead>
+                  <tbody className="divide-y divide-zinc-150/30 dark:divide-zinc-800/40">
+                    {archivedOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-12 text-center text-xs text-zinc-405 dark:text-zinc-500 font-medium">
+                          {archiveSearch ? 'No archived orders matching your search.' : 'No completed orders in archive history.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      archivedOrders.map((order) => {
+                        const completedTimeStr = formatOrderCompletedTime(order);
 
-                      return (
-                        <tr 
-                          key={order.id} 
-                          className="text-xs hover:bg-zinc-50/40 dark:hover:bg-zinc-805/20 transition-colors"
-                        >
-                          <td className="py-3.5 px-4 font-mono font-bold text-zinc-500 dark:text-zinc-400">
-                            {order.orderNumber}
-                          </td>
-                          <td className="py-3.5 px-4 font-bold text-violet-600 dark:text-violet-400">
-                            {order.table}
-                          </td>
-                          <td className="py-3.5 px-4 font-semibold text-zinc-700 dark:text-zinc-300 max-w-[280px] truncate" title={order.items}>
-                            {order.items}
-                          </td>
-                          <td className="py-3.5 px-4 font-semibold text-zinc-500 dark:text-zinc-400">
-                            {completedTimeStr}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${
-                              order.paymentStatus === 'Paid' 
-                                ? 'border-emerald-500/20 text-emerald-600 bg-emerald-500/5' 
-                                : 'border-amber-500/20 text-amber-600 bg-amber-500/5'
-                            }`}>
-                              {order.paymentStatus}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 font-extrabold text-zinc-900 dark:text-zinc-100">
-                            {formatPrice(order.value)}
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <button
-                              onClick={() => openDetails(order)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:border-zinc-800 dark:hover:border-zinc-650 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 text-[11px] font-bold text-zinc-650 dark:text-zinc-300 transition-all cursor-pointer shadow-2xs"
-                            >
-                              Details
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                        return (
+                          <tr
+                            key={order.id}
+                            className="text-xs hover:bg-zinc-50/40 dark:hover:bg-zinc-805/20 transition-colors"
+                          >
+                            <td className="py-3.5 px-4 font-mono font-bold text-zinc-500 dark:text-zinc-400">
+                              {order.orderNumber}
+                            </td>
+                            <td className="py-3.5 px-4 font-bold text-violet-600 dark:text-violet-400">
+                              {order.table}
+                            </td>
+                            <td className="py-3.5 px-4 font-semibold text-zinc-700 dark:text-zinc-300 max-w-[280px] truncate" title={order.items}>
+                              {order.items}
+                            </td>
+                            <td className="py-3.5 px-4 font-semibold text-zinc-500 dark:text-zinc-400">
+                              {completedTimeStr}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${getPaymentBadgeClass(order.paymentStatus)}`}>
+                                {order.paymentStatus}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 font-extrabold text-zinc-900 dark:text-zinc-100">
+                              {formatPrice(order.value)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <button
+                                onClick={() => openDetails(order)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:border-zinc-800 dark:hover:border-zinc-650 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 text-[11px] font-bold text-zinc-650 dark:text-zinc-300 transition-all cursor-pointer shadow-2xs"
+                              >
+                                Details
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Grid (Cards) View */}
+          {historyViewMode === 'grid' && (
+            <div>
+              {archivedOrders.length === 0 ? (
+                <div className="border border-zinc-150/40 dark:border-zinc-800 rounded-2xl p-12 text-center bg-card text-card-foreground shadow-sm flex flex-col items-center justify-center">
+                  <div className="h-12 w-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800/80 flex items-center justify-center text-zinc-400 dark:text-zinc-500 mb-3 border border-zinc-200 dark:border-zinc-700">
+                    <ShoppingBag className="h-6 w-6" />
+                  </div>
+                  <h5 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                    No completed orders found
+                  </h5>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-sm">
+                    {archiveSearch ? 'No archived orders match your search criteria.' : 'Completed orders will appear here once archived.'}
+                  </p>
+                  {archiveSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setArchiveSearch('')}
+                      className="mt-3.5 px-3.5 py-1.5 text-xs font-bold rounded-xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                    >
+                      Clear search
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {archivedOrders.map((order) => {
+                    const completedTimeStr = formatOrderCompletedTime(order);
+
+                    return (
+                      <Card
+                        key={order.id}
+                        variant="glass"
+                        onClick={() => openDetails(order)}
+                        className="p-4 shadow-sm hover:shadow-md flex flex-col justify-between border-zinc-150/40 dark:border-zinc-800 hover:border-[#D4AF37]/50 dark:hover:border-[#D4AF37]/50 transition-all duration-200 group cursor-pointer rounded-2xl bg-card"
+                      >
+                        <div className="space-y-3">
+                          {/* Top Header: Order # & Status Badges */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[11px] font-mono font-bold text-zinc-500 dark:text-zinc-400 tracking-tight block truncate">
+                                {order.orderNumber}
+                              </span>
+                              <span className="text-xs font-bold text-violet-600 dark:text-violet-400 block truncate mt-0.5">
+                                {order.table}
+                              </span>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${getPaymentBadgeClass(order.paymentStatus)}`}>
+                                {order.paymentStatus}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                                <CheckSquare className="h-2.5 w-2.5" /> Completed
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Ordered Items Box */}
+                          <div className="bg-zinc-50/70 dark:bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-150/40 dark:border-zinc-800/60">
+                            <div className="text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 flex items-center gap-1">
+                              <Utensils className="h-3 w-3" />
+                              <span>Ordered Items</span>
+                            </div>
+                            <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 line-clamp-3 leading-relaxed" title={order.items}>
+                              {order.items}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Bottom Metadata & Action Button */}
+                        <div className="pt-3 mt-3 border-t border-zinc-100/60 dark:border-zinc-800/60 flex flex-col gap-2.5">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1 text-zinc-500 dark:text-zinc-400 font-medium text-[11px]">
+                              <Clock className="h-3 w-3 text-zinc-400 shrink-0" />
+                              <span>{completedTimeStr}</span>
+                            </div>
+                            <span className="font-extrabold text-sm text-zinc-900 dark:text-zinc-100">
+                              {formatPrice(order.value)}
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDetails(order);
+                            }}
+                            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-[#D4AF37]/60 dark:hover:border-[#D4AF37]/60 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-850 text-xs font-bold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer shadow-2xs group-hover:text-zinc-900 dark:group-hover:text-zinc-100"
+                          >
+                            <span>Details</span>
+                            <ChevronRight className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -868,8 +1586,8 @@ export const Orders: React.FC<OrdersProps> = ({
 
       {/* Modern, Detailed Create Order Modal with Customizations & Live Reflection */}
       {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 dark:bg-black/75 animate-fade-in backdrop-blur-md">
-          <div className="glass-panel w-full max-w-7xl h-[94vh] max-h-[94vh] bg-card dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-[28px] shadow-2xl relative flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 lg:p-5 bg-black/60 dark:bg-black/75 animate-fade-in backdrop-blur-md">
+          <div className="glass-panel w-full max-w-[97vw] 2xl:max-w-[1880px] h-[95vh] max-h-[96vh] bg-card dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-[28px] shadow-2xl relative flex flex-col overflow-hidden">
             {/* Modal Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/80 shrink-0 backdrop-blur-md">
               <div className="flex items-center gap-3">
@@ -900,11 +1618,10 @@ export const Orders: React.FC<OrdersProps> = ({
                       key={mode}
                       type="button"
                       onClick={() => setOrderType(mode)}
-                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                        isActive
-                          ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-sm'
-                          : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
-                      }`}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${isActive
+                        ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-sm'
+                        : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                        }`}
                     >
                       {mode === 'Premises' && <Utensils className="h-3.5 w-3.5" />}
                       {mode === 'Room Service' && <BedDouble className="h-3.5 w-3.5" />}
@@ -916,16 +1633,195 @@ export const Orders: React.FC<OrdersProps> = ({
                 })}
               </div>
 
-              <button
-                onClick={() => {
-                  setIsCreateOpen(false);
-                  resetCreateOrderForm();
-                }}
-                className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              {/* Top Controls: Hold Session, New Order, Held Sessions Flyout, and Close */}
+              <div className="flex items-center gap-2">
+                {/* Hold Session Button */}
+                <button
+                  type="button"
+                  onClick={handleHoldCurrentSession}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                  title="Hold session where it currently is to start another order"
+                >
+                  <PauseCircle className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="hidden sm:inline">Hold Session</span>
+                  <span className="sm:hidden">Hold</span>
+                </button>
+
+                {/* New Order Button */}
+                <button
+                  type="button"
+                  onClick={handleStartNewOrder}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hover:bg-zinc-100 dark:hover:bg-zinc-850 text-zinc-700 dark:text-zinc-300 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                  title="Start another fresh order ticket"
+                >
+                  <Plus className="h-3.5 w-3.5 text-zinc-500" />
+                  <span className="hidden sm:inline">New Order</span>
+                  <span className="sm:hidden">New</span>
+                </button>
+
+                {/* Held Sessions Button & Active Flyout */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsHeldSessionsOpen(prev => !prev)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-2xs ${heldSessions.length > 0
+                      ? (isHeldSessionsOpen
+                        ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F]'
+                        : 'bg-zinc-100 dark:bg-zinc-950 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10')
+                      : 'bg-zinc-100 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500 hover:text-foreground'
+                      }`}
+                    title="View held order sessions with active countdowns"
+                  >
+                    <Clock className={`h-3.5 w-3.5 ${heldSessions.length > 0 ? 'text-amber-500 animate-pulse' : 'text-zinc-400'}`} />
+                    <span className="hidden sm:inline">Held Sessions</span>
+                    {heldSessions.length > 0 && (
+                      <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-amber-500 text-black shadow-xs">
+                        {heldSessions.length}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Held Sessions Flyout / Popover */}
+                  {isHeldSessionsOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 md:w-[420px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-4 z-50 flex flex-col gap-3 animate-in fade-in zoom-in-95 backdrop-blur-xl">
+                      <div className="flex items-center justify-between pb-2 border-b border-zinc-150 dark:border-zinc-800">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Clock className="h-4 w-4 text-amber-500" />
+                          <h5 className="text-xs font-extrabold text-foreground uppercase tracking-wider">
+                            Held Sessions ({heldSessions.length})
+                          </h5>
+                          <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full border border-zinc-200 dark:border-zinc-700">
+                            Limit: {orderHoldDurationMinutes >= 60 ? `${(orderHoldDurationMinutes / 60).toFixed(orderHoldDurationMinutes % 60 === 0 ? 0 : 1)}h` : `${orderHoldDurationMinutes}m`}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIsHeldSessionsOpen(false)}
+                          className="text-zinc-400 hover:text-foreground p-1 rounded-lg"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {heldSessions.length === 0 ? (
+                        <div className="py-8 text-center text-xs text-zinc-400">
+                          <PauseCircle className="h-8 w-8 mx-auto mb-2 text-zinc-300 dark:text-zinc-700" />
+                          <p className="font-semibold text-zinc-600 dark:text-zinc-400">No held sessions.</p>
+                          <p className="text-[11px] text-zinc-400 mt-1">
+                            Click &ldquo;Hold Session&rdquo; while taking an order to park it and resume later.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5 overflow-y-auto max-h-[50vh] pr-1">
+                          {heldSessions.map(session => {
+                            const { countdownStr, elapsedStr, isExpiring, isExpired } = formatCountdown(session.heldAt, nowMs);
+                            const itemCount = session.cartItems.reduce((acc, c) => acc + c.quantity, 0);
+
+                            return (
+                              <div
+                                key={session.id}
+                                className={`p-3 rounded-xl border transition-all flex flex-col gap-2 shadow-2xs group ${
+                                  isExpired
+                                    ? 'border-red-500/40 bg-red-50/20 dark:bg-red-955/10'
+                                    : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-950/60 hover:border-amber-500/50'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <h6 className="text-xs font-bold text-foreground truncate">
+                                      {session.label}
+                                    </h6>
+                                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold block truncate">
+                                      {itemCount} {itemCount === 1 ? 'item' : 'items'} • UGX {session.totalAmount.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37]/20 dark:text-[#D4AF37] border border-[#D4AF37]/30 shrink-0">
+                                    {session.orderType === 'Premises' ? 'Dine-In' : session.orderType}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-150 dark:border-zinc-850 text-xs">
+                                  <div className="flex items-center gap-1.5">
+                                    <Timer className={`h-3.5 w-3.5 ${isExpiring ? 'text-red-500 animate-bounce' : 'text-amber-500'}`} />
+                                    <div className="flex flex-col">
+                                      <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                                        Hold Countdown
+                                      </span>
+                                      <span className={`text-xs font-mono font-extrabold ${isExpiring ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                        {countdownStr} {!countdownStr.includes('Expired') && 'left'}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col items-end">
+                                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                                      Held Time
+                                    </span>
+                                    <span className="text-xs font-mono font-bold text-zinc-600 dark:text-zinc-300">
+                                      +{elapsedStr}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-150/50 dark:border-zinc-800">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteHeldSession(session.id)}
+                                    className="p-1 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-955/30 transition-colors cursor-pointer"
+                                    title="Discard held session"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleResumeSession(session)}
+                                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#0A2540] text-[#D4AF37] hover:bg-[#07192C] dark:bg-[#D4AF37] dark:text-[#0A192F] dark:hover:bg-[#B89320] text-xs font-bold transition-all cursor-pointer shadow-xs ml-auto"
+                                  >
+                                    <Play className="h-3 w-3 fill-current" />
+                                    <span>Resume Order</span>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreateOpen(false);
+                    setIsHeldSessionsOpen(false);
+                    resetCreateOrderForm();
+                  }}
+                  className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
+
+            {/* Hold Success / Notice Banner */}
+            {holdSuccessMessage && (
+              <div className="mx-6 mt-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-955/30 p-3 rounded-2xl border border-emerald-200 dark:border-emerald-900/50 flex items-center justify-between shrink-0 animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4 text-emerald-600" />
+                  <span>{holdSuccessMessage}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setHoldSuccessMessage(null)}
+                  className="text-emerald-500 hover:text-emerald-700 cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
 
             {/* Error Notification Banner */}
             {createError && (
@@ -937,7 +1833,7 @@ export const Orders: React.FC<OrdersProps> = ({
 
             {/* 3-Column Main Body */}
             <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-4 p-5 min-h-0 bg-zinc-50/40 dark:bg-zinc-950/20">
-              
+
               {/* ======================================================== */}
               {/* COLUMN 1: Order Settings & Guest Info (4 cols)           */}
               {/* ======================================================== */}
@@ -950,122 +1846,402 @@ export const Orders: React.FC<OrdersProps> = ({
                 </div>
 
                 {/* Destination Details Based on Order Type */}
-                {orderType === 'Premises' && (
-                  <div className="space-y-3 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-150 dark:border-zinc-800/80">
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1">
-                        Seating Area
-                      </label>
-                      <select
-                        value={seatingArea}
-                        onChange={(e) => setSeatingArea(e.target.value)}
-                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37] cursor-pointer"
-                      >
-                        <option value="Main Restaurant">Main Restaurant Hall</option>
-                        <option value="Verandah & Terrace">Verandah & Terrace</option>
-                        <option value="Poolside Deck">Poolside Deck & Cabanas</option>
-                        <option value="Garden Gazebos">Garden Gazebos</option>
-                        <option value="VIP Lounge">VIP Lounge</option>
-                        <option value="Executive Bar">Executive Bar Counter</option>
-                        <option value="Custom Area">Custom Area</option>
-                      </select>
+                {orderType === 'Premises' && (() => {
+                  const distinctLocations = Array.from(new Set(tablesList.map(t => t.location).filter(Boolean)));
+                  const filteredTables = tableLocationFilter === 'ALL'
+                    ? tablesList
+                    : tablesList.filter(t => t.location === tableLocationFilter);
+
+                  return (
+                    <div className="space-y-3 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-150 dark:border-zinc-800/80">
+                      {/* Dining Area / Location Filter */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                            Dining Area / Location
+                          </label>
+                          <span className="text-[10px] text-zinc-400 font-semibold">
+                            {tablesList.length} total premises tables
+                          </span>
+                        </div>
+                        <select
+                          value={tableLocationFilter}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setTableLocationFilter(val);
+                            if (val !== 'ALL') {
+                              setSeatingArea(val);
+                            }
+                          }}
+                          className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37] cursor-pointer"
+                        >
+                          <option value="ALL">All Dining Areas ({tablesList.length} tables)</option>
+                          {distinctLocations.map(loc => (
+                            <option key={loc} value={loc}>
+                              {loc} ({tablesList.filter(t => t.location === loc).length} tables)
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Table Header with Add Table & Manage Action Buttons */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                            Table Selection {tableLocationFilter !== 'ALL' && `(${filteredTables.length})`}
+                          </label>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsAddTableOpen(prev => !prev);
+                                if (isManageTablesMode) setIsManageTablesMode(false);
+                              }}
+                              className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-[#D4AF37]/15 text-[#D4AF37] hover:bg-[#D4AF37]/25 border border-[#D4AF37]/30 transition-all flex items-center gap-1 cursor-pointer"
+                              title="Create and register a new table to the premises in the DB"
+                            >
+                              <Plus className="h-3 w-3" />
+                              <span>+ Add Table</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsManageTablesMode(prev => !prev);
+                                if (isAddTableOpen) setIsAddTableOpen(false);
+                              }}
+                              className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 cursor-pointer ${isManageTablesMode
+                                ? 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/40'
+                                : 'bg-zinc-100 dark:bg-zinc-850 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:text-foreground'
+                                }`}
+                              title="Toggle table delete mode"
+                            >
+                              <Settings2 className="h-3 w-3" />
+                              <span>{isManageTablesMode ? 'Done' : 'Manage'}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Inline Form: Add Table to Premises */}
+                        {isAddTableOpen && (
+                          <form onSubmit={handleCreateNewTable} className="p-3 mb-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2.5 animate-in fade-in">
+                            <div className="flex items-center justify-between pb-1 border-b border-amber-500/20">
+                              <span className="text-[11px] font-extrabold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                <Plus className="h-3.5 w-3.5 text-amber-500" /> Add Table to Premises
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setIsAddTableOpen(false)}
+                                className="text-zinc-400 hover:text-foreground text-xs font-bold"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                                  Table # / Identifier *
+                                </label>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="e.g. Table 10 or Deck 3"
+                                  value={newTableNumber}
+                                  onChange={(e) => setNewTableNumber(e.target.value)}
+                                  className="w-full rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                                  Seating Capacity
+                                </label>
+                                <select
+                                  value={newTableCapacity}
+                                  onChange={(e) => setNewTableCapacity(Number(e.target.value))}
+                                  className="w-full rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-2 py-1.5 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37] cursor-pointer"
+                                >
+                                  <option value={2}>2 Guests (Intimate)</option>
+                                  <option value={4}>4 Guests (Standard)</option>
+                                  <option value={6}>6 Guests (Family)</option>
+                                  <option value={8}>8 Guests (Large Group)</option>
+                                  <option value={10}>10+ Guests (Banquet)</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                                Location (Dining Area) *
+                              </label>
+                              <div className="space-y-1.5">
+                                <select
+                                  value={newTableLocation}
+                                  onChange={(e) => setNewTableLocation(e.target.value)}
+                                  className="w-full rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37] cursor-pointer"
+                                >
+                                  {distinctLocations.map(loc => (
+                                    <option key={loc} value={loc}>{loc}</option>
+                                  ))}
+                                  <option value="NEW">+ Create New Dining Area...</option>
+                                </select>
+
+                                {newTableLocation === 'NEW' && (
+                                  <input
+                                    type="text"
+                                    required
+                                    placeholder="e.g. Sunset Rooftop or Poolside Cabana"
+                                    value={customNewLocation}
+                                    onChange={(e) => setCustomNewLocation(e.target.value)}
+                                    className="w-full rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-2.5 py-1.5 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
+                                  />
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setIsAddTableOpen(false)}
+                                className="px-3 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 text-xs font-semibold text-zinc-500 hover:text-foreground cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={isSavingTable || !newTableNumber.trim()}
+                                className="px-3.5 py-1 rounded-lg bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] text-xs font-bold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                              >
+                                {isSavingTable ? 'Saving...' : 'Save & Select Table'}
+                              </button>
+                            </div>
+                          </form>
+                        )}
+
+                        {/* Tables Grid */}
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                          {filteredTables.map(t => {
+                            const isSelected = table === t.table_number;
+                            return (
+                              <div key={t.table_id} className="relative group">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!isManageTablesMode) {
+                                      setTable(t.table_number);
+                                      setSeatingArea(t.location);
+                                    }
+                                  }}
+                                  className={`w-full py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center flex flex-col items-center justify-center ${isSelected
+                                    ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                    : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                                    }`}
+                                >
+                                  <span className="truncate w-full">{t.table_number}</span>
+                                  <span className={`text-[9px] font-normal truncate max-w-full ${isSelected ? 'text-[#D4AF37]/80 dark:text-[#0A192F]/80' : 'text-zinc-400'}`}>
+                                    {t.capacity}p • {t.location.split(' ')[0]}
+                                  </span>
+                                </button>
+
+                                {isManageTablesMode && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteTable(t.table_id, t.table_number);
+                                    }}
+                                    className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white flex items-center justify-center text-xs shadow-md hover:bg-red-700 cursor-pointer z-10 transition-transform hover:scale-110"
+                                    title={`Delete ${t.table_number} from premises`}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          <button
+                            type="button"
+                            onClick={() => setTable('Other')}
+                            className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center col-span-2 sm:col-span-1 ${table === 'Other'
+                              ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F]'
+                              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300'
+                              }`}
+                          >
+                            Custom...
+                          </button>
+                        </div>
+
+                        {table === 'Other' && (
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. Garden Pavilion Table 5"
+                            value={customTable}
+                            onChange={(e) => setCustomTable(e.target.value)}
+                            className="mt-2 w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Destination Details: Room Service with DB Checked-In Room Selector */}
+                {orderType === 'Room Service' && (
+                  <div className="space-y-3 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-955/60 border border-zinc-150 dark:border-zinc-800/80">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                          Delivery Room Unit
+                        </label>
+                        {checkedInRooms.length > 0 && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            {checkedInRooms.length} Checked In
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowAllRoomsMode(prev => !prev)}
+                          className="text-[10px] font-bold text-zinc-500 hover:text-foreground underline cursor-pointer"
+                        >
+                          {showAllRoomsMode ? 'Checked-In Only' : 'All Rooms'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={fetchCheckedInRooms}
+                          className="p-1 rounded-lg text-zinc-400 hover:text-foreground cursor-pointer"
+                          title="Refresh checked in rooms"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${isLoadingRooms ? 'animate-spin text-[#D4AF37]' : ''}`} />
+                        </button>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
-                        Table Selection
-                      </label>
-                      <div className="grid grid-cols-4 gap-1.5 max-h-28 overflow-y-auto pr-1">
-                        {Array.from({ length: 16 }, (_, i) => `Table ${i + 1}`).map(t => {
-                          const isSelected = table === t;
+                    {isLoadingRooms ? (
+                      <div className="py-6 text-center text-xs text-zinc-400 flex items-center justify-center gap-2">
+                        <RefreshCw className="h-4 w-4 animate-spin text-[#D4AF37]" />
+                        <span>Loading checked-in rooms...</span>
+                      </div>
+                    ) : !showAllRoomsMode ? (
+                      // Checked-In Rooms Mode
+                      checkedInRooms.length === 0 ? (
+                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center space-y-1.5">
+                          <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                            No rooms currently marked as Checked In
+                          </p>
+                          <p className="text-[10px] text-amber-700/80 dark:text-amber-300/80">
+                            Switch to view all rooms or enter a custom room number below.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowAllRoomsMode(true)}
+                            className="mt-1 px-3 py-1 rounded-lg bg-amber-500 text-black text-xs font-bold cursor-pointer"
+                          >
+                            Browse All Hotel Rooms
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                          {checkedInRooms.map(r => {
+                            const isSelected = cottageRoom === `Room ${r.room_number}` || cottageRoom === r.room_number;
+                            return (
+                              <button
+                                type="button"
+                                key={r.room_id}
+                                onClick={() => handleSelectCheckedInRoom(r)}
+                                className={`w-full p-2.5 rounded-xl text-left border transition-all cursor-pointer flex items-center justify-between group ${isSelected
+                                  ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37] dark:bg-[#D4AF37]/20 dark:border-[#D4AF37] dark:text-[#D4AF37] shadow-xs'
+                                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-foreground hover:border-[#D4AF37]/40'
+                                  }`}
+                              >
+                                <div className="min-w-0 pr-2">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-extrabold tracking-tight">
+                                      Room {r.room_number}
+                                    </span>
+                                    {r.category_name && (
+                                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold truncate ${isSelected ? 'bg-white/10 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'}`}>
+                                        {r.category_name}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {r.guest_name ? (
+                                    <p className={`text-[11px] font-semibold truncate mt-0.5 flex items-center gap-1 ${isSelected ? 'text-[#D4AF37]' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                      <User className="h-3 w-3 shrink-0" />
+                                      <span>{r.guest_name}</span>
+                                    </p>
+                                  ) : (
+                                    <p className="text-[10px] text-zinc-400 mt-0.5">Occupied Guest</p>
+                                  )}
+                                </div>
+
+                                <div className="text-right shrink-0">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${isSelected ? 'bg-[#D4AF37] text-[#0A2540]' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'}`}>
+                                    Checked In
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )
+                    ) : (
+                      // All Rooms Mode
+                      <div className="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                        {(allRoomsList.length > 0 ? allRoomsList : [
+                          { room_number: '101' }, { room_number: '102' }, { room_number: '201' }, { room_number: '202' },
+                          { room_number: '301' }, { room_number: '401' }, { room_number: '501' }, { room_number: 'Cottage 1' },
+                          { room_number: 'Cottage 2' }, { room_number: 'Cottage 3' }, { room_number: 'Royal Suite' }
+                        ]).map((r: any) => {
+                          const numStr = String(r.room_number).startsWith('Room') || String(r.room_number).startsWith('Cottage') || String(r.room_number).includes(' ')
+                            ? String(r.room_number)
+                            : `Room ${r.room_number}`;
+                          const isSelected = cottageRoom === numStr;
                           return (
                             <button
                               type="button"
-                              key={t}
-                              onClick={() => setTable(t)}
-                              className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center ${
-                                isSelected
-                                  ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
-                                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
-                              }`}
+                              key={r.room_id || r.room_number}
+                              onClick={() => setCottageRoom(numStr)}
+                              className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center truncate ${isSelected
+                                ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                                }`}
                             >
-                              {t}
+                              {numStr}
                             </button>
                           );
                         })}
-                        <button
-                          type="button"
-                          onClick={() => setTable('Other')}
-                          className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center col-span-2 ${
-                            table === 'Other'
-                              ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F]'
-                              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300'
-                          }`}
-                        >
-                          Custom Table...
-                        </button>
                       </div>
+                    )}
 
-                      {table === 'Other' && (
-                        <input
-                          type="text"
-                          required
-                          placeholder="e.g. Pool Gazebo Table 3"
-                          value={customTable}
-                          onChange={(e) => setCustomTable(e.target.value)}
-                          className="mt-2 w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
-                        />
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {orderType === 'Room Service' && (
-                  <div className="space-y-3 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-955/60 border border-zinc-150 dark:border-zinc-800/80">
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                      Select Cottage / Room Unit
-                    </label>
-                    <div className="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto pr-1">
-                      {['Cottage 1', 'Cottage 2', 'Cottage 3', 'Cottage 4', 'Cottage 5', 'Cottage 6', 'Cottage 7', 'Cottage 8', 'Cottage 9', 'Cottage 10', 'Royal Suite', 'Deluxe Villa 1', 'Deluxe Villa 2', 'Family Villa'].map(c => {
-                        const isSelected = cottageRoom === c;
-                        return (
-                          <button
-                            type="button"
-                            key={c}
-                            onClick={() => setCottageRoom(c)}
-                            className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center truncate ${
-                              isSelected
-                                ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
-                                : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
-                            }`}
-                          >
-                            {c}
-                          </button>
-                        );
-                      })}
+                    {/* Custom Room Option */}
+                    <div className="pt-1">
                       <button
                         type="button"
                         onClick={() => setCottageRoom('Other')}
-                        className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition-all cursor-pointer text-center ${
-                          cottageRoom === 'Other'
-                            ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F]'
-                            : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300'
-                        }`}
+                        className={`w-full py-1.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer text-center ${cottageRoom === 'Other'
+                          ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F]'
+                          : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                          }`}
                       >
-                        Custom...
+                        + Custom Room or Cottage...
                       </button>
-                    </div>
 
-                    {cottageRoom === 'Other' && (
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Room 204 or Honeymoon Cottage"
-                        value={customRoom}
-                        onChange={(e) => setCustomRoom(e.target.value)}
-                        className="w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
-                      />
-                    )}
+                      {cottageRoom === 'Other' && (
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Room 204 or Honeymoon Cottage"
+                          value={customRoom}
+                          onChange={(e) => setCustomRoom(e.target.value)}
+                          className="mt-1.5 w-full rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-xs text-foreground font-semibold outline-none focus:border-[#D4AF37]"
+                        />
+                      )}
+                    </div>
 
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1">
@@ -1136,22 +2312,20 @@ export const Orders: React.FC<OrdersProps> = ({
                           setCustomerSource('walkin');
                           setSelectedCustomerId(null);
                         }}
-                        className={`px-2 py-0.5 rounded-lg font-bold cursor-pointer transition-colors ${
-                          customerSource === 'walkin'
-                            ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900'
-                            : 'text-zinc-500 hover:text-foreground'
-                        }`}
+                        className={`px-2 py-0.5 rounded-lg font-bold cursor-pointer transition-colors ${customerSource === 'walkin'
+                          ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                          : 'text-zinc-500 hover:text-foreground'
+                          }`}
                       >
                         Walk-in
                       </button>
                       <button
                         type="button"
                         onClick={() => setCustomerSource('crm')}
-                        className={`px-2 py-0.5 rounded-lg font-bold cursor-pointer transition-colors ${
-                          customerSource === 'crm'
-                            ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900'
-                            : 'text-zinc-500 hover:text-foreground'
-                        }`}
+                        className={`px-2 py-0.5 rounded-lg font-bold cursor-pointer transition-colors ${customerSource === 'crm'
+                          ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                          : 'text-zinc-500 hover:text-foreground'
+                          }`}
                       >
                         CRM Client
                       </button>
@@ -1236,22 +2410,20 @@ export const Orders: React.FC<OrdersProps> = ({
                         <button
                           type="button"
                           onClick={() => setOrderTiming('asap')}
-                          className={`flex-1 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
-                            orderTiming === 'asap'
-                              ? 'bg-white dark:bg-zinc-800 text-foreground shadow-xs'
-                              : 'text-zinc-500'
-                          }`}
+                          className={`flex-1 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${orderTiming === 'asap'
+                            ? 'bg-white dark:bg-zinc-800 text-foreground shadow-xs'
+                            : 'text-zinc-500'
+                            }`}
                         >
                           ASAP
                         </button>
                         <button
                           type="button"
                           onClick={() => setOrderTiming('scheduled')}
-                          className={`flex-1 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
-                            orderTiming === 'scheduled'
-                              ? 'bg-white dark:bg-zinc-800 text-foreground shadow-xs'
-                              : 'text-zinc-500'
-                          }`}
+                          className={`flex-1 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${orderTiming === 'scheduled'
+                            ? 'bg-white dark:bg-zinc-800 text-foreground shadow-xs'
+                            : 'text-zinc-500'
+                            }`}
                         >
                           Schedule
                         </button>
@@ -1285,11 +2457,10 @@ export const Orders: React.FC<OrdersProps> = ({
                           onClick={() => {
                             setAllergyTags(prev => isChecked ? prev.filter(t => t !== tag) : [...prev, tag]);
                           }}
-                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
-                            isChecked
-                              ? 'bg-amber-500/15 border-amber-500/40 text-amber-900 dark:text-amber-200'
-                              : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400'
-                          }`}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${isChecked
+                            ? 'bg-amber-500/15 border-amber-500/40 text-amber-900 dark:text-amber-200'
+                            : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400'
+                            }`}
                         >
                           {isChecked ? `✓ ${tag}` : `+ ${tag}`}
                         </button>
@@ -1333,11 +2504,10 @@ export const Orders: React.FC<OrdersProps> = ({
                           key={p}
                           type="button"
                           onClick={() => setPaymentStatus(p)}
-                          className={`py-1 rounded-xl text-[10px] font-bold border transition-colors cursor-pointer text-center ${
-                            isSel
-                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                              : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
-                          }`}
+                          className={`py-1 rounded-xl text-[10px] font-bold border transition-colors cursor-pointer text-center ${isSel
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                            : 'bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400'
+                            }`}
                         >
                           {p === 'Pending' ? 'Pay Later' : p}
                         </button>
@@ -1424,7 +2594,7 @@ export const Orders: React.FC<OrdersProps> = ({
                       <div className="space-y-2 p-3 rounded-2xl bg-zinc-50/70 dark:bg-zinc-950/40 border border-zinc-150 dark:border-zinc-800/80">
                         <div className="flex items-center justify-between">
                           <label className="text-[11px] font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1">
-                            <span>🎯</span> Choices / Preparation
+                            Choices / Preparation
                           </label>
                           <span className="text-[9px] uppercase font-bold text-amber-600 dark:text-amber-400">Required</span>
                         </div>
@@ -1444,11 +2614,10 @@ export const Orders: React.FC<OrdersProps> = ({
                                     price: cPrice
                                   }
                                 } : null)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
-                                  isSelected
-                                    ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
-                                    : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
-                                }`}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${isSelected
+                                  ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                                  }`}
                               >
                                 <span className={`h-2 w-2 rounded-full ${isSelected ? 'bg-[#D4AF37] dark:bg-[#0A192F]' : 'border border-zinc-400'}`} />
                                 <span>{c.choice_name}</span>
@@ -1469,7 +2638,7 @@ export const Orders: React.FC<OrdersProps> = ({
                       <div className="space-y-2 p-3 rounded-2xl bg-zinc-50/70 dark:bg-zinc-950/40 border border-zinc-150 dark:border-zinc-800/80">
                         <div className="flex items-center justify-between">
                           <label className="text-[11px] font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1">
-                            <span>🍟</span> Accompaniments (Sides)
+                            Accompaniments (Sides)
                           </label>
                           <span className="text-[9px] uppercase font-bold text-zinc-400">Optional • Click to toggle</span>
                         </div>
@@ -1477,11 +2646,10 @@ export const Orders: React.FC<OrdersProps> = ({
                           <button
                             type="button"
                             onClick={() => setCustomizingItem(prev => prev ? { ...prev, accompaniment: null } : null)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                              !customizingItem.accompaniment
-                                ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F]'
-                                : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500'
-                            }`}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${!customizingItem.accompaniment
+                              ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F]'
+                              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500'
+                              }`}
                           >
                             No Side
                           </button>
@@ -1506,11 +2674,10 @@ export const Orders: React.FC<OrdersProps> = ({
                                     } : null);
                                   }
                                 }}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
-                                  isSelected
-                                    ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
-                                    : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
-                                }`}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${isSelected
+                                  ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37]/50 dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                                  }`}
                               >
                                 <span>{a.accompaniment_name}</span>
                                 {aPrice > 0 ? (
@@ -1530,7 +2697,7 @@ export const Orders: React.FC<OrdersProps> = ({
                       <div className="space-y-2 p-3 rounded-2xl bg-zinc-50/70 dark:bg-zinc-950/40 border border-zinc-150 dark:border-zinc-800/80">
                         <div className="flex items-center justify-between">
                           <label className="text-[11px] font-extrabold uppercase tracking-wider text-foreground flex items-center gap-1">
-                            <span>➕</span> Extras & Add-ons
+                            Extras & Add-ons
                           </label>
                           <span className="text-[9px] uppercase font-bold text-zinc-400">Multiple allowed • Click to select</span>
                         </div>
@@ -1561,18 +2728,16 @@ export const Orders: React.FC<OrdersProps> = ({
                                     }
                                   });
                                 }}
-                                className={`p-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-between ${
-                                  isChecked
-                                    ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-amber-200 shadow-2xs'
-                                    : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
-                                }`}
+                                className={`p-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-between ${isChecked
+                                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-amber-200 shadow-2xs'
+                                  : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300'
+                                  }`}
                               >
                                 <div className="flex items-center gap-2 min-w-0">
-                                  <span className={`h-4 w-4 rounded-md flex items-center justify-center border text-[9px] shrink-0 font-bold ${
-                                    isChecked
-                                      ? 'bg-[#D4AF37] border-[#D4AF37] text-zinc-900'
-                                      : 'border-zinc-300 dark:border-zinc-700'
-                                  }`}>
+                                  <span className={`h-4 w-4 rounded-md flex items-center justify-center border text-[9px] shrink-0 font-bold ${isChecked
+                                    ? 'bg-[#D4AF37] border-[#D4AF37] text-zinc-900'
+                                    : 'border-zinc-300 dark:border-zinc-700'
+                                    }`}>
                                     {isChecked && <Check className="h-3 w-3 stroke-[3]" />}
                                   </span>
                                   <span className="truncate">{ex.extra_name}</span>
@@ -1634,7 +2799,7 @@ export const Orders: React.FC<OrdersProps> = ({
                     {/* Item Notes */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                        Item Special Preparation
+                        Client Instructions
                       </label>
                       <input
                         type="text"
@@ -1712,11 +2877,10 @@ export const Orders: React.FC<OrdersProps> = ({
                               key={cat}
                               type="button"
                               onClick={() => setSelectedMenuCategory(cat)}
-                              className={`px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
-                                isSel
-                                  ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
-                                  : 'bg-zinc-100 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 hover:text-foreground'
-                              }`}
+                              className={`px-3 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors cursor-pointer ${isSel
+                                ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                : 'bg-zinc-100 dark:bg-zinc-950 text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                                }`}
                             >
                               {cat}
                             </button>
@@ -1796,11 +2960,10 @@ export const Orders: React.FC<OrdersProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleQuickAdd(item)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                                  hasAnyCustomization
-                                    ? 'bg-[#0A2540] text-[#D4AF37] hover:bg-[#07192C] border border-[#D4AF37]/30 dark:bg-[#D4AF37] dark:text-[#0A192F]'
-                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-200'
-                                }`}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${hasAnyCustomization
+                                  ? 'bg-[#0A2540] text-[#D4AF37] hover:bg-[#07192C] border border-[#D4AF37]/30 dark:bg-[#D4AF37] dark:text-[#0A192F]'
+                                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-200'
+                                  }`}
                               >
                                 {hasAnyCustomization ? '+ Customize' : '+ Add'}
                               </button>
@@ -2066,7 +3229,7 @@ export const Orders: React.FC<OrdersProps> = ({
 
                     const foodBeverageSubtotal = effectiveBaseTotal + effectiveCustomizationsTotal;
                     const deliveryFee = (orderType === 'Delivery' || orderType === 'Room Service') ? Number(deliveryCharge || 0) : 0;
-                    
+
                     const taxAmount = vatRate > 0 ? Math.round(foodBeverageSubtotal * (vatRate / (100 + vatRate))) : 0;
                     const netSubtotal = Math.max(0, foodBeverageSubtotal - taxAmount);
                     const grandTotal = foodBeverageSubtotal + deliveryFee;
@@ -2260,13 +3423,12 @@ export const Orders: React.FC<OrdersProps> = ({
 
                   <div>
                     <span className="block text-[10px] uppercase font-bold tracking-wider text-zinc-400 dark:text-zinc-500 mb-0.5">Payment Status</span>
-                    <span className={`inline-block px-2 py-0.5 text-[11px] font-bold rounded-lg ${
-                      selectedOrder.paymentStatus === 'Paid'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
-                        : selectedOrder.paymentStatus === 'Partially Paid'
+                    <span className={`inline-block px-2 py-0.5 text-[11px] font-bold rounded-lg ${selectedOrder.paymentStatus === 'Paid'
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                      : selectedOrder.paymentStatus === 'Partially Paid'
                         ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
                         : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'
-                    }`}>
+                      }`}>
                       {selectedOrder.paymentStatus}
                     </span>
                   </div>
@@ -2387,28 +3549,28 @@ export const Orders: React.FC<OrdersProps> = ({
                               );
                             })}
                           </div>
-                          
+
                           {/* Financial Summary */}
                           <div className="pt-3 border-t border-dashed border-zinc-200 dark:border-zinc-800 mt-3 space-y-1.5 text-xs">
                             <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-semibold">
                               <span>Subtotal</span>
                               <span>UGX {calculatedSubTotal.toLocaleString()}</span>
                             </div>
-                            
+
                             {deliveryFee > 0 && (
                               <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-semibold">
                                 <span>Delivery / Service Charge</span>
                                 <span>UGX {deliveryFee.toLocaleString()}</span>
                               </div>
                             )}
-                            
+
                             {calculatedTax > 0 && (
                               <div className="flex justify-between items-center text-zinc-500 dark:text-zinc-400 font-semibold">
                                 <span>Tax / VAT ({vatRate}%)</span>
                                 <span>UGX {calculatedTax.toLocaleString()}</span>
                               </div>
                             )}
-                            
+
                             <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 flex justify-between items-center font-bold text-sm">
                               <span className="text-zinc-900 dark:text-zinc-150 uppercase tracking-wider text-[10px]">Total Amount</span>
                               <span className="text-violet-600 dark:text-violet-400 font-extrabold text-base">UGX {calculatedTotal.toLocaleString()}</span>

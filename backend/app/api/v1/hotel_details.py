@@ -39,6 +39,7 @@ async def create_hotel_details(
     currency: str = Form("USD"),
     timezone: str = Form("UTC"),
     vat_rate: Optional[float] = Form(18.00),
+    order_hold_duration_minutes: Optional[int] = Form(60),
     is_active: bool = Form(True),
     logo: Optional[UploadFile] = File(None),
     cover_image: Optional[UploadFile] = File(None),
@@ -72,6 +73,7 @@ async def create_hotel_details(
             currency=currency,
             timezone=timezone,
             vat_rate=vat_rate,
+            order_hold_duration_minutes=order_hold_duration_minutes,
             is_active=is_active
         )
     except Exception as e:
@@ -177,6 +179,7 @@ async def update_hotel_details(
     currency: Optional[str] = Form(None),
     timezone: Optional[str] = Form(None),
     vat_rate: Optional[float] = Form(None),
+    order_hold_duration_minutes: Optional[int] = Form(None),
     is_active: Optional[bool] = Form(None),
     logo: Optional[UploadFile] = File(None),
     cover_image: Optional[UploadFile] = File(None),
@@ -210,6 +213,7 @@ async def update_hotel_details(
             currency=currency,
             timezone=timezone,
             vat_rate=vat_rate,
+            order_hold_duration_minutes=order_hold_duration_minutes,
             is_active=is_active
         )
     except Exception as e:

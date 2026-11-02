@@ -76,6 +76,7 @@ class HotelDetailsService:
             currency=schema.currency,
             timezone=schema.timezone,
             vat_rate=schema.vat_rate,
+            order_hold_duration_minutes=schema.order_hold_duration_minutes or 60,
             is_active=schema.is_active,
             created_by=user_id,
             updated_by=user_id

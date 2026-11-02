@@ -30,7 +30,9 @@ import {
   AlertTriangle,
   Upload,
   Lock,
-  ShieldAlert
+  ShieldAlert,
+  Clock,
+  Timer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { RolePermissionsTable } from '@/components/RolePermissionsTable';
@@ -64,6 +66,7 @@ interface HotelData {
   currency: string;
   timezone: string;
   vat_rate: string;
+  order_hold_duration_minutes?: number;
   is_active: boolean;
   facebook_url?: string;
   instagram_url?: string;
@@ -141,6 +144,7 @@ export const Settings: React.FC<SettingsProps> = ({
     currency: 'UGX',
     timezone: 'UTC',
     vat_rate: '18.00',
+    order_hold_duration_minutes: 60,
     is_active: true,
     facebook_url: '',
     instagram_url: '',
@@ -148,6 +152,7 @@ export const Settings: React.FC<SettingsProps> = ({
     linkedin_url: '',
     youtube_url: ''
   });
+  const [holdDurationUnit, setHoldDurationUnit] = useState<'hours' | 'minutes'>('hours');
   const [hotelLogo, setHotelLogo] = useState<File | null>(null);
   const [hotelCover, setHotelCover] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
@@ -220,6 +225,7 @@ export const Settings: React.FC<SettingsProps> = ({
                 currency: d.currency || 'USD',
                 timezone: d.timezone || 'UTC',
                 vat_rate: d.vat_rate !== null && d.vat_rate !== undefined ? String(d.vat_rate) : '18.00',
+                order_hold_duration_minutes: d.order_hold_duration_minutes ? Number(d.order_hold_duration_minutes) : 60,
                 is_active: d.is_active ?? true,
                 facebook_url: d.facebook_url || '',
                 instagram_url: d.instagram_url || '',
@@ -227,6 +233,9 @@ export const Settings: React.FC<SettingsProps> = ({
                 linkedin_url: d.linkedin_url || '',
                 youtube_url: d.youtube_url || ''
               });
+              if (d.order_hold_duration_minutes) {
+                localStorage.setItem('seyeya_order_hold_duration_minutes', String(d.order_hold_duration_minutes));
+              }
               setLogoPreview(d.logo_url || '');
               setCoverPreview(d.cover_image_url || '');
             }
@@ -339,6 +348,9 @@ export const Settings: React.FC<SettingsProps> = ({
       form.append('currency', hotelForm.currency);
       form.append('timezone', hotelForm.timezone);
       if (hotelForm.vat_rate) form.append('vat_rate', hotelForm.vat_rate);
+      if (hotelForm.order_hold_duration_minutes) {
+        form.append('order_hold_duration_minutes', String(hotelForm.order_hold_duration_minutes));
+      }
       form.append('is_active', String(hotelForm.is_active));
 
       if (hotelForm.latitude) form.append('latitude', hotelForm.latitude);
@@ -379,6 +391,13 @@ export const Settings: React.FC<SettingsProps> = ({
 
       if (hotelRes.data && hotelRes.data.success && hotelRes.data.data) {
         setHotelForm(prev => ({ ...prev, id: hotelRes.data.data.id }));
+      }
+
+      if (hotelForm.order_hold_duration_minutes) {
+        localStorage.setItem('seyeya_order_hold_duration_minutes', String(hotelForm.order_hold_duration_minutes));
+        window.dispatchEvent(new CustomEvent('seyeya_hold_duration_changed', {
+          detail: Number(hotelForm.order_hold_duration_minutes)
+        }));
       }
 
       if (hotelForm.vat_rate) {
@@ -834,6 +853,192 @@ export const Settings: React.FC<SettingsProps> = ({
                         placeholder="18.00"
                         className="rounded-xl h-10 text-xs border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 dark:text-zinc-50"
                       />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Order Session Hold Configuration Section */}
+                <div className="space-y-4 border-t pt-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="h-9 w-9 rounded-xl bg-[#0A2540] dark:bg-[#D4AF37]/20 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] shadow-xs shrink-0">
+                        <Clock className="h-4.5 w-4.5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">
+                            Order Session Hold Duration
+                          </h4>
+                          <span className="px-2.5 py-0.5 text-[10px] font-extrabold rounded-full bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37]/20 dark:text-[#D4AF37] border border-[#D4AF37]/30">
+                            {(() => {
+                              const totalMins = hotelForm.order_hold_duration_minutes || 60;
+                              const h = Math.floor(totalMins / 60);
+                              const m = totalMins % 60;
+                              if (h > 0 && m > 0) return `${h}h ${m}m`;
+                              if (h > 0) return `${h} hour${h > 1 ? 's' : ''}`;
+                              return `${m} mins`;
+                            })()}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                          Set the hold time threshold for active order tickets in the Create Order POS modal (min 20 minutes up to 24 hours).
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Unit Switcher: Hours vs Minutes */}
+                    <div className="flex items-center bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700/60 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setHoldDurationUnit('hours')}
+                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                          holdDurationUnit === 'hours'
+                            ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                            : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                        }`}
+                      >
+                        Hours (0.33 – 24h)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHoldDurationUnit('minutes')}
+                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                          holdDurationUnit === 'minutes'
+                            ? 'bg-[#0A2540] text-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                            : 'text-zinc-600 dark:text-zinc-400 hover:text-foreground'
+                        }`}
+                      >
+                        Minutes (20 – 1440m)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-50/70 dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800 rounded-2xl p-4 sm:p-5 space-y-4">
+                    <div className="grid gap-4 md:grid-cols-12 items-center">
+                      {/* Numeric input */}
+                      <div className="md:col-span-5 space-y-2">
+                        <Label htmlFor="order_hold_duration" className="text-xs font-bold text-zinc-700 dark:text-zinc-300 flex items-center justify-between">
+                          <span>Hold Duration ({holdDurationUnit === 'hours' ? 'in Hours' : 'in Minutes'})</span>
+                          <span className="text-[10px] text-zinc-400 font-normal">Min 20 mins • Max 24 hours</span>
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="order_hold_duration"
+                            type="number"
+                            disabled={!isAdmin}
+                            step={holdDurationUnit === 'hours' ? '0.25' : '5'}
+                            min={holdDurationUnit === 'hours' ? '0.33' : '20'}
+                            max={holdDurationUnit === 'hours' ? '24' : '1440'}
+                            value={
+                              holdDurationUnit === 'hours'
+                                ? parseFloat(((hotelForm.order_hold_duration_minutes || 60) / 60).toFixed(2))
+                                : (hotelForm.order_hold_duration_minutes || 60)
+                            }
+                            onChange={(e) => {
+                              const rawVal = parseFloat(e.target.value);
+                              if (isNaN(rawVal)) return;
+                              let newMinutes = holdDurationUnit === 'hours' ? Math.round(rawVal * 60) : Math.round(rawVal);
+                              newMinutes = Math.max(20, Math.min(1440, newMinutes));
+                              setHotelForm(h => ({ ...h, order_hold_duration_minutes: newMinutes }));
+                            }}
+                            className="rounded-xl h-11 text-sm font-semibold border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 dark:text-zinc-50 pl-9 pr-14 focus-visible:ring-1 focus-visible:ring-[#D4AF37]"
+                          />
+                          <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">
+                            {holdDurationUnit === 'hours' ? 'hours' : 'mins'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Interactive Range Slider */}
+                      <div className="md:col-span-7 space-y-2">
+                        <div className="flex items-center justify-between text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                          <span className="flex items-center gap-1.5">
+                            <Timer className="h-3.5 w-3.5 text-[#D4AF37]" />
+                            <span>Fine-Tune Slider</span>
+                          </span>
+                          <span className="text-zinc-500 font-mono text-[11px]">
+                            {hotelForm.order_hold_duration_minutes || 60} mins ({(((hotelForm.order_hold_duration_minutes || 60) / 60)).toFixed(1)}h)
+                          </span>
+                        </div>
+                        <div className="relative pt-1">
+                          <input
+                            type="range"
+                            min="20"
+                            max="1440"
+                            step="5"
+                            disabled={!isAdmin}
+                            value={hotelForm.order_hold_duration_minutes || 60}
+                            onChange={(e) => {
+                              const val = Math.max(20, Math.min(1440, Number(e.target.value)));
+                              setHotelForm(h => ({ ...h, order_hold_duration_minutes: val }));
+                            }}
+                            className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#0A2540] dark:accent-[#D4AF37]"
+                          />
+                          <div className="flex justify-between text-[10px] font-semibold text-zinc-400 mt-1">
+                            <span>20m (Min)</span>
+                            <span>2 hrs</span>
+                            <span>6 hrs</span>
+                            <span>12 hrs</span>
+                            <span>24 hrs (Max)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quick Presets Grid */}
+                    <div className="space-y-1.5 pt-1">
+                      <Label className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                        Quick Duration Presets
+                      </Label>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { label: '20 mins (Min)', mins: 20 },
+                          { label: '30 mins', mins: 30 },
+                          { label: '45 mins', mins: 45 },
+                          { label: '1 hour', mins: 60 },
+                          { label: '2 hours', mins: 120 },
+                          { label: '4 hours', mins: 240 },
+                          { label: '8 hours', mins: 480 },
+                          { label: '12 hours', mins: 720 },
+                          { label: '24 hours (Max)', mins: 1440 }
+                        ].map(preset => {
+                          const isSelected = (hotelForm.order_hold_duration_minutes || 60) === preset.mins;
+                          return (
+                            <button
+                              key={preset.mins}
+                              type="button"
+                              disabled={!isAdmin}
+                              onClick={() => setHotelForm(h => ({ ...h, order_hold_duration_minutes: preset.mins }))}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                                isSelected
+                                  ? 'bg-[#0A2540] text-[#D4AF37] border-[#D4AF37] dark:bg-[#D4AF37] dark:text-[#0A192F] shadow-xs'
+                                  : 'bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600'
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Live Policy Info Callout */}
+                    <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-955/20 border border-amber-200/80 dark:border-amber-900/40 text-amber-800 dark:text-amber-300 flex items-start gap-2.5 text-xs">
+                      <Timer className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                      <div className="space-y-0.5">
+                        <p className="font-bold">Active Hold Policy</p>
+                        <p className="text-[11px] leading-relaxed opacity-90">
+                          When a staff member clicks <span className="font-semibold">&ldquo;Hold Session&rdquo;</span> in the Create Order POS modal, the ticket will remain active and count down from <span className="font-bold text-[#0A2540] dark:text-[#D4AF37]">{(() => {
+                            const totalMins = hotelForm.order_hold_duration_minutes || 60;
+                            const h = Math.floor(totalMins / 60);
+                            const m = totalMins % 60;
+                            if (h > 0 && m > 0) return `${h} hour${h > 1 ? 's' : ''} and ${m} minutes`;
+                            if (h > 0) return `${h} hour${h > 1 ? 's' : ''}`;
+                            return `${m} minutes`;
+                          })()}</span>. Staff can resume the held session anytime from the modal header.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

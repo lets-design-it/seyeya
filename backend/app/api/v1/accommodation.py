@@ -57,6 +57,71 @@ async def get_all_rooms_list(
     return result.scalars().all()
 
 
+@router.get("/rooms/checked-in")
+async def get_checked_in_rooms(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Retrieve all rooms with checked-in guests or occupied status"""
+    from app.models import Room, AccommodationReservation, Customer, RoomCategory
+    from sqlalchemy.orm import selectinload
+    
+    result = await db.execute(
+        select(Room)
+        .options(
+            selectinload(Room.category),
+            selectinload(Room.reservations).selectinload(AccommodationReservation.customer)
+        )
+        .order_by(Room.room_number)
+    )
+    all_rooms = result.scalars().all()
+    
+    checked_in = []
+    for r in all_rooms:
+        active_res = next(
+            (res for res in (r.reservations or []) if res.reservation_status in ('CheckedIn', 'Checked In')),
+            None
+        )
+        if active_res or r.room_status == 'Occupied':
+            guest_name = None
+            guest_phone = None
+            customer_id = None
+            res_id = None
+            if active_res:
+                res_id = active_res.reservation_id
+                customer_id = active_res.customer_id
+                if active_res.customer:
+                    guest_name = active_res.customer.full_name
+                    guest_phone = active_res.customer.phone_number
+                elif hasattr(active_res, 'guest_details') and active_res.guest_details:
+                    guest_name = active_res.guest_details[0].guest_name
+                    guest_phone = getattr(active_res.guest_details[0], 'phone_number', None)
+                else:
+                    guest_name = getattr(active_res, 'guest_name', None)
+                    
+            cat_name = r.category.category_name if (r.category and hasattr(r.category, 'category_name')) else None
+            label_parts = [f"Room {r.room_number}"]
+            if cat_name:
+                label_parts.append(f"({cat_name})")
+            if guest_name:
+                label_parts.append(f"- {guest_name}")
+                
+            checked_in.append({
+                "room_id": r.room_id,
+                "room_number": r.room_number,
+                "room_name": r.room_name,
+                "building": r.building,
+                "category_name": cat_name,
+                "reservation_id": res_id,
+                "customer_id": customer_id,
+                "guest_name": guest_name,
+                "guest_phone": guest_phone,
+                "display_label": " ".join(label_parts)
+            })
+            
+    return checked_in
+
+
 @router.get("/rooms/{room_id}", response_model=RoomResponse)
 async def get_room(
     room_id: int,

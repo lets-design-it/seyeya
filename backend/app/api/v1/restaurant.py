@@ -10,7 +10,8 @@ from app.schemas import (
     RestaurantOrderCreate, RestaurantOrderResponse, RestaurantOrderUpdate,
     MenuCategoryResponse, MenuCategoryCreate, MenuCategoryUpdate, MenuItemResponse, MenuItemCreate, MenuItemUpdate, MenuExtraCreate, MenuExtraResponse, CustomerReviewCreate, CustomerReviewResponse,
     MenuChoiceCreate, MenuChoiceUpdate, MenuChoiceResponse, MenuAccompanimentCreate, MenuAccompanimentUpdate, MenuAccompanimentResponse, MenuExtraUpdate,
-    DeliveryPricingCreate, DeliveryPricingUpdate, DeliveryPricingResponse, DeliveryCalculationRequest, DeliveryCalculationResponse
+    DeliveryPricingCreate, DeliveryPricingUpdate, DeliveryPricingResponse, DeliveryCalculationRequest, DeliveryCalculationResponse,
+    RestaurantTableCreate, RestaurantTableUpdate, RestaurantTableResponse
 )
 from app.services import RestaurantOrderService
 from app.repositories import MenuRepository, ReviewRepository
@@ -672,4 +673,122 @@ async def delete_delivery_pricing(pricing_id: int, db: AsyncSession = Depends(ge
         
     await db.delete(pricing)
     await db.commit()
+
+
+# =====================================================================
+# RESTAURANT TABLES ROUTES
+# =====================================================================
+
+@router.get("/tables", response_model=List[RestaurantTableResponse])
+async def get_restaurant_tables(db: AsyncSession = Depends(get_db)):
+    """Retrieve all dining tables, auto-seeding defaults if none exist"""
+    from sqlalchemy.future import select
+    from app.models import RestaurantTable
+    
+    res = await db.execute(
+        select(RestaurantTable)
+        .where(RestaurantTable.is_active == True)
+        .order_by(RestaurantTable.location, RestaurantTable.table_number)
+    )
+    tables = res.scalars().all()
+    
+    if not tables:
+        # Auto-seed standard tables if database has none
+        default_tables = [
+            ("Table 1", "Main Restaurant", 4),
+            ("Table 2", "Main Restaurant", 4),
+            ("Table 3", "Main Restaurant", 2),
+            ("Table 4", "Main Restaurant", 6),
+            ("Table 5", "Main Restaurant", 4),
+            ("Table 6", "Main Restaurant", 8),
+            ("Table 7", "Verandah & Terrace", 4),
+            ("Table 8", "Verandah & Terrace", 4),
+            ("Table 9", "Verandah & Terrace", 2),
+            ("Cabana 1", "Poolside Deck", 6),
+            ("Cabana 2", "Poolside Deck", 6),
+            ("Gazebo A", "Garden Gazebos", 8),
+            ("Gazebo B", "Garden Gazebos", 8),
+            ("VIP Table 1", "VIP Lounge", 4),
+            ("VIP Table 2", "VIP Lounge", 6),
+        ]
+        for num, loc, cap in default_tables:
+            t = RestaurantTable(table_number=num, location=loc, capacity=cap, status="Available", is_active=True)
+            db.add(t)
+        await db.commit()
+        res = await db.execute(
+            select(RestaurantTable)
+            .where(RestaurantTable.is_active == True)
+            .order_by(RestaurantTable.location, RestaurantTable.table_number)
+        )
+        tables = res.scalars().all()
+        
+    return tables
+
+
+@router.post("/tables", response_model=RestaurantTableResponse, status_code=status.HTTP_201_CREATED)
+async def create_restaurant_table(
+    request: RestaurantTableCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new dining table"""
+    from app.models import RestaurantTable
+    table = RestaurantTable(
+        table_number=request.table_number.strip(),
+        location=request.location.strip() if request.location else "Main Restaurant",
+        capacity=request.capacity or 4,
+        status=request.status or "Available",
+        is_active=True if request.is_active is None else request.is_active
+    )
+    db.add(table)
+    await db.commit()
+    await db.refresh(table)
+    return table
+
+
+@router.put("/tables/{table_id}", response_model=RestaurantTableResponse)
+async def update_restaurant_table(
+    table_id: int,
+    request: RestaurantTableUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a dining table"""
+    from sqlalchemy.future import select
+    from app.models import RestaurantTable
+    
+    res = await db.execute(select(RestaurantTable).where(RestaurantTable.table_id == table_id))
+    table = res.scalar_one_or_none()
+    if not table:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table not found")
+        
+    update_data = request.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        if value is not None:
+            setattr(table, key, value)
+            
+    await db.commit()
+    await db.refresh(table)
+    return table
+
+
+@router.delete("/tables/{table_id}", status_code=status.HTTP_200_OK)
+async def delete_restaurant_table(
+    table_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete a dining table"""
+    from sqlalchemy.future import select
+    from app.models import RestaurantTable
+    
+    res = await db.execute(select(RestaurantTable).where(RestaurantTable.table_id == table_id))
+    table = res.scalar_one_or_none()
+    if not table:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table not found")
+        
+    await db.delete(table)
+    await db.commit()
+    return {"message": "Table deleted successfully", "table_id": table_id}
+
 

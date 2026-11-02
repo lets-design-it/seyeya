@@ -502,6 +502,25 @@ class DeliveryPricing(Base):
     )
 
 
+class RestaurantTable(Base):
+    """Restaurant dining table model"""
+    __tablename__ = "restaurant_tables"
+    
+    table_id = Column(Integer, primary_key=True)
+    table_number = Column(String(50), nullable=False)
+    location = Column(String(100), nullable=False, default="Main Restaurant")
+    capacity = Column(Integer, default=4)
+    status = Column(String(30), default="Available")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('ix_restaurant_tables_location', 'location'),
+        Index('ix_restaurant_tables_is_active', 'is_active'),
+    )
+
+
 # =====================================================================
 # SECTION 4: ACCOMMODATION MODULE
 # =====================================================================
@@ -1292,6 +1311,7 @@ class HotelDetails(Base):
     currency = Column(String(10), nullable=True)
     timezone = Column(String(50), nullable=False, default="UTC")
     vat_rate = Column(DECIMAL(5, 2), nullable=False, default=18.00)
+    order_hold_duration_minutes = Column(Integer, nullable=False, default=60)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
