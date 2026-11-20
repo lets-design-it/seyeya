@@ -1,10 +1,8 @@
 """
 Responsive HTML/CSS Email Templates for SEYEYA Courts Branding
 """
-from datetime import datetime
 from typing import Optional
-
-def get_base_template(content_html: str, title: str, year: Optional[int] = None) -> str:
+def get_base_template(content_html: str, title: str) -> str:
     """
     Wraps content in a professional, responsive layout matching SEYEYA Courts branding.
     """
