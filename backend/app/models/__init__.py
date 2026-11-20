@@ -41,6 +41,7 @@ class User(Base):
     device_tokens = relationship("DeviceToken", back_populates="user", cascade="all, delete-orphan")
     customer = relationship("Customer", back_populates="user", uselist=False)
     payment_methods = relationship("PaymentMethod", back_populates="user", cascade="all, delete-orphan")
+    payment_transactions = relationship("PaymentTransaction", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="recipient", cascade="all, delete-orphan")
     notification_preferences = relationship("NotificationPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
@@ -230,6 +231,7 @@ class Customer(Base):
     reservations = relationship("AccommodationReservation", back_populates="customer", cascade="all, delete-orphan")
     conference_reservations = relationship("ConferenceReservation", back_populates="customer", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="customer", cascade="all, delete-orphan")
+    payment_transactions = relationship("PaymentTransaction", back_populates="customer", cascade="all, delete-orphan")
     reviews = relationship("CustomerReview", back_populates="customer", cascade="all, delete-orphan")
 
     @property
@@ -1008,6 +1010,7 @@ class Payment(Base):
     # Relationships
     customer = relationship("Customer", back_populates="payments")
     refunds = relationship("PaymentRefund", back_populates="payment", cascade="all, delete-orphan")
+    gateway_transactions = relationship("PaymentTransaction", back_populates="payment", cascade="all, delete-orphan")
     
     __table_args__ = (
         Index('ix_payments_customer_id', 'customer_id'),
@@ -1031,6 +1034,62 @@ class PaymentRefund(Base):
     
     # Relationships
     payment = relationship("Payment", back_populates="refunds")
+
+
+class PaymentTransaction(Base):
+    """Gateway-specific transaction state for payments initiated through Seyeya Pay."""
+    __tablename__ = "payment_transactions"
+
+    id = Column(Integer, primary_key=True)
+    external_id = Column(String(120), nullable=False, unique=True)
+    provider = Column(String(50), nullable=False, default="seyeya_pay")
+    provider_payment_id = Column(String(120), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="SET NULL"), nullable=True)
+    customer_id = Column(Integer, ForeignKey("customers.customer_id", ondelete="SET NULL"), nullable=True)
+    payment_id = Column(Integer, ForeignKey("payments.payment_id", ondelete="SET NULL"), nullable=True)
+    payment_method = Column(String(50), nullable=False, default="mobile_money")
+    amount = Column(DECIMAL(18, 2), nullable=False)
+    currency = Column(String(5), nullable=False, default="UGX")
+    status = Column(String(30), nullable=False, default="pending")
+    provider_response = Column(JSON, nullable=False, default=dict)
+    failure_reason = Column(String(300), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    confirmed_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="payment_transactions")
+    customer = relationship("Customer", back_populates="payment_transactions")
+    payment = relationship("Payment", back_populates="gateway_transactions")
+
+    __table_args__ = (
+        Index('ix_payment_transactions_user_id', 'user_id'),
+        Index('ix_payment_transactions_customer_id', 'customer_id'),
+        Index('ix_payment_transactions_status', 'status'),
+        Index('ix_payment_transactions_provider_payment_id', 'provider_payment_id'),
+        UniqueConstraint('provider', 'provider_payment_id', name='uq_provider_payment_id'),
+    )
+
+
+class PaymentWebhookEvent(Base):
+    """Persisted webhook events used for duplicate detection and replay protection."""
+    __tablename__ = "payment_webhook_events"
+
+    id = Column(Integer, primary_key=True)
+    provider = Column(String(50), nullable=False, default="seyeya_pay")
+    event_reference = Column(String(150), nullable=False)
+    event_type = Column(String(80), nullable=False)
+    payload = Column(JSON, nullable=False, default=dict)
+    signature_verified = Column(Boolean, nullable=False, default=False)
+    processing_status = Column(String(30), nullable=False, default="received")
+    received_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    processed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index('ix_payment_webhook_provider', 'provider'),
+        Index('ix_payment_webhook_event_type', 'event_type'),
+        Index('ix_payment_webhook_received_at', 'received_at'),
+        UniqueConstraint('provider', 'event_reference', name='uq_payment_webhook_provider_event'),
+    )
 
 
 class PaymentMethod(Base):

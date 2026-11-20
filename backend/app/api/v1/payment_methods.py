@@ -1,7 +1,7 @@
 """
 Payment methods API endpoints
 """
-from typing import List
+from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -84,3 +84,4 @@ async def set_default_payment_method(
     user_id = current_user["user_id"]
     service = PaymentMethodService(db)
     return await service.set_default(user_id, id)
+
