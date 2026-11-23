@@ -4,7 +4,7 @@ import json
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, status as http_status
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -108,8 +108,8 @@ class GatewayFeeRequest(BaseModel):
 
 
 class GatewayRefundRequest(BaseModel):
-    payment_id: int = Field(..., gt=0)
-    amount: int = Field(..., gt=0)
+    payment_id: str = Field(..., min_length=1, description="Original TricsoftPay collection payment UUID")
+    amount: Optional[int] = Field(default=None, gt=0, description="Optional partial refund amount; omit for full remaining refund")
     reason: Optional[str] = None
     external_id: Optional[str] = None
 
@@ -152,17 +152,17 @@ def get_tricsoftpay_credentials(
         if normalized_authorization:
             scheme, _, credentials = normalized_authorization.partition(" ")
             if scheme.lower() != "apikey" or ":" not in credentials:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization must use ApiKey key_id:api_secret")
+                raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED, detail="Authorization must use ApiKey key_id:api_secret")
 
             api_key_id, api_secret = credentials.split(":", 1)
             api_key_id = api_key_id.strip()
             api_secret = api_secret.strip()
             if not api_key_id or not api_secret:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid TricsoftPay ApiKey credentials")
+                raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED, detail="Invalid TricsoftPay ApiKey credentials")
             return api_key_id, api_secret
 
     if not SEYEYA_PAY_API_KEY_ID or not SEYEYA_PAY_API_SECRET:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="TricsoftPay credentials are not configured")
+        raise HTTPException(status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR, detail="TricsoftPay credentials are not configured")
     return SEYEYA_PAY_API_KEY_ID, SEYEYA_PAY_API_SECRET
 
 
@@ -194,36 +194,15 @@ async def list_payment_methods(credentials: tuple[str, str] = Depends(get_tricso
 async def collect_with_gateway(
     payload: GatewayCollectRequest = Body(...),
     credentials: tuple[str, str] = Depends(get_tricsoftpay_credentials),
-    db: AsyncSession = Depends(get_db),
 ) -> Dict[str, Any]:
     """Create a collection using direct TricsoftPay ApiKey credentials."""
 
-    original_amount = payload.amount
-    persisted_amount = Decimal(str(payload.amount))
-    external_id = payload.external_id
-    transaction = PaymentTransaction(
-        external_id=external_id or "",
-        provider="tricsoftpay",
-        provider_payment_id=None,
-        user_id=None,
-        customer_id=payload.customer_id,
-        payment_id=payload.payment_id,
-        payment_method="card" if payload.provider_code == "card_collections" else "mobile_money",
-        amount=persisted_amount,
-        currency=(payload.currency or "UGX"),
-        status="pending",
-        provider_response={},
-    )
-    # db.add(transaction)
-    # await db.commit()
-    # await db.refresh(transaction)
-
     try:
         gateway = create_gateway_client(credentials)
-        provider_response = await gateway.create_collection(
+        return await gateway.create_collection(
             provider_code=payload.provider_code,
-            amount=original_amount,
-            external_id=external_id,
+            amount=payload.amount,
+            external_id=payload.external_id,
             customer_phone=payload.customer_phone,
             customer_email=payload.customer_email,
             customer_first_name=payload.customer_first_name,
@@ -234,33 +213,14 @@ async def collect_with_gateway(
             currency=payload.currency,
             description=payload.description,
         )
-        transaction.provider_response = provider_response
-        transaction.provider_payment_id = str(provider_response.get("payment_id")) if provider_response.get("payment_id") not in (None, "") else None
-        provider_status = str(provider_response.get("status", "pending"))
-        transaction.status = provider_status if provider_status in {"pending", "success", "failed"} else "pending"
-        # await db.commit()
-        # await db.refresh(transaction)
-        return provider_response
     except TimeoutError as exc:
-        transaction.status = "failed"
-        transaction.failure_reason = str(exc)
-        await db.commit()
-        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc)) from exc
     except ConnectionError as exc:
-        transaction.status = "failed"
-        transaction.failure_reason = str(exc)
-        await db.commit()
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except ValueError as exc:
-        transaction.status = "failed"
-        transaction.failure_reason = str(exc)
-        await db.commit()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
-        transaction.status = "failed"
-        transaction.failure_reason = "Unexpected gateway initiation failure"
-        await db.commit()
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Seyeya Pay gateway error") from exc
+        raise HTTPException(status_code=http_status.HTTP_502_BAD_GATEWAY, detail="Seyeya Pay gateway error") from exc
 
 
 @router.get("/transactions")
@@ -269,20 +229,39 @@ async def list_gateway_transactions(
     page_size: int = 25,
     limit: Optional[int] = None,
     offset: int = 0,
+    status: Optional[str] = None,
     transaction_status: Optional[str] = None,
     external_id: Optional[str] = None,
     credentials: tuple[str, str] = Depends(get_tricsoftpay_credentials),
 ) -> Dict[str, Any]:
-    """List recent transactions using the provider payment listing API."""
+    """List recent transactions directly from the TricsoftPay API."""
+    gateway = create_gateway_client(credentials)
+    if limit is not None:
+        page_size = limit
+    if offset and page_size:
+        page = (offset // page_size) + 1
+
+    effective_status = status or transaction_status
+    if effective_status:
+        effective_status = effective_status.strip().lower()
+        if effective_status == "success":
+            effective_status = "successful"
+
     try:
-        gateway = create_gateway_client(credentials)
-        if limit is not None:
-            page_size = limit
-        if offset and page_size:
-            page = (offset // page_size) + 1
-        return await gateway.list_transactions(page=page, page_size=page_size, status=transaction_status, external_id=external_id)
+        return await gateway.list_transactions(
+            page=page,
+            page_size=page_size,
+            status=effective_status,
+            external_id=external_id,
+        )
+    except TimeoutError as exc:
+        raise HTTPException(status_code=http_status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc)) from exc
+    except ConnectionError as exc:
+        raise HTTPException(status_code=http_status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        if "internal error" in str(exc).lower():
+            raise HTTPException(status_code=http_status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.get("/transactions/{payment_id}")
@@ -292,12 +271,12 @@ async def get_gateway_transaction(
 ) -> Dict[str, Any]:
     """Retrieve a payment using the provider payment details API."""
     if not payment_id or payment_id.strip() == "":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="payment_id is required")
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail="payment_id is required")
     try:
         gateway = create_gateway_client(credentials)
         return await gateway.get_payment(payment_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post("/status")
@@ -311,7 +290,7 @@ async def get_gateway_transaction_status(
         gateway = create_gateway_client(credentials)
         return await gateway.check_transaction_status(payload.payment_id)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post("/disburse")
@@ -327,11 +306,11 @@ async def create_gateway_disbursement(
         select(PaymentTransaction).where(PaymentTransaction.external_id == payload.external_id)
     )
     if existing.scalar_one_or_none() is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A disbursement with this external_id already exists")
+        raise HTTPException(status_code=http_status.HTTP_409_CONFLICT, detail="A disbursement with this external_id already exists")
 
     transaction = PaymentTransaction(
         external_id=payload.external_id,
-        provider=payload.provider_code,
+        provider="tricsoftpay",
         user_id=None,
         payment_method="mobile_money",
         amount=Decimal(str(payload.amount)),
@@ -339,9 +318,6 @@ async def create_gateway_disbursement(
         status="pending",
         provider_response={},
     )
-    db.add(transaction)
-    await db.commit()
-    await db.refresh(transaction)
 
     try:
         gateway = create_gateway_client(credentials)
@@ -362,11 +338,26 @@ async def create_gateway_disbursement(
         await db.commit()
         await db.refresh(transaction)
         return provider_response
+    except TimeoutError as exc:
+        transaction.status = "failed"
+        transaction.failure_reason = str(exc)
+        await db.commit()
+        raise HTTPException(status_code=http_status.HTTP_504_GATEWAY_TIMEOUT, detail=str(exc)) from exc
+    except ConnectionError as exc:
+        transaction.status = "failed"
+        transaction.failure_reason = str(exc)
+        await db.commit()
+        raise HTTPException(status_code=http_status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
     except ValueError as exc:
         transaction.status = "failed"
         transaction.failure_reason = str(exc)
         await db.commit()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        transaction.status = "failed"
+        transaction.failure_reason = "Unexpected gateway initiation failure"
+        await db.commit()
+        raise HTTPException(status_code=http_status.HTTP_502_BAD_GATEWAY, detail="Seyeya Pay gateway error") from exc
 
 
 @router.post("/fees/calculate")
@@ -383,7 +374,7 @@ async def calculate_gateway_fee(
             transaction_type=payload.transaction_type,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post("/refunds")
@@ -401,7 +392,7 @@ async def refund_gateway_payment(
             external_id=payload.external_id,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post("/payment-links")
@@ -421,7 +412,7 @@ async def create_gateway_payment_link(
             redirect_url=payload.redirect_url,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post("/ussd")
@@ -440,20 +431,22 @@ async def create_gateway_ussd(
             description=payload.description,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @router.post("/webhooks/verify")
-async def verify_gateway_webhook(request: Request) -> Dict[str, Any]:
+async def verify_gateway_webhook(
+    request: Request,
+    signature: Optional[str] = Header(default=None, alias="x-webhook-signature", description="HMAC-SHA256 signature of the exact raw request body"),
+) -> Dict[str, Any]:
     """Validate a Seyeya Pay webhook using the raw request body and HMAC signature."""
     raw_body = await request.body()
-    signature = request.headers.get("x-webhook-signature")
 
     if not signature:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing webhook signature")
+        raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED, detail="Missing webhook signature")
 
     if not verify_seyeya_pay_webhook_signature(raw_body, signature):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
+        raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
 
     payload = json.loads(raw_body.decode("utf-8") or "{}")
     data = payload.get("data", {})
@@ -461,31 +454,40 @@ async def verify_gateway_webhook(request: Request) -> Dict[str, Any]:
     status_value = data.get("status")
 
     if not external_id or status_value not in {"success", "failed"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
 
     return {"received": True, "verified": True, "external_id": external_id, "status": status_value}
 
 
 @router.post("/webhooks")
-async def handle_gateway_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+async def handle_gateway_webhook(
+    request: Request,
+    signature: Optional[str] = Header(default=None, alias="x-webhook-signature", description="HMAC-SHA256 signature of the exact raw request body"),
+    db: AsyncSession = Depends(get_db),
+) -> Dict[str, Any]:
     """Accept a verified TricsoftPay webhook and apply terminal status once."""
     raw_body = await request.body()
-    signature = request.headers.get("x-webhook-signature")
+
     if not signature:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing webhook signature")
+        raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED, detail="Missing webhook signature")
     if not verify_seyeya_pay_webhook_signature(raw_body, signature):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
+        raise HTTPException(status_code=http_status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature")
 
     try:
         payload = json.loads(raw_body.decode("utf-8") or "{}")
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON webhook payload") from exc
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail="Invalid JSON webhook payload") from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
 
     data = payload.get("data", {})
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
+
     external_id = data.get("external_id")
     status_value = data.get("status")
     if not external_id or status_value not in {"success", "failed"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
+        raise HTTPException(status_code=http_status.HTTP_400_BAD_REQUEST, detail="Invalid payload")
 
     event_reference = f"{external_id}:{status_value}"
     event_result = await db.execute(
@@ -502,8 +504,6 @@ async def handle_gateway_webhook(request: Request, db: AsyncSession = Depends(ge
         select(PaymentTransaction).where(PaymentTransaction.external_id == external_id)
     )
     transaction = transaction_result.scalar_one_or_none()
-    if transaction is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown external_id")
 
     event_type = str(data.get("transaction_type") or data.get("event_type") or "collection")
     event = PaymentWebhookEvent(
@@ -516,53 +516,61 @@ async def handle_gateway_webhook(request: Request, db: AsyncSession = Depends(ge
     )
     db.add(event)
 
-    transaction.status = status_value
-    transaction.provider_response = payload
-    if status_value == "success":
-        transaction.confirmed_at = __import__("datetime").datetime.utcnow()
-        transaction.failure_reason = None
-    else:
-        transaction.failure_reason = str(data.get("failure_reason") or data.get("message") or "Payment failed")
+    if transaction is not None:
+        transaction.status = status_value
+        transaction.provider_response = payload
+        if status_value == "success":
+            transaction.confirmed_at = __import__("datetime").datetime.utcnow()
+            transaction.failure_reason = None
+        else:
+            transaction.failure_reason = str(data.get("failure_reason") or data.get("message") or "Payment failed")
 
-    if status_value == "success" and transaction.payment_id:
-        payment_result = await db.execute(select(Payment).where(Payment.payment_id == transaction.payment_id))
-        payment = payment_result.scalar_one_or_none()
-        if payment is not None and payment.payment_status != "Paid":
-            payment.payment_status = "Paid"
-            payment.verified_at = __import__("datetime").datetime.utcnow()
-            payment.gateway_response = json.dumps(payload)
-            db.add(payment)
+        if status_value == "success" and transaction.payment_id:
+            payment_result = await db.execute(select(Payment).where(Payment.payment_id == transaction.payment_id))
+            payment = payment_result.scalar_one_or_none()
+            if payment is not None and payment.payment_status != "Paid":
+                payment.payment_status = "Paid"
+                payment.verified_at = __import__("datetime").datetime.utcnow()
+                payment.gateway_response = json.dumps(payload)
+                db.add(payment)
 
-            if payment.reference_type == "RestaurantOrder":
-                from app.models import RestaurantOrder
-                result = await db.execute(select(RestaurantOrder).where(RestaurantOrder.order_id == payment.reference_id))
-                business_record = result.scalar_one_or_none()
-                if business_record:
-                    business_record.amount_paid += payment.amount_paid
-                    business_record.balance_due = business_record.total_amount - business_record.amount_paid
-                    business_record.payment_status = "Paid" if business_record.balance_due <= 0 else "PartiallyPaid"
-                    db.add(business_record)
-            elif payment.reference_type == "AccommodationReservation":
-                from app.models import AccommodationReservation
-                result = await db.execute(select(AccommodationReservation).where(AccommodationReservation.reservation_id == payment.reference_id))
-                business_record = result.scalar_one_or_none()
-                if business_record:
-                    business_record.amount_paid += payment.amount_paid
-                    business_record.balance_due = business_record.total_amount - business_record.amount_paid
-                    business_record.payment_status = "Paid" if business_record.balance_due <= 0 else "PartiallyPaid"
-                    db.add(business_record)
-            elif payment.reference_type == "ConferenceReservation":
-                from app.models import ConferenceReservation
-                result = await db.execute(select(ConferenceReservation).where(ConferenceReservation.conference_res_id == payment.reference_id))
-                business_record = result.scalar_one_or_none()
-                if business_record:
-                    business_record.amount_paid += payment.amount_paid
-                    business_record.balance_due = business_record.total_amount - business_record.amount_paid
-                    business_record.payment_status = "Paid" if business_record.balance_due <= 0 else "PartiallyPaid"
-                    db.add(business_record)
+                if payment.reference_type == "RestaurantOrder":
+                    from app.models import RestaurantOrder
+                    result = await db.execute(select(RestaurantOrder).where(RestaurantOrder.order_id == payment.reference_id))
+                    business_record = result.scalar_one_or_none()
+                    if business_record:
+                        business_record.amount_paid += payment.amount_paid
+                        business_record.balance_due = business_record.total_amount - business_record.amount_paid
+                        business_record.payment_status = "Paid" if business_record.balance_due <= 0 else "PartiallyPaid"
+                        db.add(business_record)
+                elif payment.reference_type == "AccommodationReservation":
+                    from app.models import AccommodationReservation
+                    result = await db.execute(select(AccommodationReservation).where(AccommodationReservation.reservation_id == payment.reference_id))
+                    business_record = result.scalar_one_or_none()
+                    if business_record:
+                        business_record.amount_paid += payment.amount_paid
+                        business_record.balance_due = business_record.total_amount - business_record.amount_paid
+                        business_record.payment_status = "Paid" if business_record.balance_due <= 0 else "PartiallyPaid"
+                        db.add(business_record)
+                elif payment.reference_type == "ConferenceReservation":
+                    from app.models import ConferenceReservation
+                    result = await db.execute(select(ConferenceReservation).where(ConferenceReservation.conference_res_id == payment.reference_id))
+                    business_record = result.scalar_one_or_none()
+                    if business_record:
+                        business_record.amount_paid += payment.amount_paid
+                        business_record.balance_due = business_record.total_amount - business_record.amount_paid
+                        business_record.payment_status = "Paid" if business_record.balance_due <= 0 else "PartiallyPaid"
+                        db.add(business_record)
 
     event.processing_status = "processed"
     event.processed_at = __import__("datetime").datetime.utcnow()
     await db.commit()
-    await db.refresh(transaction)
-    return {"received": True, "verified": True, "external_id": external_id, "status": status_value}
+    if transaction is not None:
+        await db.refresh(transaction)
+    return {
+        "received": True,
+        "verified": True,
+        "external_id": external_id,
+        "status": status_value,
+        "local_transaction_updated": transaction is not None,
+    }

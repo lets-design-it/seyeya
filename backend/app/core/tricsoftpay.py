@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import os
@@ -111,17 +112,26 @@ def verify_seyeya_pay_webhook_signature(raw_body: bytes, signature: Optional[str
         return False
 
     normalized = signature.strip()
-    for prefix in ("sha256=", "sha256:", "v1=", "v0="):
-        if normalized.lower().startswith(prefix):
-            normalized = normalized[len(prefix):]
+    lowered = normalized.lower()
+    for prefix in ("sha256=", "sha256:", "v1=", "v1:", "v0=", "v0:"):
+        if lowered.startswith(prefix):
+            normalized = normalized[len(prefix):].strip()
             break
-
-    if len(normalized) != 64:
-        return False
 
     expected = hmac.new(
         SEYEYA_PAY_WEBHOOK_KEY.encode("utf-8"),
         raw_body,
         hashlib.sha256,
-    ).hexdigest()
-    return hmac.compare_digest(expected, normalized.lower())
+    ).digest()
+
+    try:
+        if len(normalized) == 64:
+            received = bytes.fromhex(normalized)
+        else:
+            received = base64.b64decode(normalized, validate=True)
+    except (ValueError, base64.binascii.Error):
+        return False
+
+    if len(received) != hashlib.sha256().digest_size:
+        return False
+    return hmac.compare_digest(expected, received)

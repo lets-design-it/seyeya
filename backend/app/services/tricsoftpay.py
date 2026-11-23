@@ -6,6 +6,7 @@ import logging
 from typing import Any, Dict, Optional
 
 import httpx
+import pycountry
 
 from app.core.tricsoftpay import (
     SEYEYA_PAY_BASE_URL,
@@ -131,12 +132,28 @@ class SeyeyaPayGateway:
             message = str(error_payload)
 
         lowered = message.lower()
+        if isinstance(error_payload, dict):
+            error_details = error_payload.get("error")
+            if isinstance(error_details, dict):
+                error_code = str(error_details.get("code") or "").upper()
+                if error_code == "PERMISSION_DENIED":
+                    if error_details.get("kyc_error"):
+                        return "Disbursement permission is not granted on your payment account. Complete the required KYC verification and enable disbursement access."
+                    return "Disbursement permission is not granted on your payment account."
+
         if response_status == 401 or "invalid api key" in lowered or "authentication" in lowered or "unauthorized" in lowered:
             return "Payment provider authentication failed."
         if response_status == 403 or "whitelist" in lowered or "ip address" in lowered or "forbidden" in lowered:
             return "Payment provider request is blocked by the configured IP whitelist."
         if response_status == 404:
             return "Payment provider endpoint not found."
+        if response_status == 500:
+            request_id = ""
+            if isinstance(error_payload, dict):
+                request_id = str(error_payload.get("request_id") or "").strip()
+            if request_id:
+                return f"Payment provider transaction service returned an internal error. Provider request ID: {request_id}"
+            return "Payment provider transaction service returned an internal error."
         if response_status == 422:
             return "Payment provider rejected the payload."
         return "Payment provider request failed."
@@ -244,13 +261,21 @@ class SeyeyaPayGateway:
             payload["external_id"] = external_id.strip()
             normalized_amount *= 100
             payload["amount"] = normalized_amount
+
+            try:
+                normalized_country = self._normalize_country_code(customer_country)
+            except LookupError as exc:
+                raise ValueError("customer_country must be a valid ISO 3166 country name or two-character country code") from exc
+            if not normalized_country:
+                raise ValueError("customer_country is required for card collections")
+
             required = {
                 "customer_email": customer_email,
                 "customer_phone": customer_phone,
                 "customer_first_name": customer_first_name,
                 "customer_second_name": customer_second_name,
                 "customer_city": customer_city,
-                "customer_country": customer_country,
+                "customer_country": normalized_country,
                 "customer_state": customer_state,
                 "currency": currency,
             }
@@ -307,13 +332,22 @@ class SeyeyaPayGateway:
             raise ValueError("payment_id is required")
         return await self._request("POST", "/payments/status/", json_body={"payment_id": str(payment_id)})
 
-    async def refund_payment(self, payment_id: int, amount: int, reason: Optional[str] = None, external_id: Optional[str] = None) -> Dict[str, Any]:
-        payload = {"payment_id": payment_id, "amount": int(amount)}
+    async def refund_payment(self, payment_id: int | str, amount: Optional[int] = None, reason: Optional[str] = None, external_id: Optional[str] = None) -> Dict[str, Any]:
+        normalized_payment_id = str(payment_id).strip()
+        if not normalized_payment_id:
+            raise ValueError("payment_id is required")
+
+        payload = {"payment_id": normalized_payment_id}
+        if amount is not None:
+            normalized_amount = int(amount)
+            if normalized_amount <= 0:
+                raise ValueError("amount must be greater than zero")
+            payload["amount"] = str(normalized_amount)
         if reason:
             payload["reason"] = reason
         if external_id:
             payload["external_id"] = external_id
-        return await self._request("POST", "/refunds", json_body=payload)
+        return await self._request("POST", "/payments/refund/", json_body=payload)
 
     async def create_payment_link(self, amount: int, currency: str, description: str, external_id: str, customer_email: Optional[str] = None, redirect_url: Optional[str] = None) -> Dict[str, Any]:
         payload = {"amount": int(amount), "currency": currency, "description": description, "external_id": external_id}
@@ -334,6 +368,21 @@ class SeyeyaPayGateway:
             customer_phone=customer_phone,
             description=description,
         )
+
+    @staticmethod
+    def _normalize_country_code(country: Optional[str]) -> str:
+        """Convert an ISO code or country name to an uppercase ISO 3166-1 alpha-2 code."""
+        if not country:
+            return ""
+
+        value = str(country).strip()
+        if len(value) == 2:
+            code = pycountry.countries.get(alpha_2=value.upper())
+            if code:
+                return code.alpha_2.upper()
+
+        name = pycountry.countries.lookup(value)
+        return name.alpha_2.upper()
 
     async def close(self) -> None:
         await self.client.aclose()
